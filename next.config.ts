@@ -1,7 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    serverActions: {
+      // Default Next.js 1MB — terlalu kecil untuk foto absensi resolusi tinggi
+      // dan lampiran PDF. Harus >= MAX_SIZE di `lib/storage.ts` (5MB) plus
+      // ruang untuk field lain di FormData.
+      bodySizeLimit: "6mb",
+    },
+  },
 };
 
 export default nextConfig;

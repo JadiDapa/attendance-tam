@@ -1,0 +1,229 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  EMPLOYEE
+  ADMIN
+}
+
+enum AttendanceType {
+  CHECK_IN
+  CHECK_OUT
+}
+
+enum LeaveType {
+  IZIN
+  SAKIT
+  CUTI
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CorrectionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum HolidayType {
+  NASIONAL
+  CUTI_BERSAMA
+  INTERNAL
+}
+
+/// Keputusan admin atas absensi yang terekam di luar radius kantor.
+/// `null` pada `Attendance.reviewStatus` berarti absensi normal — tidak perlu diverifikasi.
+enum RadiusReviewStatus {
+  /// Menunggu keputusan admin — belum dihitung hadir.
+  PENDING
+  /// Diterima apa adanya: dihitung hadir/terlambat seperti absensi biasa.
+  VALID
+  /// Ditolak: absensinya dianulir, hari itu dihitung tidak absen.
+  ALPA
+  /// Dikonversi jadi izin.
+  IZIN
+  /// Dikonversi jadi sakit.
+  SAKIT
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(EMPLOYEE)
+  phone        String?
+  position     String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  attendances         Attendance[]           @relation("AttendanceOwner")
+  reviewedAttendances Attendance[]           @relation("AttendanceReviewer")
+  leaveRequests       LeaveRequest[]         @relation("LeaveRequester")
+  reviewedLeaves      LeaveRequest[]         @relation("LeaveReviewer")
+  corrections         AttendanceCorrection[] @relation("CorrectionRequester")
+  reviewedCorrections AttendanceCorrection[] @relation("CorrectionReviewer")
+  faceEmbeddings      FaceEmbedding[]
+
+  @@index([role, isActive])
+}
+
+model OfficeLocation {
+  id           String   @id @default(cuid())
+  name         String
+  latitude     Float
+  longitude    Float
+  radiusMeters Int      @default(100)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/// Kebijakan waktu kerja yang berlaku untuk semua karyawan (MVP: satu baris aktif).
+/// Jam masuk/pulang per hari ada di `WorkDay`.
+model WorkSchedule {
+  id                   String   @id @default(cuid())
+  name                 String   @default("Jam Kerja Standar")
+  lateToleranceMinutes Int      @default(15)
+  /// Akurasi GPS terburuk yang masih diterima saat absen, dalam meter.
+  maxAccuracyMeters    Int      @default(100)
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+/// Satu baris per hari dalam seminggu — selalu 7 baris.
+model WorkDay {
+  id           String   @id @default(cuid())
+  /// 0 = Minggu … 6 = Sabtu, sama dengan `Date#getUTCDay()`
+  dayOfWeek    Int      @unique
+  isWorkingDay Boolean  @default(true)
+  checkInTime  String // "HH:mm"
+  checkOutTime String // "HH:mm"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Attendance {
+  id     String @id @default(cuid())
+  user   User   @relation("AttendanceOwner", fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  type      AttendanceType
+  /// Tanggal kerja (tanpa jam) — dipakai untuk mencegah absen ganda per hari
+  workDate  DateTime       @db.Date
+  timestamp DateTime       @default(now())
+
+  /// Null untuk absensi hasil koreksi manual — tidak ada foto/GPS yang terekam.
+  latitude       Float?
+  longitude      Float?
+  distanceMeters Float?
+  /// Akurasi GPS yang dilaporkan perangkat saat absen, dalam meter.
+  accuracyMeters Float?
+  photoUrl       String?
+  isWithinRadius Boolean?
+  isLate         Boolean  @default(false)
+
+  /// True kalau baris ini dibuat admin lewat koreksi, bukan absen langsung.
+  isManual     Boolean               @default(false)
+  correction   AttendanceCorrection? @relation(fields: [correctionId], references: [id], onDelete: SetNull)
+  correctionId String?               @unique
+
+  /// Diisi hanya kalau absensi terekam di luar radius kantor dan perlu keputusan
+  /// admin. Null = absensi normal yang tidak perlu diverifikasi.
+  reviewStatus RadiusReviewStatus?
+  reviewedBy   User?               @relation("AttendanceReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, workDate, type])
+  @@index([workDate])
+  @@index([userId, timestamp])
+  @@index([reviewStatus, workDate])
+}
+
+/// Pengajuan koreksi absensi (lupa absen, HP mati, kamera error).
+/// Diajukan karyawan lalu di-review admin, atau dibuat langsung oleh admin.
+model AttendanceCorrection {
+  id     String @id @default(cuid())
+  user   User   @relation("CorrectionRequester", fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  workDate      DateTime         @db.Date
+  type          AttendanceType
+  /// Jam absen yang diusulkan, "HH:mm" pada zona APP_TIMEZONE.
+  requestedTime String
+  reason        String
+  status        CorrectionStatus @default(PENDING)
+
+  reviewedBy   User?     @relation("CorrectionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+
+  /// Absensi yang terbentuk setelah koreksi disetujui.
+  attendance Attendance?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([status, workDate])
+}
+
+/// Hari libur nasional / cuti bersama / libur internal perusahaan.
+/// Melengkapi `WorkDay` yang hanya mengatur pola mingguan.
+model Holiday {
+  id        String      @id @default(cuid())
+  date      DateTime    @unique @db.Date
+  name      String
+  type      HolidayType @default(NASIONAL)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model LeaveRequest {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("LeaveRequester", fields: [userId], references: [id], onDelete: Cascade)
+
+  type          LeaveType
+  startDate     DateTime    @db.Date
+  endDate       DateTime    @db.Date
+  reason        String
+  attachmentUrl String?
+  status        LeaveStatus @default(PENDING)
+
+  reviewedById String?
+  reviewedBy   User?     @relation("LeaveReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  reviewNote   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([status, startDate])
+}
+
+model FaceEmbedding {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vector    Float[]
+  createdAt DateTime @default(now())
+}
