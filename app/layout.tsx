@@ -1,26 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Figtree } from "next/font/google";
+import { Manrope } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import Providers from "@/providers/Providers";
 import { Toaster } from "sonner";
 
-const figtree = Figtree({ subsets: ["latin"], variable: "--font-sans" });
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const manrope = Manrope({
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: "--font-manrope",
 });
 
 export const metadata: Metadata = {
-  title: "Blog CMS",
+  title: "Absensi | Taruna Anugerah Mandiri",
   description:
-    "A Next.js blog boilerplate with Clerk auth, Prisma, and shadcn/ui",
+    "Absensi Taruna Anugerah Mandiri adalah sistem absensi yang dirancang untuk memudahkan proses pencatatan kehadiran taruna. Dengan fitur-fitur canggih dan antarmuka yang intuitif, sistem ini memungkinkan pengelolaan absensi yang efisien dan akurat, membantu organisasi dalam memantau kehadiran taruna secara real-time.",
 };
 
 export default function RootLayout({
@@ -29,14 +22,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      className={cn(geistSans.variable, geistMono.variable, figtree.variable)}
-      suppressHydrationWarning
-      lang="en"
-    >
+    <html className={cn(manrope.variable)} suppressHydrationWarning lang="en">
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
+
       <body>
         <Providers>
           <Toaster richColors position="top-right" />

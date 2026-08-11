@@ -24,7 +24,7 @@ export default function AttendanceTrendChart({ data }: { data: TrendPoint[] }) {
   return (
     <ChartContainer
       config={chartConfig}
-      className="aspect-auto h-56 w-full [&_.recharts-cartesian-axis-tick_text]:text-[11px]"
+      className="aspect-auto h-72 w-full [&_.recharts-cartesian-axis-tick_text]:text-[11px]"
     >
       <LineChart
         data={data}

@@ -41,6 +41,7 @@ import {
   WorkDayService,
   WorkScheduleService,
 } from "@/servers/services/setting.service";
+import { FaceService } from "@/servers/services/face.service";
 import { formatDayHours, getWorkDayFor } from "@/lib/work-schedule";
 
 type SearchParams = { start?: string; end?: string; view?: string };
@@ -67,17 +68,19 @@ export default async function EmployeeDashboardPage({
   const range = resolveAttendanceRange(params, today);
   const view = parseAttendanceView(params.view, "calendar");
 
-  const [todayStatus, schedule, workDays, office, rows] = await Promise.all([
-    AttendanceService.getTodayStatus(user.id, today),
-    WorkScheduleService.getActive(),
-    WorkDayService.list(),
-    OfficeLocationService.getActive(),
-    ReportService.buildRecap({
-      startDate: range.startDate,
-      endDate: range.endDate,
-      userId: user.id,
-    }),
-  ]);
+  const [todayStatus, schedule, workDays, office, rows, faceEnrolled] =
+    await Promise.all([
+      AttendanceService.getTodayStatus(user.id, today),
+      WorkScheduleService.getActive(),
+      WorkDayService.list(),
+      OfficeLocationService.getActive(),
+      ReportService.buildRecap({
+        startDate: range.startDate,
+        endDate: range.endDate,
+        userId: user.id,
+      }),
+      FaceService.isEnrolled(user.id),
+    ]);
 
   const days = buildAttendanceDays({
     rows,
@@ -122,7 +125,7 @@ export default async function EmployeeDashboardPage({
         </p>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[20rem_minmax(0,1fr)]">
+      <div className="flex gap-5">
         <ProfileCard
           greeting={greeting(new Date())}
           name={user.name}
@@ -154,6 +157,7 @@ export default async function EmployeeDashboardPage({
           }
           hasOffice={Boolean(office)}
           maxAccuracyMeters={schedule?.maxAccuracyMeters ?? 100}
+          faceEnrolled={faceEnrolled}
         />
       </div>
 
@@ -201,7 +205,10 @@ export default async function EmployeeDashboardPage({
         <StatTile
           label="Tingkat Kehadiran"
           icon={Percent}
-          value={formatPercent(summary.hadir + summary.terlambat, summary.expected)}
+          value={formatPercent(
+            summary.hadir + summary.terlambat,
+            summary.expected,
+          )}
           footerLabel={`${summary.hadir + summary.terlambat} dari ${summary.expected} hari kerja`}
         />
       </div>

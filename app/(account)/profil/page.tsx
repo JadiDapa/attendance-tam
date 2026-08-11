@@ -1,11 +1,13 @@
-import { KeyRound, Phone, UserRound } from "lucide-react";
+import { KeyRound, Phone, ScanFace, UserRound } from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
 import ChangePasswordForm from "@/components/profile/ChangePasswordForm";
 import ProfileContactForm from "@/components/profile/ProfileContactForm";
+import FaceEnrollmentCard from "@/components/profile/FaceEnrollmentCard";
 import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/lib/session";
 import { formatWorkDate, getWorkDate } from "@/lib/date";
+import { FaceService } from "@/servers/services/face.service";
 
 const ROLE_LABEL = { ADMIN: "Admin", EMPLOYEE: "Karyawan" };
 
@@ -22,6 +24,7 @@ function Field({ label, value }: { label: string; value: string }) {
 
 export default async function ProfilPage() {
   const user = await requireUser();
+  const totalPhotos = await FaceService.countByUser(user.id);
 
   return (
     <div className="flex max-w-3xl flex-col gap-5">
@@ -52,6 +55,13 @@ export default async function ProfilPage() {
 
       <Panel title="Kontak" icon={Phone} contentClassName="p-5">
         <ProfileContactForm phone={user.phone ?? ""} />
+      </Panel>
+
+      <Panel title="Pendaftaran Wajah" icon={ScanFace} contentClassName="p-5">
+        <FaceEnrollmentCard
+          totalPhotos={totalPhotos}
+          minRequired={FaceService.minEnrollmentPhotos}
+        />
       </Panel>
 
       <Panel title="Ganti Password" icon={KeyRound} contentClassName="p-5">

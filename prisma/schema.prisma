@@ -79,6 +79,25 @@ model User {
   @@index([role, isActive])
 }
 
+/// Data wajah referensi karyawan untuk verifikasi 1:1 saat absen (anti titip
+/// absen). Satu karyawan bisa punya beberapa baris (3-5 foto enrollment)
+/// supaya pencocokan lebih toleran terhadap variasi pencahayaan/sudut.
+/// `vector` dihasilkan oleh layanan face recognition (FastAPI + DeepFace) —
+/// Next.js tidak pernah menghitungnya sendiri, hanya menyimpan & meneruskannya.
+model FaceEmbedding {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  vector    Float[]
+  /// Nama model yang menghasilkan vector ini (mis. "ArcFace"). Dicatat supaya
+  /// kalau model diganti nanti, embedding lama bisa dibedakan/di-invalidasi
+  /// alih-alih diam-diam dibandingkan dengan model yang berbeda.
+  model     String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
 model OfficeLocation {
   id           String   @id @default(cuid())
   name         String
@@ -105,7 +124,7 @@ model WorkSchedule {
 
 /// Satu baris per hari dalam seminggu — selalu 7 baris.
 model WorkDay {
-  id           String   @id @default(cuid())
+  id String @id @default(cuid())
   /// 0 = Minggu … 6 = Sabtu, sama dengan `Date#getUTCDay()`
   dayOfWeek    Int      @unique
   isWorkingDay Boolean  @default(true)
@@ -163,8 +182,8 @@ model AttendanceCorrection {
   user   User   @relation("CorrectionRequester", fields: [userId], references: [id], onDelete: Cascade)
   userId String
 
-  workDate      DateTime         @db.Date
-  type          AttendanceType
+  workDate DateTime       @db.Date
+  type     AttendanceType
   /// Jam absen yang diusulkan, "HH:mm" pada zona APP_TIMEZONE.
   requestedTime String
   reason        String
@@ -218,12 +237,4 @@ model LeaveRequest {
 
   @@index([userId, status])
   @@index([status, startDate])
-}
-
-model FaceEmbedding {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vector    Float[]
-  createdAt DateTime @default(now())
 }

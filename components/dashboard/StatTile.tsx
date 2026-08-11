@@ -1,4 +1,9 @@
-import { LucideIcon, TrendingDown, TrendingUp } from "lucide-react";
+import {
+  ArrowUpRight,
+  LucideIcon,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -6,8 +11,11 @@ type Props = {
   icon: LucideIcon;
   value: string;
   footerLabel: string;
-  /** Perubahan terhadap pembanding; null kalau tidak ada data pembanding. */
-  delta?: { text: string; direction: "up" | "down" | "flat" } | null;
+  delta?: {
+    text: string;
+    direction: "up" | "down" | "flat";
+  } | null;
+  highlighted?: boolean;
 };
 
 export default function StatTile({
@@ -16,33 +24,86 @@ export default function StatTile({
   value,
   footerLabel,
   delta,
+  highlighted = false,
 }: Props) {
   const Arrow = delta?.direction === "down" ? TrendingDown : TrendingUp;
 
   return (
-    <div className="bg-card border-border flex flex-col gap-3 rounded-2xl border p-4 shadow-xs">
-      <div className="flex items-center gap-2.5">
-        <span className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
-          <Icon className="size-4" />
-        </span>
-        <p className="text-muted-foreground truncate text-sm">{label}</p>
+    <div
+      className={cn(
+        "relative flex min-h-40 flex-col justify-between rounded-2xl p-4 transition-colors",
+        highlighted
+          ? "border-primary bg-primary text-primary-foreground"
+          : "bg-card text-card-foreground",
+      )}
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <p
+          className={cn(
+            "text-lg font-medium",
+            highlighted ? "text-primary-foreground/90" : "text-foreground",
+          )}
+        >
+          {label}
+        </p>
+
+        <button
+          type="button"
+          className={cn(
+            "flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors",
+            highlighted
+              ? "border-primary-foreground/20 bg-primary-foreground text-primary hover:bg-primary-foreground/90"
+              : "border-border bg-background hover:bg-muted",
+          )}
+        >
+          <ArrowUpRight className="size-4" />
+        </button>
       </div>
 
-      <p className="text-3xl font-bold tracking-tight tabular-nums">{value}</p>
+      {/* Value */}
+      <p
+        className={cn(
+          "text-5xl font-semibold tracking-tight tabular-nums",
+          highlighted ? "text-primary-foreground" : "text-foreground",
+        )}
+      >
+        {value}
+      </p>
 
-      <div className="border-border flex items-center justify-between gap-2 border-t pt-3 text-xs">
-        <span className="text-muted-foreground truncate">{footerLabel}</span>
+      {/* Footer */}
+      <div className="flex items-center gap-1.5">
+        <Icon
+          className={cn(
+            "size-3.5 shrink-0",
+            highlighted ? "text-primary-foreground/80" : "text-primary",
+          )}
+        />
+
+        <span
+          className={cn(
+            "truncate text-xs",
+            highlighted ? "text-primary-foreground/80" : "text-primary",
+          )}
+        >
+          {footerLabel}
+        </span>
 
         {delta && (
           <span
             className={cn(
-              "flex shrink-0 items-center gap-1 font-medium tabular-nums",
-              delta.direction === "up" && "text-chart-hadir",
-              delta.direction === "down" && "text-chart-terlambat",
-              delta.direction === "flat" && "text-muted-foreground",
+              "ml-auto flex shrink-0 items-center gap-0.5 text-xs font-medium tabular-nums",
+              highlighted
+                ? "text-primary-foreground"
+                : delta.direction === "up"
+                  ? "text-primary"
+                  : delta.direction === "down"
+                    ? "text-destructive"
+                    : "text-muted-foreground",
             )}
           >
-            {delta.direction !== "flat" && <Arrow className="size-3.5" />}
+            {delta.direction !== "flat" && <Arrow className="size-3" />}
+
             {delta.text}
           </span>
         )}

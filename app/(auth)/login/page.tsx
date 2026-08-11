@@ -1,36 +1,25 @@
-import { Suspense } from "react";
-import type { Metadata } from "next";
-import { Fingerprint } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import AuthCarousel from "@/components/auth/AuthCarousel";
+import AuthHeader from "@/components/auth/AuthHeader";
 import LoginForm from "@/components/auth/LoginForm";
-
-export const metadata: Metadata = {
-  title: "Masuk | Sistem Absensi",
-};
+import Link from "next/link";
 
 export default function LoginPage() {
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader className="items-center text-center">
-        <div className="bg-primary/10 text-primary mx-auto flex size-11 items-center justify-center rounded-xl">
-          <Fingerprint className="size-6" />
-        </div>
-        <CardTitle className="mt-3 text-xl">Sistem Absensi Karyawan</CardTitle>
-        <CardDescription>
-          Masuk dengan akun yang diberikan oleh admin
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Suspense>
-          <LoginForm />
-        </Suspense>
-      </CardContent>
-    </Card>
+    <section className="grid h-screen grid-cols-1 overflow-hidden lg:grid-cols-2">
+      <main className="flex flex-col items-center justify-center p-4 lg:px-40">
+        <AuthHeader
+          title="Welcome Back!"
+          subtitle="Before we continue further, We need you to login using your existing account!"
+        />
+        <LoginForm />
+        <p className="mt-4 text-center lg:mt-6">
+          Dont have an account?{" "}
+          <Link className="text-primary underline" href="/register">
+            Create Now!
+          </Link>
+        </p>
+      </main>
+      <AuthCarousel />
+    </section>
   );
 }

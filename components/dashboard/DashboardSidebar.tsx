@@ -26,18 +26,11 @@ import {
 import {
   LogOut,
   ChevronsUpDown,
-  ChevronUp,
-  Fingerprint,
   Monitor,
   Moon,
   Sun,
   UserRound,
 } from "lucide-react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,8 +39,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import SidebarSearch from "./SidebarSearch";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 /** Angka merah jumlah item yang perlu ditindak pada satu menu. */
 function NavBadge({ count }: { count: number }) {
@@ -75,57 +68,71 @@ function NavGroup({
   if (items.length === 0) return null;
 
   return (
-    <Collapsible defaultOpen className="group/nav-group">
-      <SidebarGroup className="p-0">
-        <SidebarGroupLabel asChild>
-          <CollapsibleTrigger className="text-muted-foreground hover:text-foreground mb-1 flex w-full items-center justify-between px-2 text-[11px] font-semibold tracking-widest uppercase transition-colors">
-            {label}
-            <ChevronUp className="size-3.5 transition-transform group-data-[state=closed]/nav-group:rotate-180" />
-          </CollapsibleTrigger>
-        </SidebarGroupLabel>
+    <SidebarGroup className="p-0">
+      <SidebarGroupLabel className="text-muted-foreground mb-1 px-6 text-xs font-medium tracking-wide uppercase">
+        {label}
+      </SidebarGroupLabel>
 
-        <CollapsibleContent>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-1">
-              {items.map((item) => {
-                const active =
-                  pathname === item.url || pathname.startsWith(`${item.url}/`);
-                const badge = badges[item.url] ?? 0;
+      <SidebarGroupContent>
+        <SidebarMenu className="gap-1">
+          {items.map((item) => {
+            const active =
+              pathname === item.url || pathname.startsWith(`${item.url}/`);
 
-                return (
-                  <SidebarMenuItem key={item.url} className="relative">
-                    <SidebarMenuButton
-                      asChild
-                      isActive={active}
-                      tooltip={
-                        badge > 0 ? `${item.title} (${badge})` : item.title
-                      }
+            const badge = badges[item.url] ?? 0;
+
+            return (
+              <SidebarMenuItem key={item.url} className="relative">
+                {/* Active indicator */}
+                {active && (
+                  <span className="bg-primary absolute top-1/2 left-0 z-10 h-9 w-1.5 -translate-y-1/2 rounded-r-full" />
+                )}
+
+                <SidebarMenuButton
+                  asChild
+                  isActive={active}
+                  tooltip={badge > 0 ? `${item.title} (${badge})` : item.title}
+                  className={cn(
+                    `h-11 rounded-xl px-6 text-sm font-medium transition-all duration-200`,
+                    active
+                      ? `text-foreground! bg-transparent! hover:bg-transparent!`
+                      : `text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground bg-transparent!`,
+                  )}
+                >
+                  <Link
+                    href={item.url}
+                    className="flex w-full items-center gap-3"
+                  >
+                    <item.icon
                       className={cn(
-                        "h-10 rounded-xl px-3 text-sm font-medium transition-colors",
-                        active
-                          ? "bg-primary! text-primary-foreground! hover:bg-primary!"
-                          : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground bg-transparent!",
+                        "size-7 shrink-0 transition-colors",
+                        active ? "text-primary" : "text-muted-foreground",
+                      )}
+                    />
+
+                    <span
+                      className={cn(
+                        "truncate text-base",
+                        active ? "text-primary" : "text-muted-foreground",
                       )}
                     >
-                      <Link href={item.url} className="flex items-center gap-3">
-                        <item.icon className="size-4 shrink-0" />
-                        <span>{item.title}</span>
-                        {badge > 0 && <NavBadge count={badge} />}
-                      </Link>
-                    </SidebarMenuButton>
+                      {item.title}
+                    </span>
 
-                    {/* Titik merah saat sidebar menciut jadi ikon — angkanya tidak muat. */}
-                    {badge > 0 && (
-                      <span className="bg-destructive absolute top-1 right-1 hidden size-2 rounded-full group-data-[collapsible=icon]:block" />
-                    )}
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </CollapsibleContent>
-      </SidebarGroup>
-    </Collapsible>
+                    {badge > 0 && <NavBadge count={badge} />}
+                  </Link>
+                </SidebarMenuButton>
+
+                {/* Collapsed sidebar badge */}
+                {badge > 0 && (
+                  <span className="bg-destructive absolute top-1 right-1 hidden size-2 rounded-full group-data-[collapsible=icon]:block" />
+                )}
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
   );
 }
 
@@ -151,33 +158,28 @@ export default function DashboardSidebar({
   };
 
   return (
-    <Sidebar collapsible="icon" className="">
-      <SidebarHeader className="bg-card gap-3 p-3 group-data-[collapsible=icon]:px-1.5">
-        {/* Workspace card */}
-        <div className="border-sidebar-border bg-card flex items-center gap-2.5 rounded-xl border p-2 group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0">
-          <div className="bg-primary text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
-            <Fingerprint className="size-5" />
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="text-foreground truncate text-sm font-semibold">
-              Absensi
-            </span>
-            <span className="text-muted-foreground truncate text-xs">
-              PT Tri Anugrah Makmur
-            </span>
-          </div>
-          <ChevronsUpDown className="text-muted-foreground size-4 shrink-0 group-data-[collapsible=icon]:hidden" />
-        </div>
+    <Sidebar
+      variant="sidebar"
+      collapsible="icon"
+      className="bg-card border-0 p-3"
+    >
+      <SidebarHeader className="bg-background overflow-hidden rounded-t-md p-3">
+        <div className="flex items-center gap-5 rounded-xl px-2 py-2.5">
+          <Image src="/icon.webp" alt="Logo" width={50} height={30} />
 
-        <SidebarSearch
-          groups={[
-            { label: "Menu", items: mainItems },
-            { label: "Lainnya", items: otherItems },
-          ]}
-        />
+          <div className="min-w-0 flex-1">
+            <p className="letter truncate text-xl font-semibold tracking-wide">
+              ABSENSI
+            </p>
+
+            <p className="text-muted-foreground truncate text-xs">
+              Taruna Anugerah Mandiri
+            </p>
+          </div>
+        </div>
       </SidebarHeader>
 
-      <SidebarContent className="bg-card gap-5 px-3 py-2 group-data-[collapsible=icon]:px-1.5">
+      <SidebarContent className="bg-background gap-7 py-3 group-data-[collapsible=icon]:px-1.5">
         <NavGroup
           label="Menu"
           items={mainItems}
@@ -192,12 +194,12 @@ export default function DashboardSidebar({
         />
       </SidebarContent>
 
-      <SidebarFooter className="bg-card p-3 group-data-[collapsible=icon]:px-1.5">
+      <SidebarFooter className="bg-background overflow-hidden rounded-b-md border-t p-3 group-data-[collapsible=icon]:px-1.5">
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger asChild className="border-2 border-dashed">
             <button
               type="button"
-              className="border-sidebar-border bg-card hover:border-ring/40 flex items-center gap-2.5 rounded-xl border p-2 text-left transition-colors group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0"
+              className="hover:bg-sidebar-accent flex w-full items-center gap-3 rounded-xl border-0 bg-transparent p-2 text-left transition-colors group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-1"
             >
               <div className="bg-primary text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-lg text-sm font-semibold">
                 {initial}

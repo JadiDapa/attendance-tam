@@ -1,4 +1,11 @@
-import { AlertTriangle, CalendarCheck, LogIn, LogOut } from "lucide-react";
+import Link from "next/link";
+import {
+  AlertTriangle,
+  CalendarCheck,
+  LogIn,
+  LogOut,
+  ScanFace,
+} from "lucide-react";
 import Panel from "@/components/dashboard/Panel";
 import AttendanceDialog from "@/components/employee/AttendanceDialog";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +20,8 @@ type Props = {
   /** Null kalau admin belum mengatur lokasi kantor — absensi belum bisa jalan. */
   hasOffice: boolean;
   maxAccuracyMeters: number;
+  /** False kalau karyawan belum menyelesaikan pendaftaran wajah di Profil. */
+  faceEnrolled: boolean;
 };
 
 function Slot({
@@ -67,6 +76,7 @@ export default function TodayAttendance({
   checkOut,
   hasOffice,
   maxAccuracyMeters,
+  faceEnrolled,
 }: Props) {
   return (
     <Panel
@@ -77,7 +87,7 @@ export default function TodayAttendance({
           {dateLabel}
         </span>
       }
-      contentClassName="flex flex-col gap-4 p-4"
+      className="flex flex-1 flex-col p-4"
     >
       {!hasOffice && (
         <div className="border-destructive/40 bg-destructive/10 text-destructive flex items-start gap-2 rounded-lg border p-3 text-sm">
@@ -86,7 +96,20 @@ export default function TodayAttendance({
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      {hasOffice && !faceEnrolled && (
+        <div className="border-destructive/40 bg-destructive/10 text-destructive flex items-start gap-2 rounded-lg border p-3 text-sm">
+          <ScanFace className="mt-0.5 size-4 shrink-0" />
+          <span>
+            Wajah kamu belum terdaftar.{" "}
+            <Link href="/profil" className="font-medium underline">
+              Daftarkan wajah di halaman Profil
+            </Link>{" "}
+            sebelum bisa absen.
+          </span>
+        </div>
+      )}
+
+      <div className="mt-2 grid gap-3 sm:grid-cols-2">
         <Slot
           title="Absen Masuk"
           icon={<LogIn className="size-4" />}
@@ -99,24 +122,32 @@ export default function TodayAttendance({
         />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="mt-2 grid gap-3 sm:grid-cols-2">
         <AttendanceDialog
           type={AttendanceType.CHECK_IN}
           label="Absen Masuk"
-          disabled={!hasOffice || !!checkIn}
-          disabledReason={checkIn ? "Sudah absen masuk hari ini" : undefined}
+          disabled={!hasOffice || !faceEnrolled || !!checkIn}
+          disabledReason={
+            !faceEnrolled
+              ? "Daftarkan wajah di Profil dulu"
+              : checkIn
+                ? "Sudah absen masuk hari ini"
+                : undefined
+          }
           maxAccuracyMeters={maxAccuracyMeters}
         />
         <AttendanceDialog
           type={AttendanceType.CHECK_OUT}
           label="Absen Pulang"
-          disabled={!hasOffice || !checkIn || !!checkOut}
+          disabled={!hasOffice || !faceEnrolled || !checkIn || !!checkOut}
           disabledReason={
-            !checkIn
-              ? "Absen masuk dulu"
-              : checkOut
-                ? "Sudah absen pulang hari ini"
-                : undefined
+            !faceEnrolled
+              ? "Daftarkan wajah di Profil dulu"
+              : !checkIn
+                ? "Absen masuk dulu"
+                : checkOut
+                  ? "Sudah absen pulang hari ini"
+                  : undefined
           }
           maxAccuracyMeters={maxAccuracyMeters}
         />

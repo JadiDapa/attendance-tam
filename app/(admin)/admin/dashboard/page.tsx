@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  ArrowRight,
   BellDot,
   CalendarRange,
   ClipboardCheck,
@@ -33,7 +34,6 @@ import {
   formatWeekday,
   formatWorkDate,
   fromDateInputValue,
-  getMinutesOfDay,
   getWorkDate,
   toDateInputValue,
 } from "@/lib/date";
@@ -52,16 +52,6 @@ type SearchParams = { date?: string; status?: string };
 
 /** Jumlah hari yang ditampilkan di grafik tren. */
 const TREND_DAYS = 14;
-
-function greeting(now: Date) {
-  const minutes = getMinutesOfDay(now);
-
-  if (minutes < 11 * 60) return "Selamat pagi";
-  if (minutes < 15 * 60) return "Selamat siang";
-  if (minutes < 18 * 60) return "Selamat sore";
-
-  return "Selamat malam";
-}
 
 function percent(part: number, total: number) {
   return total > 0 ? (part / total) * 100 : 0;
@@ -219,7 +209,7 @@ export default async function AdminDashboardPage({
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        title={`${greeting(new Date())}, ${admin.name}`}
+        title={`Welcome, ${admin.name}`}
         subtitle="Ringkasan kehadiran karyawan dan pengajuan yang menunggu tindakan."
         actions={
           <>
@@ -249,18 +239,26 @@ export default async function AdminDashboardPage({
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
         {/* Kolom utama */}
         <div className="flex min-w-0 flex-col gap-5">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-3">
             <StatTile
               label="Total Karyawan"
               icon={Users}
               value={String(total)}
               footerLabel="7 hari terakhir"
+              highlighted
               delta={
                 newEmployees > 0
-                  ? { text: `+${newEmployees}`, direction: "up" }
-                  : { text: "tetap", direction: "flat" }
+                  ? {
+                      text: `+${newEmployees}`,
+                      direction: "up",
+                    }
+                  : {
+                      text: "tetap",
+                      direction: "flat",
+                    }
               }
             />
+
             <StatTile
               label="Menunggu Review"
               icon={ClipboardList}
@@ -268,10 +266,17 @@ export default async function AdminDashboardPage({
               footerLabel={`${pendingLeaves.length} izin · ${pendingCorrections.length} koreksi`}
               delta={
                 newLeaveRequests > 0
-                  ? { text: `+${newLeaveRequests}`, direction: "down" }
-                  : { text: "tetap", direction: "flat" }
+                  ? {
+                      text: `+${newLeaveRequests}`,
+                      direction: "down",
+                    }
+                  : {
+                      text: "tetap",
+                      direction: "flat",
+                    }
               }
             />
+
             <StatTile
               label="Tingkat Kehadiran"
               icon={Percent}
@@ -292,14 +297,17 @@ export default async function AdminDashboardPage({
             title="Ringkasan Kehadiran"
             icon={TrendingUp}
             action={
-              <Link
-                href="/admin/laporan"
-                className="text-primary shrink-0 text-sm font-medium hover:underline"
-              >
-                Lihat laporan
-              </Link>
+              <div className="text-primary flex items-center gap-2">
+                <Link
+                  href="/admin/laporan"
+                  className="shrink-0 text-sm font-medium hover:underline"
+                >
+                  Lihat laporan
+                </Link>
+                <ArrowRight className="size-4" strokeWidth={1.5} />
+              </div>
             }
-            contentClassName="p-5 pt-4"
+            contentClassName="p-5 pt-4 min-h-108"
           >
             <div className="mb-4 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
               <div className="flex flex-wrap items-end gap-8">
@@ -327,11 +335,7 @@ export default async function AdminDashboardPage({
               {/* Tiap status menyaring tabel rekap di bawah. */}
               <div className="flex flex-wrap gap-6">
                 {RECAP_STATUS_OPTIONS.map((status) => (
-                  <Link
-                    key={status}
-                    href={buildHref(status)}
-                    className="group"
-                  >
+                  <Link key={status} href={buildHref(status)} className="group">
                     <span
                       className={cn(
                         "mb-1.5 block h-1 w-7 rounded-full",
@@ -377,13 +381,17 @@ export default async function AdminDashboardPage({
           <Panel
             title="Perlu Tindakan"
             icon={ClipboardCheck}
+            className="min-h-80"
             action={
-              <Link
-                href="/admin/izin"
-                className="text-primary shrink-0 text-sm font-medium hover:underline"
-              >
-                Semua
-              </Link>
+              <div className="text-primary flex items-center gap-2">
+                <Link
+                  href="/admin/izin"
+                  className="shrink-0 text-sm font-medium hover:underline"
+                >
+                  Semua
+                </Link>
+                <ArrowRight className="size-4" strokeWidth={1.5} />
+              </div>
             }
             contentClassName="flex flex-col gap-3 p-4"
           >
@@ -437,7 +445,18 @@ export default async function AdminDashboardPage({
           <Panel
             title="Kalender Kerja"
             icon={CalendarRange}
-            contentClassName="flex flex-col gap-4 p-4"
+            contentClassName="flex flex-col gap-4 p-4 h-68"
+            action={
+              <div className="text-primary flex items-center gap-2">
+                <Link
+                  href="/admin/izin"
+                  className="shrink-0 text-sm font-medium hover:underline"
+                >
+                  Semua
+                </Link>
+                <ArrowRight className="size-4" strokeWidth={1.5} />
+              </div>
+            }
           >
             <div className="grid grid-cols-7 gap-1">
               {weekDays.map((day) => {

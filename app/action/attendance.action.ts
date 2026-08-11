@@ -24,6 +24,8 @@ import {
   WorkScheduleService,
 } from "@/servers/services/setting.service";
 import { HolidayService } from "@/servers/services/holiday.service";
+import { FaceService } from "@/servers/services/face.service";
+import { verifyFace, FaceApiError } from "@/lib/face-recognition";
 import { getWorkDayFor, isLateAt } from "@/lib/work-schedule";
 
 export type AttendanceResult =
@@ -105,6 +107,42 @@ export async function submitAttendance(
 
   if (!(photo instanceof File) || photo.size === 0) {
     return { ok: false, error: "Foto absensi wajib diambil" };
+  }
+
+  // Verifikasi 1:1: pastikan foto ini benar wajah pemilik akun yang sedang
+  // login (anti titip absen) — bukan pencarian di antara semua karyawan,
+  // karena siapa yang absen sudah diketahui dari sesi login.
+  const referenceEmbeddings = await FaceService.listByUser(user.id);
+
+  if (referenceEmbeddings.length < FaceService.minEnrollmentPhotos) {
+    return {
+      ok: false,
+      error:
+        "Wajah kamu belum terdaftar. Lengkapi pendaftaran wajah di halaman Profil terlebih dahulu.",
+    };
+  }
+
+  try {
+    const result = await verifyFace(
+      photo,
+      referenceEmbeddings.map((row) => row.vector),
+    );
+
+    if (result.status !== "match") {
+      return {
+        ok: false,
+        error:
+          "Wajah tidak cocok dengan data yang terdaftar. Pastikan wajah terlihat jelas lalu coba lagi.",
+      };
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof FaceApiError
+          ? error.message
+          : "Gagal memverifikasi wajah, coba lagi",
+    };
   }
 
   const { type, latitude, longitude, accuracy } = parsed.data;

@@ -14,26 +14,18 @@ type Props = {
 /** Kartu bersama untuk panel dashboard: header ikon + judul + aksi, lalu isi. */
 export default function Panel({
   title,
-  icon: Icon,
   action,
   children,
   className,
   contentClassName,
 }: Props) {
   return (
-    <section
-      className={cn(
-        "bg-card border-border flex flex-col rounded-2xl border shadow-xs",
-        className,
-      )}
-    >
-      <header className="border-border flex items-center justify-between gap-3 border-b px-5 py-3.5">
+    <section className={cn("bg-card flex flex-col rounded-2xl", className)}>
+      <header className="flex items-center justify-between gap-3 px-5 py-3.5">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
-            <Icon className="size-4" />
-          </span>
-          <h2 className="truncate text-sm font-semibold">{title}</h2>
+          <h2 className="truncate text-lg font-medium">{title}</h2>
         </div>
+
         {action}
       </header>
 

@@ -15,10 +15,8 @@ export default function PageHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="flex min-w-0 items-start gap-2">
-        <SidebarTrigger className="text-muted-foreground mt-0.5 -ml-1.5 shrink-0" />
-
-        <div className="min-w-0 space-y-1">
-          <h1 className="text-foreground truncate text-xl font-bold tracking-tight">
+        <div className="min-w-0 space-y-3">
+          <h1 className="text-foreground truncate text-4xl font-semibold tracking-tight">
             {title}
           </h1>
           {subtitle && (
