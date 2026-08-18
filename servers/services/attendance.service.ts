@@ -1,8 +1,9 @@
 import prisma from "@/lib/prisma";
 import {
   Attendance,
+  AttendanceApproval,
   AttendanceType,
-  RadiusReviewStatus,
+  WorkMode,
 } from "@/generated/prisma";
 import { CreateAttendanceDTO } from "../validators/attendance.validator";
 
@@ -57,36 +58,43 @@ export const AttendanceService = {
   },
 
   /** Absensi luar radius yang menunggu keputusan admin (terbaru dulu). */
-  async listPendingReview() {
+  async listPendingApproval() {
     return prisma.attendance.findMany({
-      where: { reviewStatus: RadiusReviewStatus.PENDING },
+      where: { approvalStatus: AttendanceApproval.PENDING },
       orderBy: [{ workDate: "desc" }, { timestamp: "desc" }],
       include: { user: true },
     });
   },
 
-  async countPendingReview() {
+  async countPendingApproval() {
     return prisma.attendance.count({
-      where: { reviewStatus: RadiusReviewStatus.PENDING },
+      where: { approvalStatus: AttendanceApproval.PENDING },
     });
   },
 
   /**
    * Putuskan absensi luar radius. Hanya berlaku kalau statusnya masih PENDING,
    * sehingga dua admin tidak bisa memutuskan absensi yang sama dua kali.
+   *
+   * `isLate` dihitung ulang oleh action ketika admin menyetujui sebagai
+   * `HADIR_DIKANTOR` — di mode lain keterlambatan tidak pernah berlaku.
    */
-  async review(
+  async decide(
     id: string,
     data: {
-      status: RadiusReviewStatus;
+      status: AttendanceApproval;
+      approvedMode: WorkMode | null;
+      isLate: boolean;
       reviewedById: string;
       reviewNote: string | null;
     },
   ): Promise<boolean> {
     const { count } = await prisma.attendance.updateMany({
-      where: { id, reviewStatus: RadiusReviewStatus.PENDING },
+      where: { id, approvalStatus: AttendanceApproval.PENDING },
       data: {
-        reviewStatus: data.status,
+        approvalStatus: data.status,
+        approvedMode: data.approvedMode,
+        isLate: data.isLate,
         reviewedById: data.reviewedById,
         reviewNote: data.reviewNote,
         reviewedAt: new Date(),
@@ -94,6 +102,68 @@ export const AttendanceService = {
     });
 
     return count > 0;
+  },
+
+  /**
+   * Catat/perbarui absensi secara manual oleh admin. Foto & koordinat sengaja
+   * dibiarkan null — pencatatan manual memang dibuat saat karyawan tidak sedang
+   * memegang HP-nya, jadi tidak ada bukti lokasi yang jujur bisa disimpan.
+   *
+   * Kalau barisnya sudah ada (jamnya yang salah, bukan absennya yang hilang),
+   * foto lama tetap tersimpan — hanya jam, mode, dan penandanya yang diperbarui.
+   */
+  async upsertManual(data: {
+    userId: string;
+    workDate: Date;
+    type: AttendanceType;
+    timestamp: Date;
+    workMode: WorkMode;
+    isLate: boolean;
+    reviewedById: string;
+    reviewNote: string;
+  }) {
+    return prisma.attendance.upsert({
+      where: {
+        userId_workDate_type: {
+          userId: data.userId,
+          workDate: data.workDate,
+          type: data.type,
+        },
+      },
+      create: {
+        userId: data.userId,
+        type: data.type,
+        workDate: data.workDate,
+        timestamp: data.timestamp,
+        workMode: data.workMode,
+        isLate: data.isLate,
+        isManual: true,
+        reviewedById: data.reviewedById,
+        reviewNote: data.reviewNote,
+        reviewedAt: new Date(),
+        latitude: null,
+        longitude: null,
+        distanceMeters: null,
+        accuracyMeters: null,
+        photoUrl: null,
+        isWithinRadius: null,
+        workModeDetail: null,
+        // Dicatat admin sendiri, jadi tidak ada yang perlu disetujui lagi.
+        approvalStatus: null,
+        approvedMode: null,
+      },
+      update: {
+        timestamp: data.timestamp,
+        workMode: data.workMode,
+        isLate: data.isLate,
+        isManual: true,
+        reviewedById: data.reviewedById,
+        reviewNote: data.reviewNote,
+        reviewedAt: new Date(),
+        approvalStatus: null,
+        approvedMode: null,
+      },
+    });
   },
 
   async getTodayStatus(userId: string, workDate: Date) {

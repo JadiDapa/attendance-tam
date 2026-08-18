@@ -3,9 +3,9 @@ import {
   ArrowRight,
   BellDot,
   CalendarRange,
+  CheckCircle2,
   ClipboardCheck,
   ClipboardList,
-  Percent,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -19,15 +19,19 @@ import Panel from "@/components/dashboard/Panel";
 import StatTile from "@/components/dashboard/StatTile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CorrectionStatus, LeaveStatus, Role } from "@/generated/prisma";
+import { LeaveStatus, Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import {
-  RECAP_STATUS_DOT,
-  RECAP_STATUS_LABEL,
-  RECAP_STATUS_OPTIONS,
-  type RecapStatus,
+  DAY_STATUS_DOT,
+  DAY_STATUS_LABEL,
+  DAY_STATUS_OPTIONS,
+  type DayStatus,
 } from "@/lib/attendance";
-import { buildDailyRecap, countRecapStatus } from "@/lib/daily-recap";
+import {
+  buildDailyRecap,
+  countPresent,
+  countRecapStatus,
+} from "@/lib/daily-recap";
 import {
   addDays,
   formatShortDate,
@@ -44,7 +48,6 @@ import { UserService } from "@/servers/services/user.service";
 import { AttendanceService } from "@/servers/services/attendance.service";
 import { LeaveService } from "@/servers/services/leave.service";
 import { ReportService } from "@/servers/services/report.service";
-import { CorrectionService } from "@/servers/services/correction.service";
 import { HolidayService } from "@/servers/services/holiday.service";
 import { WorkDayService } from "@/servers/services/setting.service";
 
@@ -52,14 +55,6 @@ type SearchParams = { date?: string; status?: string };
 
 /** Jumlah hari yang ditampilkan di grafik tren. */
 const TREND_DAYS = 14;
-
-function percent(part: number, total: number) {
-  return total > 0 ? (part / total) * 100 : 0;
-}
-
-function formatPercent(value: number) {
-  return `${value.toFixed(1)}%`;
-}
 
 export default async function AdminDashboardPage({
   searchParams,
@@ -71,10 +66,8 @@ export default async function AdminDashboardPage({
   const params = await searchParams;
   const workDate =
     (params.date && fromDateInputValue(params.date)) || getWorkDate();
-  const statusFilter = RECAP_STATUS_OPTIONS.includes(
-    params.status as RecapStatus,
-  )
-    ? (params.status as RecapStatus)
+  const statusFilter = DAY_STATUS_OPTIONS.includes(params.status as DayStatus)
+    ? (params.status as DayStatus)
     : null;
 
   const trendStart = addDays(workDate, -(TREND_DAYS - 1));
@@ -90,7 +83,7 @@ export default async function AdminDashboardPage({
     pendingLeaves,
     trendRows,
     upcomingLeaves,
-    pendingCorrections,
+    pendingAttendanceApprovals,
     holiday,
     workDays,
   ] = await Promise.all([
@@ -103,7 +96,7 @@ export default async function AdminDashboardPage({
       startDate: weekStart,
       endDate: addDays(weekStart, 6),
     }),
-    CorrectionService.list({ status: CorrectionStatus.PENDING }),
+    AttendanceService.countPendingApproval(),
     HolidayService.getByDate(workDate),
     WorkDayService.list(),
   ]);
@@ -128,14 +121,14 @@ export default async function AdminDashboardPage({
   const counts = countRecapStatus(rows);
 
   const total = rows.length;
-  const presentToday = counts.HADIR + counts.TERLAMBAT;
-  // Hari libur tidak menuntut kehadiran, jadi tidak ikut jadi penyebut.
-  const expectedToday = total - counts.LIBUR;
-  const presenceRate = percent(presentToday, expectedToday);
+  const presentToday = countPresent(counts);
 
   // Tren dibatasi ke karyawan aktif juga, supaya angkanya sejalan dengan kartu
   // di atas. Hari libur dilewati — kalau ikut dihitung, grafiknya turun tajam
   // tiap akhir pekan dan tanggal merah tanpa ada yang benar-benar bolos.
+  //
+  // Terlambat digambar sebagai bagian dari kehadiran di kantor, bukan status
+  // tersendiri: `hadir` sudah mencakup keduanya.
   const trendByDate = new Map<
     number,
     { hadir: number; terlambat: number; total: number }
@@ -148,8 +141,16 @@ export default async function AdminDashboardPage({
     const bucket = trendByDate.get(key) ?? { hadir: 0, terlambat: 0, total: 0 };
 
     bucket.total += 1;
-    if (row.status === "HADIR") bucket.hadir += 1;
-    if (row.status === "TERLAMBAT") bucket.terlambat += 1;
+
+    if (
+      row.status === "HADIR_DIKANTOR" ||
+      row.status === "WFH" ||
+      row.status === "DINAS_LUAR"
+    ) {
+      bucket.hadir += 1;
+    }
+
+    if (row.checkIn?.isLate) bucket.terlambat += 1;
 
     trendByDate.set(key, bucket);
   }
@@ -165,20 +166,6 @@ export default async function AdminDashboardPage({
     };
   });
 
-  // Pembanding kartu tingkat kehadiran: rata-rata hari sebelumnya dalam rentang tren.
-  const previousDays = trendDates
-    .filter((key) => key !== workDate.getTime())
-    .map((key) => {
-      const bucket = trendByDate.get(key)!;
-
-      return percent(bucket.hadir + bucket.terlambat, bucket.total);
-    });
-  const previousAverage = previousDays.length
-    ? previousDays.reduce((sum, value) => sum + value, 0) / previousDays.length
-    : null;
-  const presenceDelta =
-    previousAverage === null ? null : presenceRate - previousAverage;
-
   const weekAgo = addDays(today, -7);
   const newEmployees = employees.filter(
     (employee) => employee.createdAt.getTime() >= weekAgo.getTime(),
@@ -191,15 +178,15 @@ export default async function AdminDashboardPage({
     addDays(weekStart, index),
   );
 
-  // Antrean tindakan admin: izin + koreksi absensi.
-  const pendingReviews = pendingLeaves.length + pendingCorrections.length;
+  // Antrean tindakan admin: pengajuan izin + approval absensi luar kantor.
+  const pendingReviews = pendingLeaves.length + pendingAttendanceApprovals;
 
   const visibleRows = statusFilter
     ? rows.filter((row) => row.status === statusFilter)
     : rows;
 
   const dateValue = toDateInputValue(workDate);
-  const buildHref = (status: RecapStatus | null, date = dateValue) => {
+  const buildHref = (status: DayStatus | null, date = dateValue) => {
     const query = new URLSearchParams({ date });
     if (status) query.set("status", status);
 
@@ -263,7 +250,7 @@ export default async function AdminDashboardPage({
               label="Menunggu Review"
               icon={ClipboardList}
               value={String(pendingReviews)}
-              footerLabel={`${pendingLeaves.length} izin · ${pendingCorrections.length} koreksi`}
+              footerLabel={`${pendingLeaves.length} izin · ${pendingAttendanceApprovals} approval absensi`}
               delta={
                 newLeaveRequests > 0
                   ? {
@@ -278,18 +265,10 @@ export default async function AdminDashboardPage({
             />
 
             <StatTile
-              label="Tingkat Kehadiran"
-              icon={Percent}
-              value={formatPercent(presenceRate)}
-              footerLabel={`Rata-rata ${TREND_DAYS} hari`}
-              delta={
-                presenceDelta === null
-                  ? null
-                  : {
-                      text: `${presenceDelta >= 0 ? "+" : ""}${presenceDelta.toFixed(1)}%`,
-                      direction: presenceDelta >= 0 ? "up" : "down",
-                    }
-              }
+              label="Hadir Hari Ini"
+              icon={CheckCircle2}
+              value={`${presentToday}/${total}`}
+              footerLabel={`${counts.HADIR_DIKANTOR} kantor · ${counts.WFH} WFH · ${counts.DINAS_LUAR} dinas luar`}
             />
           </div>
 
@@ -307,18 +286,10 @@ export default async function AdminDashboardPage({
                 <ArrowRight className="size-4" strokeWidth={1.5} />
               </div>
             }
-            contentClassName="p-5 pt-4 min-h-108"
+            contentClassName="p-4 pt-3 min-h-108 sm:p-5 sm:pt-4"
           >
             <div className="mb-4 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
               <div className="flex flex-wrap items-end gap-8">
-                <div>
-                  <p className="text-3xl font-bold tracking-tight tabular-nums">
-                    {formatPercent(presenceRate)}
-                  </p>
-                  <p className="text-muted-foreground text-sm">
-                    Tingkat kehadiran
-                  </p>
-                </div>
                 <div>
                   <p className="text-3xl font-bold tracking-tight tabular-nums">
                     {presentToday}
@@ -327,26 +298,26 @@ export default async function AdminDashboardPage({
                     </span>
                   </p>
                   <p className="text-muted-foreground text-sm">
-                    Absen hari ini
+                    Hadir hari ini
                   </p>
                 </div>
               </div>
 
               {/* Tiap status menyaring tabel rekap di bawah. */}
-              <div className="flex flex-wrap gap-6">
-                {RECAP_STATUS_OPTIONS.map((status) => (
+              <div className="flex flex-wrap gap-5">
+                {DAY_STATUS_OPTIONS.map((status) => (
                   <Link key={status} href={buildHref(status)} className="group">
                     <span
                       className={cn(
                         "mb-1.5 block h-1 w-7 rounded-full",
-                        RECAP_STATUS_DOT[status],
+                        DAY_STATUS_DOT[status],
                       )}
                     />
                     <p className="text-sm font-semibold tabular-nums">
-                      {formatPercent(percent(counts[status], total))}
+                      {counts[status]}
                     </p>
                     <p className="text-muted-foreground group-hover:text-foreground text-xs transition-colors">
-                      {RECAP_STATUS_LABEL[status]}
+                      {DAY_STATUS_LABEL[status]}
                     </p>
                   </Link>
                 ))}
@@ -395,10 +366,10 @@ export default async function AdminDashboardPage({
             }
             contentClassName="flex flex-col gap-3 p-4"
           >
-            {pendingCorrections.length > 0 && (
+            {pendingAttendanceApprovals > 0 && (
               <Button asChild size="sm" variant="outline" className="w-full">
-                <Link href="/admin/koreksi">
-                  Tinjau {pendingCorrections.length} koreksi absensi
+                <Link href="/admin/verifikasi">
+                  Tinjau {pendingAttendanceApprovals} absensi luar kantor
                 </Link>
               </Button>
             )}
@@ -543,7 +514,7 @@ export default async function AdminDashboardPage({
                 Semua ({total})
               </Link>
 
-              {RECAP_STATUS_OPTIONS.map((status) => (
+              {DAY_STATUS_OPTIONS.map((status) => (
                 <Link
                   key={status}
                   href={buildHref(status)}
@@ -554,7 +525,7 @@ export default async function AdminDashboardPage({
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {RECAP_STATUS_LABEL[status]} ({counts[status]})
+                  {DAY_STATUS_LABEL[status]} ({counts[status]})
                 </Link>
               ))}
             </div>

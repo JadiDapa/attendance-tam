@@ -1,4 +1,4 @@
-import { Mail, MapPin, Pencil, Phone, Clock, Upload } from "lucide-react";
+import { Mail, MapPin, Phone, Clock, Upload } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type Props = {
@@ -32,7 +32,7 @@ function InfoRow({
 }) {
   return (
     <div className="grid grid-cols-[110px_1fr] items-start gap-3 py-2 text-sm">
-      <span className="text-muted-foreground flex items-center gap-1.5">
+      <span className="text-foreground flex items-center gap-1.5">
         <span className="shrink-0">{icon}</span>
         {label}
       </span>
@@ -52,7 +52,7 @@ export default function ProfileCard({
   officeLabel,
 }: Props) {
   return (
-    <section className="bg-card border-border rounded-2xl border p-6 shadow-xs">
+    <section className="bg-primary/70 border-border flex-1 rounded-2xl border p-6 shadow-xs">
       <div className="flex items-start gap-6">
         {/* Avatar with update icon */}
         <div className="relative shrink-0">
@@ -72,26 +72,17 @@ export default function ProfileCard({
         </div>
 
         {/* Name + position + edit button */}
-        <div className="flex min-w-0 flex-1 items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-muted-foreground text-sm">{greeting},</p>
-            <p className="truncate text-xl font-bold tracking-tight">{name}</p>
-            <p className="text-muted-foreground mt-0.5 text-sm">
-              {position ?? "Karyawan"}
-            </p>
-          </div>
-          <button
-            type="button"
-            className="bg-primary text-primary-foreground flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold"
-          >
-            <Pencil className="size-3.5" />
-            EDIT
-          </button>
+        <div className="min-w-0 p-4">
+          <p className="text-foreground text-sm">{greeting},</p>
+          <p className="truncate text-3xl font-bold tracking-tight">{name}</p>
+          <p className="text-foreground mt-0.5 text-sm font-medium">
+            {position ?? "Karyawan"}
+          </p>
         </div>
       </div>
 
       {/* Info grid */}
-      <div className="border-border divide-border mt-5 divide-y border-t pt-2">
+      <div className="border-foreground divide-foreground mt-5 divide-y border-t">
         <InfoRow icon={<Mail className="size-3.5" />} label="Email">
           {email}
         </InfoRow>

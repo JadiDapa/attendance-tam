@@ -37,7 +37,7 @@ export default async function ProfilPage() {
         title="Data Akun"
         icon={UserRound}
         action={<Badge variant="outline">{ROLE_LABEL[user.role]}</Badge>}
-        contentClassName="grid gap-4 p-5 sm:grid-cols-2"
+        contentClassName="grid gap-4 p-4 sm:grid-cols-2 sm:p-5"
       >
         <Field label="Nama" value={user.name} />
         <Field label="Email" value={user.email} />
@@ -53,18 +53,18 @@ export default async function ProfilPage() {
         </p>
       </Panel>
 
-      <Panel title="Kontak" icon={Phone} contentClassName="p-5">
+      <Panel title="Kontak" icon={Phone} contentClassName="p-4 sm:p-5">
         <ProfileContactForm phone={user.phone ?? ""} />
       </Panel>
 
-      <Panel title="Pendaftaran Wajah" icon={ScanFace} contentClassName="p-5">
+      <Panel title="Pendaftaran Wajah" icon={ScanFace} contentClassName="p-4 sm:p-5">
         <FaceEnrollmentCard
           totalPhotos={totalPhotos}
           minRequired={FaceService.minEnrollmentPhotos}
         />
       </Panel>
 
-      <Panel title="Ganti Password" icon={KeyRound} contentClassName="p-5">
+      <Panel title="Ganti Password" icon={KeyRound} contentClassName="p-4 sm:p-5">
         <ChangePasswordForm />
       </Panel>
     </div>

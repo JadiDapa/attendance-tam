@@ -11,6 +11,7 @@ import AttendanceDialog from "@/components/employee/AttendanceDialog";
 import { Badge } from "@/components/ui/badge";
 import { AttendanceType } from "@/generated/prisma";
 import type { RecapEntry } from "@/lib/attendance";
+import { APPROVAL_LABEL, WORK_MODE_LABEL } from "@/lib/work-mode";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -18,7 +19,7 @@ type Props = {
   checkIn: RecapEntry | null;
   checkOut: RecapEntry | null;
   /** Null kalau admin belum mengatur lokasi kantor — absensi belum bisa jalan. */
-  hasOffice: boolean;
+  office: { latitude: number; longitude: number; radiusMeters: number } | null;
   maxAccuracyMeters: number;
   /** False kalau karyawan belum menyelesaikan pendaftaran wajah di Profil. */
   faceEnrolled: boolean;
@@ -50,17 +51,29 @@ function Slot({
       </p>
 
       {entry ? (
-        <div className="flex flex-wrap gap-1.5">
-          {entry.isManual && <Badge variant="outline">Koreksi manual</Badge>}
-          {entry.isLate && <Badge variant="destructive">Terlambat</Badge>}
-          {entry.isWithinRadius === true && (
-            <Badge variant="secondary">Dalam radius</Badge>
-          )}
-          {entry.isWithinRadius === false && (
-            <Badge variant="destructive">
-              Di luar radius
-              {entry.distanceLabel ? ` (${entry.distanceLabel})` : ""}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
+            <Badge variant="secondary">
+              {WORK_MODE_LABEL[entry.effectiveMode]}
             </Badge>
+            {entry.isManual && <Badge variant="outline">Dicatat manual</Badge>}
+            {entry.isLate && <Badge variant="destructive">Terlambat</Badge>}
+            {entry.approvalStatus && (
+              <Badge
+                variant={
+                  entry.approvalStatus === "REJECTED"
+                    ? "destructive"
+                    : "outline"
+                }
+              >
+                {APPROVAL_LABEL[entry.approvalStatus]}
+              </Badge>
+            )}
+          </div>
+          {entry.isWithinRadius === false && entry.distanceLabel && (
+            <p className="text-muted-foreground text-xs">
+              {entry.distanceLabel} dari kantor
+            </p>
           )}
         </div>
       ) : (
@@ -74,10 +87,12 @@ export default function TodayAttendance({
   dateLabel,
   checkIn,
   checkOut,
-  hasOffice,
+  office,
   maxAccuracyMeters,
   faceEnrolled,
 }: Props) {
+  const canAttend = office !== null && faceEnrolled;
+
   return (
     <Panel
       title="Absensi Hari Ini"
@@ -87,16 +102,16 @@ export default function TodayAttendance({
           {dateLabel}
         </span>
       }
-      className="flex flex-1 flex-col p-4"
+      className="flex flex-2 flex-col p-4"
     >
-      {!hasOffice && (
+      {!office && (
         <div className="border-destructive/40 bg-destructive/10 text-destructive flex items-start gap-2 rounded-lg border p-3 text-sm">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           Lokasi kantor belum diatur admin, absensi belum bisa dilakukan.
         </div>
       )}
 
-      {hasOffice && !faceEnrolled && (
+      {office && !faceEnrolled && (
         <div className="border-destructive/40 bg-destructive/10 text-destructive flex items-start gap-2 rounded-lg border p-3 text-sm">
           <ScanFace className="mt-0.5 size-4 shrink-0" />
           <span>
@@ -122,36 +137,40 @@ export default function TodayAttendance({
         />
       </div>
 
-      <div className="mt-2 grid gap-3 sm:grid-cols-2">
-        <AttendanceDialog
-          type={AttendanceType.CHECK_IN}
-          label="Absen Masuk"
-          disabled={!hasOffice || !faceEnrolled || !!checkIn}
-          disabledReason={
-            !faceEnrolled
-              ? "Daftarkan wajah di Profil dulu"
-              : checkIn
-                ? "Sudah absen masuk hari ini"
-                : undefined
-          }
-          maxAccuracyMeters={maxAccuracyMeters}
-        />
-        <AttendanceDialog
-          type={AttendanceType.CHECK_OUT}
-          label="Absen Pulang"
-          disabled={!hasOffice || !faceEnrolled || !checkIn || !!checkOut}
-          disabledReason={
-            !faceEnrolled
-              ? "Daftarkan wajah di Profil dulu"
-              : !checkIn
-                ? "Absen masuk dulu"
-                : checkOut
-                  ? "Sudah absen pulang hari ini"
+      {office && (
+        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          <AttendanceDialog
+            type={AttendanceType.CHECK_IN}
+            label="Absen Masuk"
+            disabled={!canAttend || !!checkIn}
+            disabledReason={
+              !faceEnrolled
+                ? "Daftarkan wajah di Profil dulu"
+                : checkIn
+                  ? "Sudah absen masuk hari ini"
                   : undefined
-          }
-          maxAccuracyMeters={maxAccuracyMeters}
-        />
-      </div>
+            }
+            maxAccuracyMeters={maxAccuracyMeters}
+            office={office}
+          />
+          <AttendanceDialog
+            type={AttendanceType.CHECK_OUT}
+            label="Absen Pulang"
+            disabled={!canAttend || !checkIn || !!checkOut}
+            disabledReason={
+              !faceEnrolled
+                ? "Daftarkan wajah di Profil dulu"
+                : !checkIn
+                  ? "Absen masuk dulu"
+                  : checkOut
+                    ? "Sudah absen pulang hari ini"
+                    : undefined
+            }
+            maxAccuracyMeters={maxAccuracyMeters}
+            office={office}
+          />
+        </div>
+      )}
     </Panel>
   );
 }

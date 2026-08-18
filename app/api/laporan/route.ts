@@ -1,28 +1,28 @@
 import { NextResponse } from "next/server";
-import { RadiusReviewStatus, Role } from "@/generated/prisma";
+import { AttendanceApproval, Role } from "@/generated/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { toCsv } from "@/lib/csv";
 import { formatTime, formatWorkDate, toDateInputValue } from "@/lib/date";
 import { LEAVE_TYPE_LABEL } from "@/lib/leave";
-import { RECAP_STATUS_LABEL } from "@/lib/attendance";
-import { RADIUS_REVIEW_SHORT } from "@/lib/radius-review";
+import { DAY_STATUS_LABEL } from "@/lib/attendance";
+import { APPROVAL_LABEL } from "@/lib/work-mode";
 import { resolveReportQuery } from "@/servers/validators/report.validator";
 import { ReportService } from "@/servers/services/report.service";
 
-/** Keterangan lokasi satu absensi — koreksi manual memang tidak punya koordinat. */
+/** Keterangan lokasi satu absensi — pencatatan manual tidak punya koordinat. */
 function locationLabel(
   entry: {
     isManual: boolean;
     isWithinRadius: boolean | null;
-    reviewStatus: RadiusReviewStatus | null;
+    approvalStatus: AttendanceApproval | null;
   } | null,
 ) {
   if (!entry) return "";
-  if (entry.isManual) return "Koreksi manual";
+  if (entry.isManual) return "Dicatat manual";
   if (entry.isWithinRadius === true) return "Dalam radius";
   if (entry.isWithinRadius === false) {
-    return entry.reviewStatus
-      ? `Di luar radius (${RADIUS_REVIEW_SHORT[entry.reviewStatus]})`
+    return entry.approvalStatus
+      ? `Di luar radius (${APPROVAL_LABEL[entry.approvalStatus]})`
       : "Di luar radius";
   }
 
@@ -36,6 +36,8 @@ const HEADERS = [
   "Jabatan",
   "Status",
   "Keterangan",
+  "Penjelasan Karyawan",
+  "Approval",
   "Jam Masuk",
   "Jam Pulang",
   "Terlambat",
@@ -69,8 +71,12 @@ export async function GET(req: Request) {
       row.user.name,
       row.user.email,
       row.user.position ?? "",
-      RECAP_STATUS_LABEL[row.status],
+      DAY_STATUS_LABEL[row.status],
       row.leaveType ? LEAVE_TYPE_LABEL[row.leaveType] : (row.holidayName ?? ""),
+      row.checkIn?.workModeDetail ?? "",
+      row.checkIn?.approvalStatus
+        ? APPROVAL_LABEL[row.checkIn.approvalStatus]
+        : "",
       row.checkIn ? formatTime(row.checkIn.timestamp) : "",
       row.checkOut
         ? formatTime(row.checkOut.timestamp)

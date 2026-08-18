@@ -49,6 +49,13 @@ const monthFormatter = new Intl.DateTimeFormat("id-ID", {
   year: "numeric",
 });
 
+const compactDateFormatter = new Intl.DateTimeFormat("id-ID", {
+  timeZone: "UTC",
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
 type ZonedParts = {
   year: number;
   month: number;
@@ -108,8 +115,9 @@ export function formatMinutesAsTime(minutes: number): string {
 
 /**
  * Kebalikan `getWorkDate` + `getMinutesOfDay`: tanggal kerja + jam dinding di
- * APP_TIMEZONE → timestamp UTC. Dipakai koreksi absensi, yang menyimpan jam
- * sebagai teks "HH:mm" lalu perlu membentuk `Attendance.timestamp`.
+ * APP_TIMEZONE → timestamp UTC. Dipakai pencatatan absensi manual oleh admin,
+ * yang menerima jam sebagai teks "HH:mm" lalu perlu membentuk
+ * `Attendance.timestamp`.
  *
  * Offset zona dihitung ulang dari tanggalnya sendiri, jadi tetap benar untuk
  * zona ber-DST (kecuali pada jam yang ambigu saat pergantian DST — tidak
@@ -151,6 +159,16 @@ export function formatShortDate(date: Date): string {
 /** Nama hari singkat, mis. "Jum". Input harus kolom `date`. */
 export function formatWeekday(date: Date): string {
   return weekdayFormatter.format(date);
+}
+
+/** Label ringkas dengan tahun, mis. "12, Jan 2026". Input harus kolom `date`. */
+export function formatCompactDate(date: Date): string {
+  const parts = compactDateFormatter.formatToParts(date);
+  const day = parts.find((part) => part.type === "day")?.value ?? "";
+  const month = parts.find((part) => part.type === "month")?.value ?? "";
+  const year = parts.find((part) => part.type === "year")?.value ?? "";
+
+  return `${day}, ${month} ${year}`;
 }
 
 /** Label bulan, mis. "Agustus 2026". Input harus kolom `date`. */

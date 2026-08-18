@@ -1,17 +1,20 @@
 import Link from "next/link";
 import {
+  Briefcase,
   CalendarOff,
   ClipboardList,
-  Clock,
   Download,
   FileText,
-  ShieldCheck,
+  House,
+  Palmtree,
+  Stethoscope,
   UserCheck,
   UserX,
   type LucideIcon,
 } from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
 import AttendanceRecapTable from "@/components/admin/AttendanceRecapTable";
+import ManualAttendanceDialog from "@/components/admin/ManualAttendanceDialog";
 import DashboardDateNav from "@/components/admin/dashboard/DashboardDateNav";
 import Panel from "@/components/dashboard/Panel";
 import StatTile from "@/components/dashboard/StatTile";
@@ -19,11 +22,15 @@ import { Button } from "@/components/ui/button";
 import { Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import {
-  RECAP_STATUS_LABEL,
-  RECAP_STATUS_OPTIONS,
-  type RecapStatus,
+  DAY_STATUS_LABEL,
+  DAY_STATUS_OPTIONS,
+  type DayStatus,
 } from "@/lib/attendance";
-import { buildDailyRecap, countRecapStatus } from "@/lib/daily-recap";
+import {
+  buildDailyRecap,
+  countPresent,
+  countRecapStatus,
+} from "@/lib/daily-recap";
 import {
   formatWorkDate,
   fromDateInputValue,
@@ -40,18 +47,16 @@ import { WorkDayService } from "@/servers/services/setting.service";
 
 type SearchParams = { date?: string; status?: string };
 
-const STATUS_ICON: Record<RecapStatus, LucideIcon> = {
-  HADIR: UserCheck,
-  TERLAMBAT: Clock,
+const STATUS_ICON: Record<DayStatus, LucideIcon> = {
+  HADIR_DIKANTOR: UserCheck,
+  WFH: House,
+  DINAS_LUAR: Briefcase,
+  SAKIT: Stethoscope,
   IZIN: FileText,
-  ALPA: UserX,
+  ALFA: UserX,
+  CUTI: Palmtree,
   LIBUR: CalendarOff,
-  PERLU_VERIFIKASI: ShieldCheck,
 };
-
-function formatPercent(part: number, total: number) {
-  return total > 0 ? `${((part / total) * 100).toFixed(1)}%` : "0%";
-}
 
 export default async function KehadiranPage({
   searchParams,
@@ -63,10 +68,8 @@ export default async function KehadiranPage({
   const params = await searchParams;
   const workDate =
     (params.date && fromDateInputValue(params.date)) || getWorkDate();
-  const statusFilter = RECAP_STATUS_OPTIONS.includes(
-    params.status as RecapStatus,
-  )
-    ? (params.status as RecapStatus)
+  const statusFilter = DAY_STATUS_OPTIONS.includes(params.status as DayStatus)
+    ? (params.status as DayStatus)
     : null;
 
   const [employees, attendances, approvedLeaves, holiday, workDays] =
@@ -92,14 +95,15 @@ export default async function KehadiranPage({
   const counts = countRecapStatus(rows);
 
   const total = rows.length;
-  const presentToday = counts.HADIR + counts.TERLAMBAT;
+  const presentToday = countPresent(counts);
+  const pendingApproval = rows.filter((row) => row.pendingApproval).length;
 
   const visibleRows = statusFilter
     ? rows.filter((row) => row.status === statusFilter)
     : rows;
 
   const dateValue = toDateInputValue(workDate);
-  const buildHref = (status: RecapStatus | null) => {
+  const buildHref = (status: DayStatus | null) => {
     const query = new URLSearchParams({ date: dateValue });
     if (status) query.set("status", status);
 
@@ -130,6 +134,13 @@ export default async function KehadiranPage({
               basePath="/admin/kehadiran"
               status={statusFilter}
             />
+            <ManualAttendanceDialog
+              employees={employees.map((employee) => ({
+                id: employee.id,
+                name: employee.name,
+              }))}
+              defaultDate={dateValue}
+            />
             <Button asChild variant="outline">
               <Link
                 href={`/api/laporan?${csvParams.toString()}`}
@@ -143,14 +154,27 @@ export default async function KehadiranPage({
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {RECAP_STATUS_OPTIONS.map((status) => (
+      {pendingApproval > 0 && (
+        <div className="border-border bg-muted/40 flex flex-wrap items-center gap-2 rounded-lg border p-3 text-sm">
+          <span>
+            {pendingApproval} absensi luar kantor menunggu persetujuanmu.
+          </span>
+          <Link
+            href="/admin/verifikasi"
+            className="text-primary font-medium hover:underline"
+          >
+            Buka Approval Absensi
+          </Link>
+        </div>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+        {DAY_STATUS_OPTIONS.map((status) => (
           <StatTile
             key={status}
-            label={RECAP_STATUS_LABEL[status]}
+            label={DAY_STATUS_LABEL[status]}
             icon={STATUS_ICON[status]}
             value={String(counts[status])}
-            footerLabel={`${formatPercent(counts[status], total)} dari ${total} karyawan`}
           />
         ))}
       </div>
@@ -178,7 +202,7 @@ export default async function KehadiranPage({
             Semua ({total})
           </Link>
 
-          {RECAP_STATUS_OPTIONS.map((status) => (
+          {DAY_STATUS_OPTIONS.map((status) => (
             <Link
               key={status}
               href={buildHref(status)}
@@ -189,7 +213,7 @@ export default async function KehadiranPage({
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {RECAP_STATUS_LABEL[status]} ({counts[status]})
+              {DAY_STATUS_LABEL[status]} ({counts[status]})
             </Link>
           ))}
         </div>

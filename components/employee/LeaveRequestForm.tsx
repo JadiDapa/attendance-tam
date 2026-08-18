@@ -127,7 +127,7 @@ export default function LeaveRequestForm({ today }: { today: string }) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
             <div className="flex flex-col gap-2">
               <Label htmlFor="startDate">Mulai</Label>
               <Input id="startDate" type="date" {...register("startDate")} />

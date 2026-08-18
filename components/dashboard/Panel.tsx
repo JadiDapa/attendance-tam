@@ -21,15 +21,17 @@ export default function Panel({
 }: Props) {
   return (
     <section className={cn("bg-card flex flex-col rounded-2xl", className)}>
-      <header className="flex items-center justify-between gap-3 px-5 py-3.5">
+      <header className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-3.5">
         <div className="flex min-w-0 items-center gap-2.5">
-          <h2 className="truncate text-lg font-medium">{title}</h2>
+          <h2 className="truncate text-base font-medium sm:text-lg">
+            {title}
+          </h2>
         </div>
 
         {action}
       </header>
 
-      <div className={cn("p-5", contentClassName)}>{children}</div>
+      <div className={cn("p-4 sm:p-5", contentClassName)}>{children}</div>
     </section>
   );
 }

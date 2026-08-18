@@ -1,13 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import type { RecapEntry } from "@/lib/attendance";
-import { RADIUS_REVIEW_LABEL } from "@/lib/radius-review";
+import { APPROVAL_LABEL, WORK_MODE_LABEL } from "@/lib/work-mode";
 
 /**
  * Ringkasan lokasi satu hari dari absen masuk + pulang.
  *
- * Absensi hasil koreksi manual tidak punya koordinat, jadi tidak boleh ikut
- * dihitung "di luar radius" — kalau semua entry-nya manual, yang ditampilkan
- * adalah keterangannya, bukan status radius.
+ * Absensi yang dicatat admin manual tidak punya koordinat, jadi tidak boleh
+ * ikut dihitung "di luar radius" — kalau semua entry-nya manual, yang
+ * ditampilkan adalah keterangannya, bukan status radius.
  */
 export default function AttendanceLocationBadge({
   entries,
@@ -23,13 +23,13 @@ export default function AttendanceLocationBadge({
   if (outside) {
     return (
       <div className="space-y-1">
-        <Badge variant="destructive">
-          Di luar radius
-          {outside.distanceLabel ? ` (${outside.distanceLabel})` : ""}
+        <Badge variant="outline">
+          {WORK_MODE_LABEL[outside.effectiveMode]}
+          {outside.distanceLabel ? ` · ${outside.distanceLabel}` : ""}
         </Badge>
-        {outside.reviewStatus && (
+        {outside.approvalStatus && (
           <p className="text-muted-foreground text-xs">
-            {RADIUS_REVIEW_LABEL[outside.reviewStatus]}
+            {APPROVAL_LABEL[outside.approvalStatus]}
           </p>
         )}
       </div>

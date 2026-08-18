@@ -1,12 +1,16 @@
+import { CalendarClock, CheckCircle2, Clock4, XCircle } from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
+import Panel from "@/components/dashboard/Panel";
+import StatTile from "@/components/dashboard/StatTile";
+import LeaveTypeChart from "@/components/dashboard/LeaveTypeChart";
+import LeaveStatusChart from "@/components/dashboard/LeaveStatusChart";
 import LeaveApprovalTable, {
   type LeaveApprovalRow,
 } from "@/components/admin/LeaveApprovalTable";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { LeaveStatus, Role } from "@/generated/prisma";
+import { LeaveStatus, LeaveType, Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import { formatWorkDate, getWorkDate } from "@/lib/date";
 import {
@@ -19,6 +23,12 @@ import { LeaveService } from "@/servers/services/leave.service";
 type SearchParams = { status?: string };
 
 const STATUS_OPTIONS = Object.values(LeaveStatus);
+
+const STATUS_ICON: Record<LeaveStatus, typeof Clock4> = {
+  PENDING: Clock4,
+  APPROVED: CheckCircle2,
+  REJECTED: XCircle,
+};
 
 export default async function AdminIzinPage({
   searchParams,
@@ -57,6 +67,18 @@ export default async function AdminIzinPage({
   const countByStatus = (status: LeaveStatus) =>
     requests.filter((request) => request.status === status).length;
 
+  const countByType: Record<LeaveType, number> = {
+    IZIN: requests.filter((request) => request.type === "IZIN").length,
+    SAKIT: requests.filter((request) => request.type === "SAKIT").length,
+    CUTI: requests.filter((request) => request.type === "CUTI").length,
+  };
+
+  const countByStatusMap: Record<LeaveStatus, number> = {
+    PENDING: countByStatus(LeaveStatus.PENDING),
+    APPROVED: countByStatus(LeaveStatus.APPROVED),
+    REJECTED: countByStatus(LeaveStatus.REJECTED),
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -86,15 +108,29 @@ export default async function AdminIzinPage({
 
       <div className="grid gap-4 sm:grid-cols-3">
         {STATUS_OPTIONS.map((status) => (
-          <Card key={status}>
-            <CardContent className="pt-6">
-              <p className="text-muted-foreground text-sm">
-                {LEAVE_STATUS_LABEL[status]}
-              </p>
-              <p className="text-2xl font-bold">{countByStatus(status)}</p>
-            </CardContent>
-          </Card>
+          <StatTile
+            key={status}
+            label={LEAVE_STATUS_LABEL[status]}
+            icon={STATUS_ICON[status]}
+            value={String(countByStatus(status))}
+            footerLabel={`Pengajuan berstatus ${LEAVE_STATUS_LABEL[status].toLowerCase()}`}
+            highlighted={status === LeaveStatus.PENDING}
+          />
         ))}
+      </div>
+
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <Panel
+          title="Pengajuan per Jenis"
+          icon={CalendarClock}
+          className="flex-2 p-4"
+        >
+          <LeaveTypeChart countByType={countByType} />
+        </Panel>
+
+        <Panel title="Status Pengajuan" icon={Clock4} className="flex flex-1">
+          <LeaveStatusChart countByStatus={countByStatusMap} />
+        </Panel>
       </div>
 
       <LeaveApprovalTable rows={rows} />

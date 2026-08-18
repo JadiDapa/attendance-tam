@@ -9,9 +9,10 @@ import {
 import { eachDate, getWorkDate } from "@/lib/date";
 import {
   isMissingCheckOut,
+  isPendingApproval,
   isVoidedAttendance,
   statusFromCheckIn,
-  type RecapStatus,
+  type DayStatus,
 } from "@/lib/attendance";
 import { indexHolidays } from "@/lib/holiday";
 import { isNonWorkingDate } from "@/lib/work-schedule";
@@ -21,8 +22,8 @@ import { LeaveService } from "./leave.service";
 import { HolidayService } from "./holiday.service";
 import { WorkDayService } from "./setting.service";
 
-/** Sengaja alias dari `RecapStatus` supaya status di laporan dan di rekap harian tidak pernah berbeda. */
-export type ReportStatus = RecapStatus;
+/** Sengaja alias dari `DayStatus` supaya status di laporan dan di rekap harian tidak pernah berbeda. */
+export type ReportStatus = DayStatus;
 
 export type ReportRow = {
   workDate: Date;
@@ -40,6 +41,8 @@ export type ReportRow = {
   checkOut: Attendance | null;
   /** Absen masuk ada, absen pulang tidak pernah tercatat, dan harinya sudah lewat. */
   missingCheckOut: boolean;
+  /** Absensi luar radius yang masih menunggu keputusan admin. */
+  pendingApproval: boolean;
 };
 
 export type ReportOptions = {
@@ -141,11 +144,12 @@ export const ReportService = {
 
         // Urutan sengaja: absen menang atas izin (kalau karyawan tetap datang
         // dia dihitung hadir), dan izin menang atas libur supaya jatah izin
-        // yang sudah disetujui tetap terlihat.
-        let status: ReportStatus = "ALPA";
+        // yang sudah disetujui tetap terlihat. `LeaveType` sengaja sama persis
+        // dengan tiga status izin, jadi jenisnya terbawa apa adanya.
+        let status: ReportStatus = "ALFA";
 
         if (effectiveCheckIn) status = statusFromCheckIn(effectiveCheckIn);
-        else if (leave) status = "IZIN";
+        else if (leave) status = leave.type;
         else if (isDayOff) status = "LIBUR";
 
         rows.push({
@@ -167,6 +171,8 @@ export const ReportService = {
             workDate: date,
             today,
           }),
+          pendingApproval:
+            isPendingApproval(checkIn) || isPendingApproval(checkOut),
         });
       }
     }

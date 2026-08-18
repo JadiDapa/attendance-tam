@@ -27,6 +27,7 @@ import {
   type CalendarStatus,
 } from "./attendance";
 import { LEAVE_TYPE_LABEL } from "./leave";
+import { APPROVAL_LABEL } from "./work-mode";
 import { resolveReportQuery } from "@/servers/validators/report.validator";
 import type { ReportRow } from "@/servers/services/report.service";
 
@@ -77,9 +78,18 @@ export function buildAttendanceDays(options: {
     const isToday = date.getTime() === today.getTime();
     const isPast = date.getTime() < today.getTime();
 
-    // Hari ini masih berjalan, jadi belum dihitung tidak absen.
+    // Hari ini masih berjalan, jadi belum dihitung Alfa.
     const status: CalendarStatus =
-      !row || (row.status === "ALPA" && !isPast) ? "KOSONG" : row.status;
+      !row || (row.status === "ALFA" && !isPast) ? "KOSONG" : row.status;
+
+    // Absensi yang menunggu keputusan admin diberi keterangan itu lebih dulu —
+    // penjelasan karyawan sendiri jadi cadangan kalau sudah diputuskan.
+    const statusDetail = row?.pendingApproval
+      ? APPROVAL_LABEL.PENDING
+      : (row?.checkIn?.workModeDetail ??
+        (row?.leaveType
+          ? LEAVE_TYPE_LABEL[row.leaveType]
+          : (row?.holidayName ?? null)));
 
     return {
       key: toDateInputValue(date),
@@ -87,9 +97,7 @@ export function buildAttendanceDays(options: {
       weekdayIndex: getWeekdayIndex(date),
       dateLabel: formatWorkDate(date),
       status,
-      statusDetail: row?.leaveType
-        ? LEAVE_TYPE_LABEL[row.leaveType]
-        : (row?.holidayName ?? null),
+      statusDetail,
       checkIn: row?.checkIn ? toRecapEntry("Absen Masuk", row.checkIn) : null,
       checkOut: row?.checkOut
         ? toRecapEntry("Absen Pulang", row.checkOut)
@@ -99,6 +107,7 @@ export function buildAttendanceDays(options: {
           ? formatDuration(row.checkIn.timestamp, row.checkOut.timestamp)
           : null,
       missingCheckOut: row?.missingCheckOut ?? false,
+      pendingApproval: row?.pendingApproval ?? false,
       isToday,
       isPast,
     };
@@ -130,16 +139,14 @@ export function summarizeDays(days: AttendanceDay[]): AttendanceSummary {
   const count = (status: CalendarStatus) =>
     days.filter((day) => day.status === status).length;
 
-  const hadir = count("HADIR");
-  const terlambat = count("TERLAMBAT");
-  const alpa = count("ALPA");
+  const hadirDikantor = count("HADIR_DIKANTOR");
+  const wfh = count("WFH");
+  const dinasLuar = count("DINAS_LUAR");
 
-  // `isWithinRadius === null` berarti absensi hasil koreksi manual — tidak ada
-  // koordinat yang terekam, jadi tidak dihitung sebagai di luar radius.
+  // `isWithinRadius === null` berarti absensi yang dicatat admin manual — tidak
+  // ada koordinat yang terekam, jadi tidak dihitung sebagai di luar radius.
   const outsideRadius = days.filter((day) =>
-    [day.checkIn, day.checkOut].some(
-      (entry) => entry?.isWithinRadius === false,
-    ),
+    [day.checkIn, day.checkOut].some((entry) => entry?.isWithinRadius === false),
   ).length;
 
   const checkInMinutes = days
@@ -147,15 +154,23 @@ export function summarizeDays(days: AttendanceDay[]): AttendanceSummary {
     .filter((minutes): minutes is number => minutes !== null);
 
   return {
-    hadir,
-    terlambat,
+    hadirDikantor,
+    wfh,
+    dinasLuar,
+    sakit: count("SAKIT"),
     izin: count("IZIN"),
-    alpa,
+    alfa: count("ALFA"),
+    cuti: count("CUTI"),
     libur: count("LIBUR"),
-    perluVerifikasi: count("PERLU_VERIFIKASI"),
+    // Terlambat adalah atribut, bukan status — dihitung dari absen masuknya
+    // sendiri, dan sudah ikut terhitung di `hadirDikantor`.
+    terlambat: days.filter(
+      (day) => day.status === "HADIR_DIKANTOR" && day.checkIn?.isLate,
+    ).length,
+    pendingApproval: days.filter((day) => day.pendingApproval).length,
     outsideRadius,
     missingCheckOut: days.filter((day) => day.missingCheckOut).length,
-    expected: hadir + terlambat + alpa,
+    totalHadir: hadirDikantor + wfh + dinasLuar,
     averageCheckIn: checkInMinutes.length
       ? formatMinutesAsTime(
           Math.round(
@@ -165,8 +180,4 @@ export function summarizeDays(days: AttendanceDay[]): AttendanceSummary {
         )
       : null,
   };
-}
-
-export function formatPercent(part: number, total: number): string {
-  return total > 0 ? `${((part / total) * 100).toFixed(1)}%` : "—";
 }

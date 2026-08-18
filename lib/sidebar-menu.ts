@@ -3,7 +3,6 @@ import {
   CalendarCheck,
   CalendarClock,
   CalendarOff,
-  CalendarSync,
   FileText,
   Users,
   MapPin,
@@ -11,6 +10,7 @@ import {
   Clock,
   Download,
   ShieldCheck,
+  Settings,
   LucideIcon,
 } from "lucide-react";
 
@@ -42,12 +42,6 @@ export const overviewItems: MenuItem[] = [
     roles: ["EMPLOYEE"],
   },
   {
-    title: "Koreksi Absensi",
-    url: "/koreksi",
-    icon: CalendarSync,
-    roles: ["EMPLOYEE"],
-  },
-  {
     title: "Dashboard",
     url: "/admin/dashboard",
     icon: LayoutDashboard,
@@ -72,13 +66,7 @@ export const overviewItems: MenuItem[] = [
     roles: ["ADMIN"],
   },
   {
-    title: "Koreksi Absensi",
-    url: "/admin/koreksi",
-    icon: CalendarSync,
-    roles: ["ADMIN"],
-  },
-  {
-    title: "Verifikasi Lokasi",
+    title: "Approval Absensi",
     url: "/admin/verifikasi",
     icon: ShieldCheck,
     roles: ["ADMIN"],
@@ -92,6 +80,12 @@ export const overviewItems: MenuItem[] = [
 ];
 
 export const settingsItems: MenuItem[] = [
+  {
+    title: "Pengaturan",
+    url: "/pengaturan",
+    icon: Settings,
+    roles: ["EMPLOYEE"],
+  },
   {
     title: "Lokasi Kantor",
     url: "/admin/lokasi",

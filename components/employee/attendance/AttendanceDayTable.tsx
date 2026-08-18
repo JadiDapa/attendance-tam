@@ -5,12 +5,13 @@ import { ColumnDef } from "@tanstack/react-table";
 import DataTable from "@/components/dashboard/DataTable";
 import AttendanceLocationBadge from "@/components/dashboard/AttendanceLocationBadge";
 import CheckOutCell from "@/components/dashboard/CheckOutCell";
+import AttendanceDayCard from "./AttendanceDayCard";
 import AttendanceDayDialog from "./AttendanceDayDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   CALENDAR_STATUS_LABEL,
-  RECAP_STATUS_VARIANT,
+  DAY_STATUS_VARIANT,
   type AttendanceDay,
 } from "@/lib/attendance";
 
@@ -68,9 +69,7 @@ export default function AttendanceDayTable({ days }: { days: AttendanceDay[] }) 
           <div className="space-y-1">
             <Badge
               variant={
-                status === "LIBUR" || status === "KOSONG"
-                  ? "outline"
-                  : RECAP_STATUS_VARIANT[status]
+                status === "KOSONG" ? "outline" : DAY_STATUS_VARIANT[status]
               }
             >
               {CALENDAR_STATUS_LABEL[status]}
@@ -114,6 +113,10 @@ export default function AttendanceDayTable({ days }: { days: AttendanceDay[] }) 
         data={days}
         bare
         emptyMessage="Tidak ada tanggal untuk filter ini."
+        onRowClick={(day: AttendanceDay) => {
+          if (day.checkIn || day.checkOut) setSelected(day);
+        }}
+        renderMobileCard={(day: AttendanceDay) => <AttendanceDayCard day={day} />}
       />
 
       <AttendanceDayDialog

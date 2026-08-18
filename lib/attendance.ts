@@ -6,61 +6,112 @@
  * jadi client reference kalau diimpor server, sehingga isinya tidak terbaca.
  */
 
-import type { Attendance, RadiusReviewStatus } from "@/generated/prisma";
+import type { Attendance } from "@/generated/prisma";
 import { formatTime } from "./date";
 import { formatDistance } from "./geo";
+import {
+  WORK_MODE_LABEL,
+  type AttendanceApprovalValue,
+  type WorkModeValue,
+} from "./work-mode";
 
-export type RecapStatus =
-  | "HADIR"
-  | "TERLAMBAT"
-  | "IZIN"
-  | "ALPA"
-  | "LIBUR"
-  | "PERLU_VERIFIKASI";
+export type AttendanceTypeValue = "CHECK_IN" | "CHECK_OUT";
 
-export const RECAP_STATUS_OPTIONS: RecapStatus[] = [
-  "HADIR",
-  "TERLAMBAT",
-  "IZIN",
-  "ALPA",
-  "LIBUR",
-  "PERLU_VERIFIKASI",
-];
-
-export const RECAP_STATUS_LABEL: Record<RecapStatus, string> = {
-  HADIR: "Hadir",
-  TERLAMBAT: "Terlambat",
-  IZIN: "Izin",
-  ALPA: "Tidak absen",
-  LIBUR: "Libur",
-  PERLU_VERIFIKASI: "Perlu verifikasi",
-};
-
-export const RECAP_STATUS_VARIANT: Record<
-  RecapStatus,
-  "default" | "secondary" | "destructive" | "outline"
-> = {
-  HADIR: "secondary",
-  TERLAMBAT: "destructive",
-  IZIN: "outline",
-  ALPA: "destructive",
-  LIBUR: "outline",
-  PERLU_VERIFIKASI: "destructive",
-};
-
-/** Warna titik status — dipakai di ringkasan dashboard, bukan satu-satunya penanda. */
-export const RECAP_STATUS_DOT: Record<RecapStatus, string> = {
-  HADIR: "bg-chart-hadir",
-  TERLAMBAT: "bg-chart-terlambat",
-  IZIN: "bg-muted-foreground/60",
-  ALPA: "bg-destructive",
-  LIBUR: "bg-border",
-  PERLU_VERIFIKASI: "bg-chart-terlambat",
+export const ATTENDANCE_TYPE_LABEL: Record<AttendanceTypeValue, string> = {
+  CHECK_IN: "Absen Masuk",
+  CHECK_OUT: "Absen Pulang",
 };
 
 /**
- * Foto, koordinat, dan status radius bernilai null untuk absensi hasil koreksi
- * manual — saat itu karyawan memang tidak sedang memegang HP-nya.
+ * Tujuh klasifikasi kehadiran. `HADIR_DIKANTOR` mencakup yang tepat waktu
+ * maupun yang terlambat — keterlambatan tetap dicatat, tapi sebagai atribut
+ * (`Attendance.isLate`), bukan status tersendiri.
+ */
+export type RecapStatus =
+  | "HADIR_DIKANTOR"
+  | "WFH"
+  | "DINAS_LUAR"
+  | "SAKIT"
+  | "IZIN"
+  | "ALFA"
+  | "CUTI";
+
+/**
+ * Status satu hari di rekap: tujuh klasifikasi di atas + hari yang memang tidak
+ * menuntut kehadiran. `LIBUR` bukan klasifikasi kehadiran — tanpa dia, setiap
+ * akhir pekan dan tanggal merah akan terbaca `ALFA`.
+ */
+export type DayStatus = RecapStatus | "LIBUR";
+
+/** Status satu kotak kalender: status hari + hari yang belum ada datanya. */
+export type CalendarStatus = DayStatus | "KOSONG";
+
+export const RECAP_STATUS_OPTIONS: RecapStatus[] = [
+  "HADIR_DIKANTOR",
+  "WFH",
+  "DINAS_LUAR",
+  "SAKIT",
+  "IZIN",
+  "ALFA",
+  "CUTI",
+];
+
+/** Pilihan filter di tabel rekap — tujuh klasifikasi + hari libur. */
+export const DAY_STATUS_OPTIONS: DayStatus[] = [
+  ...RECAP_STATUS_OPTIONS,
+  "LIBUR",
+];
+
+export const DAY_STATUS_LABEL: Record<DayStatus, string> = {
+  HADIR_DIKANTOR: WORK_MODE_LABEL.HADIR_DIKANTOR,
+  WFH: WORK_MODE_LABEL.WFH,
+  DINAS_LUAR: WORK_MODE_LABEL.DINAS_LUAR,
+  SAKIT: WORK_MODE_LABEL.SAKIT,
+  IZIN: WORK_MODE_LABEL.IZIN,
+  ALFA: "Alfa",
+  CUTI: WORK_MODE_LABEL.CUTI,
+  LIBUR: "Libur",
+};
+
+export const DAY_STATUS_VARIANT: Record<
+  DayStatus,
+  "default" | "secondary" | "destructive" | "outline"
+> = {
+  HADIR_DIKANTOR: "secondary",
+  WFH: "default",
+  DINAS_LUAR: "default",
+  SAKIT: "outline",
+  IZIN: "outline",
+  ALFA: "destructive",
+  CUTI: "outline",
+  LIBUR: "outline",
+};
+
+/** Warna titik status — dipakai di ringkasan dashboard, bukan satu-satunya penanda. */
+export const DAY_STATUS_DOT: Record<DayStatus, string> = {
+  HADIR_DIKANTOR: "bg-chart-hadir",
+  WFH: "bg-chart-1",
+  DINAS_LUAR: "bg-chart-3",
+  SAKIT: "bg-chart-5",
+  IZIN: "bg-muted-foreground/60",
+  ALFA: "bg-destructive",
+  CUTI: "bg-chart-4",
+  LIBUR: "bg-border",
+};
+
+export const CALENDAR_STATUS_LABEL: Record<CalendarStatus, string> = {
+  ...DAY_STATUS_LABEL,
+  KOSONG: "Belum ada data",
+};
+
+export const CALENDAR_STATUS_DOT: Record<CalendarStatus, string> = {
+  ...DAY_STATUS_DOT,
+  KOSONG: "bg-border",
+};
+
+/**
+ * Foto, koordinat, dan status radius bernilai null untuk absensi yang dicatat
+ * admin secara manual — saat itu karyawan memang tidak sedang memegang HP-nya.
  */
 export type RecapEntry = {
   label: string;
@@ -72,10 +123,16 @@ export type RecapEntry = {
   photoUrl: string | null;
   latitude: number | null;
   longitude: number | null;
-  /** Dicatat lewat koreksi admin, bukan absen langsung dengan foto + GPS. */
+  /** Dicatat manual oleh admin, bukan absen langsung dengan foto + GPS. */
   isManual: boolean;
-  /** Null kalau absensinya normal dan tidak perlu diverifikasi admin. */
-  reviewStatus: RadiusReviewStatus | null;
+  /** Mode yang diklaim karyawan saat absen. */
+  workMode: WorkModeValue;
+  /** Mode final setelah keputusan admin — `approvedMode ?? workMode`. */
+  effectiveMode: WorkModeValue;
+  /** Null kalau absensinya di dalam radius dan tidak perlu persetujuan. */
+  approvalStatus: AttendanceApprovalValue | null;
+  /** Penjelasan yang ditulis karyawan saat absen di luar radius. */
+  workModeDetail: string | null;
   reviewNote: string | null;
 };
 
@@ -83,13 +140,65 @@ export type RecapRow = {
   userId: string;
   name: string;
   position: string;
-  status: RecapStatus;
+  status: DayStatus;
   statusDetail: string | null;
   checkIn: RecapEntry | null;
   checkOut: RecapEntry | null;
   /** Sudah absen masuk tapi tidak pernah absen pulang, dan harinya sudah lewat. */
   missingCheckOut: boolean;
+  /** Absensi luar radius yang masih menunggu keputusan admin. */
+  pendingApproval: boolean;
 };
+
+/** Absensi apa saja yang perlu dicek: hanya kolom yang memengaruhi status rekap. */
+type ReviewableAttendance = {
+  isLate: boolean;
+  workMode: WorkModeValue;
+  approvedMode: WorkModeValue | null;
+  approvalStatus: AttendanceApprovalValue | null;
+};
+
+/**
+ * Mode final sebuah absensi: keputusan admin kalau ada, kalau tidak ya klaim
+ * karyawannya sendiri. Satu-satunya tempat `approvedMode` dibaca.
+ */
+export function effectiveWorkMode(
+  attendance: ReviewableAttendance,
+): WorkModeValue {
+  return attendance.approvedMode ?? attendance.workMode;
+}
+
+/**
+ * Absensi yang ditolak admin tidak boleh ikut dihitung di rekap mana pun.
+ * Barisnya tetap ada di database sebagai jejak, tapi diperlakukan seolah tidak
+ * pernah ada saat menyusun status hari.
+ */
+export function isVoidedAttendance(
+  attendance: ReviewableAttendance | null,
+): boolean {
+  return attendance?.approvalStatus === "REJECTED";
+}
+
+/**
+ * Absensi luar radius yang masih menunggu keputusan admin. Sengaja jadi penanda
+ * di samping status, bukan status tersendiri — hari itu tetap terbaca sebagai
+ * mode yang diklaim karyawan, dengan catatan bahwa admin belum memutuskan.
+ */
+export function isPendingApproval(
+  attendance: ReviewableAttendance | null,
+): boolean {
+  return attendance?.approvalStatus === "PENDING";
+}
+
+/**
+ * Status hari dari absen masuk yang sudah lolos `isVoidedAttendance`.
+ *
+ * Satu-satunya tempat mode kerja diterjemahkan jadi status rekap — dipakai
+ * `ReportService.buildRecap` maupun `buildDailyRecap`.
+ */
+export function statusFromCheckIn(checkIn: ReviewableAttendance): RecapStatus {
+  return effectiveWorkMode(checkIn);
+}
 
 /**
  * Baris absensi → data siap render: semua angka/tanggal sudah jadi teks di
@@ -116,41 +225,12 @@ export function toRecapEntry(
     latitude: attendance.latitude,
     longitude: attendance.longitude,
     isManual: attendance.isManual,
-    reviewStatus: attendance.reviewStatus,
+    workMode: attendance.workMode,
+    effectiveMode: effectiveWorkMode(attendance),
+    approvalStatus: attendance.approvalStatus,
+    workModeDetail: attendance.workModeDetail,
     reviewNote: attendance.reviewNote,
   };
-}
-
-/** Absensi apa saja yang perlu dicek: hanya kolom yang memengaruhi status rekap. */
-type ReviewableAttendance = {
-  isLate: boolean;
-  reviewStatus: RadiusReviewStatus | null;
-};
-
-/**
- * Absensi yang dianulir admin tidak boleh ikut dihitung di rekap mana pun.
- * Barisnya tetap ada di database sebagai jejak, tapi diperlakukan seolah tidak
- * pernah ada saat menyusun status hari.
- */
-export function isVoidedAttendance(
-  attendance: ReviewableAttendance | null,
-): boolean {
-  return attendance?.reviewStatus === "ALPA";
-}
-
-/**
- * Status hari dari absen masuk yang sudah lolos `isVoidedAttendance`.
- *
- * Satu-satunya tempat keputusan verifikasi radius diterjemahkan jadi status
- * rekap — dipakai `ReportService.buildRecap` dan `buildDailyRecap`.
- */
-export function statusFromCheckIn(checkIn: ReviewableAttendance): RecapStatus {
-  if (checkIn.reviewStatus === "PENDING") return "PERLU_VERIFIKASI";
-  if (checkIn.reviewStatus === "IZIN" || checkIn.reviewStatus === "SAKIT") {
-    return "IZIN";
-  }
-
-  return checkIn.isLate ? "TERLAMBAT" : "HADIR";
 }
 
 /**
@@ -170,19 +250,6 @@ export function isMissingCheckOut(input: {
     input.workDate.getTime() < input.today.getTime()
   );
 }
-
-/** Status satu kotak kalender: status rekap + hari yang belum ada datanya. */
-export type CalendarStatus = RecapStatus | "KOSONG";
-
-export const CALENDAR_STATUS_LABEL: Record<CalendarStatus, string> = {
-  ...RECAP_STATUS_LABEL,
-  KOSONG: "Belum ada data",
-};
-
-export const CALENDAR_STATUS_DOT: Record<CalendarStatus, string> = {
-  ...RECAP_STATUS_DOT,
-  KOSONG: "bg-border",
-};
 
 /**
  * Satu hari absensi milik seorang karyawan, sudah jadi teks. Dipakai bersama
@@ -205,8 +272,10 @@ export type AttendanceDay = {
   durationLabel: string | null;
   /** Sudah absen masuk tapi tidak pernah absen pulang, dan harinya sudah lewat. */
   missingCheckOut: boolean;
+  /** Absensi luar radius yang masih menunggu keputusan admin. */
+  pendingApproval: boolean;
   isToday: boolean;
-  /** Hari yang sudah lewat — menentukan boleh/tidaknya diajukan koreksi. */
+  /** Hari yang sudah lewat. */
   isPast: boolean;
 };
 
@@ -217,18 +286,26 @@ export type AttendanceMonth = {
 };
 
 export type AttendanceSummary = {
-  hadir: number;
-  terlambat: number;
+  hadirDikantor: number;
+  wfh: number;
+  dinasLuar: number;
+  sakit: number;
   izin: number;
-  alpa: number;
+  alfa: number;
+  cuti: number;
   libur: number;
+  /**
+   * Hari `HADIR_DIKANTOR` yang jam masuknya melewati toleransi. Atribut, bukan
+   * status — sudah ikut terhitung di `hadirDikantor`.
+   */
+  terlambat: number;
   /** Absensi luar radius yang masih menunggu keputusan admin. */
-  perluVerifikasi: number;
+  pendingApproval: number;
   outsideRadius: number;
   /** Hari yang absen masuknya ada tapi absen pulangnya tidak pernah tercatat. */
   missingCheckOut: number;
-  /** Hari kerja yang sudah lewat dan wajib absen (izin tidak dihitung). */
-  expected: number;
+  /** Total hari yang dihitung hadir bekerja: di kantor + WFH + dinas luar. */
+  totalHadir: number;
   /** Rata-rata jam absen masuk, mis. "08:12". Null kalau belum ada absensi. */
   averageCheckIn: string | null;
 };

@@ -132,7 +132,7 @@ export default function DateRangeNav({
   };
 
   return (
-    <div className="border-border bg-card flex items-center gap-1 rounded-full border p-1 shadow-xs">
+    <div className="bg-card flex items-center gap-1 rounded-full p-1">
       <button
         type="button"
         aria-label="Periode sebelumnya"

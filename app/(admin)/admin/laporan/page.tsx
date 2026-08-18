@@ -23,7 +23,8 @@ import {
   toDateInputValue,
 } from "@/lib/date";
 import { LEAVE_TYPE_LABEL } from "@/lib/leave";
-import { RECAP_STATUS_LABEL, RECAP_STATUS_OPTIONS } from "@/lib/attendance";
+import { DAY_STATUS_LABEL, DAY_STATUS_OPTIONS } from "@/lib/attendance";
+import { WORK_MODE_LABEL } from "@/lib/work-mode";
 import { resolveReportQuery } from "@/servers/validators/report.validator";
 import {
   ReportService,
@@ -69,12 +70,13 @@ export default async function LaporanPage({
   const rows = await ReportService.buildRecap(query);
 
   const counts = Object.fromEntries(
-    RECAP_STATUS_OPTIONS.map((status) => [
+    DAY_STATUS_OPTIONS.map((status) => [
       status,
       rows.filter((row) => row.status === status).length,
     ]),
   ) as Record<ReportStatus, number>;
   const missingCheckOut = rows.filter((row) => row.missingCheckOut).length;
+  const pendingApproval = rows.filter((row) => row.pendingApproval).length;
 
   const csvParams = new URLSearchParams({
     start: toDateInputValue(query.startDate),
@@ -147,12 +149,12 @@ export default async function LaporanPage({
         <p className="text-destructive text-sm">{resolved.error}</p>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-4">
-        {RECAP_STATUS_OPTIONS.map((status) => (
+      <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-5">
+        {DAY_STATUS_OPTIONS.map((status) => (
           <Card key={status}>
             <CardContent className="pt-6">
               <p className="text-muted-foreground text-sm">
-                {RECAP_STATUS_LABEL[status]}
+                {DAY_STATUS_LABEL[status]}
               </p>
               <p className="text-2xl font-bold">{counts[status]}</p>
             </CardContent>
@@ -162,6 +164,12 @@ export default async function LaporanPage({
           <CardContent className="pt-6">
             <p className="text-muted-foreground text-sm">Tidak absen pulang</p>
             <p className="text-2xl font-bold">{missingCheckOut}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-muted-foreground text-sm">Menunggu approval</p>
+            <p className="text-2xl font-bold">{pendingApproval}</p>
           </CardContent>
         </Card>
       </div>
@@ -199,9 +207,15 @@ export default async function LaporanPage({
                   <TableCell>{formatWorkDate(row.workDate)}</TableCell>
                   <TableCell>{row.user.name}</TableCell>
                   <TableCell>
-                    {RECAP_STATUS_LABEL[row.status]}
+                    {DAY_STATUS_LABEL[row.status]}
                     {row.leaveType && ` (${LEAVE_TYPE_LABEL[row.leaveType]})`}
                     {row.holidayName && ` (${row.holidayName})`}
+                    {row.pendingApproval && (
+                      <span className="text-muted-foreground">
+                        {" "}
+                        · menunggu approval
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>
                     {row.checkIn ? formatTime(row.checkIn.timestamp) : "—"}
@@ -217,11 +231,11 @@ export default async function LaporanPage({
                   </TableCell>
                   <TableCell>
                     {row.checkIn?.isManual
-                      ? "Koreksi manual"
+                      ? "Dicatat manual"
                       : row.checkIn?.isWithinRadius === true
                         ? "Dalam radius"
                         : row.checkIn?.isWithinRadius === false
-                          ? "Di luar radius"
+                          ? `Di luar radius · ${WORK_MODE_LABEL[row.checkIn.approvedMode ?? row.checkIn.workMode]}`
                           : "—"}
                   </TableCell>
                 </TableRow>

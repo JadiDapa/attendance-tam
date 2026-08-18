@@ -1,10 +1,14 @@
+import { CalendarClock, CheckCircle2, Clock4, XCircle } from "lucide-react";
+import Panel from "@/components/dashboard/Panel";
 import PageHeader from "@/components/dashboard/PageHeader";
+import StatTile from "@/components/dashboard/StatTile";
+import LeaveTypeChart from "@/components/dashboard/LeaveTypeChart";
+import LeaveStatusChart from "@/components/dashboard/LeaveStatusChart";
 import LeaveRequestForm from "@/components/employee/LeaveRequestForm";
 import LeaveRequestTable, {
   type LeaveRow,
 } from "@/components/employee/LeaveRequestTable";
-import { Card, CardContent } from "@/components/ui/card";
-import { LeaveStatus, Role } from "@/generated/prisma";
+import { LeaveStatus, LeaveType, Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import { formatWorkDate, getWorkDate, toDateInputValue } from "@/lib/date";
 import { LEAVE_TYPE_LABEL, countLeaveDays } from "@/lib/leave";
@@ -33,6 +37,18 @@ export default async function IzinPage() {
   const countByStatus = (status: LeaveStatus) =>
     requests.filter((request) => request.status === status).length;
 
+  const countByType: Record<LeaveType, number> = {
+    IZIN: requests.filter((request) => request.type === "IZIN").length,
+    SAKIT: requests.filter((request) => request.type === "SAKIT").length,
+    CUTI: requests.filter((request) => request.type === "CUTI").length,
+  };
+
+  const countByStatusMap: Record<LeaveStatus, number> = {
+    PENDING: countByStatus(LeaveStatus.PENDING),
+    APPROVED: countByStatus(LeaveStatus.APPROVED),
+    REJECTED: countByStatus(LeaveStatus.REJECTED),
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -44,30 +60,39 @@ export default async function IzinPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-muted-foreground text-sm">Menunggu</p>
-            <p className="text-2xl font-bold">
-              {countByStatus(LeaveStatus.PENDING)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-muted-foreground text-sm">Disetujui</p>
-            <p className="text-2xl font-bold">
-              {countByStatus(LeaveStatus.APPROVED)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-muted-foreground text-sm">Ditolak</p>
-            <p className="text-2xl font-bold">
-              {countByStatus(LeaveStatus.REJECTED)}
-            </p>
-          </CardContent>
-        </Card>
+        <StatTile
+          label="Menunggu"
+          icon={Clock4}
+          value={String(countByStatusMap.PENDING)}
+          footerLabel="Pengajuan belum diputuskan admin"
+        />
+        <StatTile
+          label="Disetujui"
+          icon={CheckCircle2}
+          value={String(countByStatusMap.APPROVED)}
+          footerLabel="Pengajuan yang disetujui"
+          highlighted
+        />
+        <StatTile
+          label="Ditolak"
+          icon={XCircle}
+          value={String(countByStatusMap.REJECTED)}
+          footerLabel="Pengajuan yang ditolak"
+        />
+      </div>
+
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <Panel
+          title="Pengajuan per Jenis"
+          icon={CalendarClock}
+          className="flex-2 p-4"
+        >
+          <LeaveTypeChart countByType={countByType} />
+        </Panel>
+
+        <Panel title="Status Pengajuan" icon={Clock4} className="flex flex-1">
+          <LeaveStatusChart countByStatus={countByStatusMap} />
+        </Panel>
       </div>
 
       <LeaveRequestTable rows={rows} />

@@ -79,7 +79,11 @@ export function isNonWorkingDate(date: Date, days: WorkDayConfig[]): boolean {
 
 /**
  * Terlambat kalau jam absen masuk melewati jam masuk + toleransi. Satu-satunya
- * definisi "terlambat" di aplikasi — dipakai absen langsung maupun koreksi.
+ * definisi "terlambat" di aplikasi — dipakai absen langsung, keputusan approval,
+ * maupun pencatatan manual oleh admin.
+ *
+ * Terlambat hanya berlaku untuk `WorkMode.HADIR_DIKANTOR`; penyaringnya ada di
+ * `resolveIsLate()` pada `attendance.action.ts`, bukan di sini.
  *
  * `minutesOfDay` adalah menit sejak tengah malam di APP_TIMEZONE.
  */

@@ -2,9 +2,9 @@ import type { RecapEntry } from "@/lib/attendance";
 import { cn } from "@/lib/utils";
 
 /**
- * Kolom jam absensi. Dua keadaan yang gampang tertukar dibedakan eksplisit:
- * absensi yang menggantung (tidak pernah absen pulang di hari yang sudah lewat)
- * dan absensi yang dianulir admin lewat verifikasi lokasi.
+ * Kolom jam absensi. Tiga keadaan yang gampang tertukar dibedakan eksplisit:
+ * absensi yang menggantung (tidak pernah absen pulang di hari yang sudah lewat),
+ * absensi yang ditolak admin, dan absensi yang masih menunggu approval.
  */
 export default function CheckOutCell({
   entry,
@@ -14,7 +14,7 @@ export default function CheckOutCell({
   missing: boolean;
 }) {
   if (entry) {
-    const voided = entry.reviewStatus === "ALPA";
+    const voided = entry.approvalStatus === "REJECTED";
 
     return (
       <span
@@ -26,15 +26,15 @@ export default function CheckOutCell({
         {entry.time}
         {voided && (
           <span className="text-muted-foreground ml-1 text-xs no-underline">
-            dianulir
+            ditolak
           </span>
         )}
         {!voided && entry.isManual && (
           <span className="text-muted-foreground ml-1 text-xs">manual</span>
         )}
-        {!voided && entry.reviewStatus === "PENDING" && (
-          <span className="text-destructive ml-1 text-xs">
-            perlu verifikasi
+        {!voided && entry.approvalStatus === "PENDING" && (
+          <span className="text-muted-foreground ml-1 text-xs">
+            menunggu approval
           </span>
         )}
       </span>

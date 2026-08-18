@@ -9,17 +9,30 @@ import {
 } from "lucide-react";
 import { SidebarTrigger } from "../ui/sidebar";
 import { format } from "date-fns/format";
-import { User as UserType } from "@/generated/prisma";
+import { Role, User as UserType } from "@/generated/prisma";
+import { ToggleTheme } from "./ToggleTheme";
+import { cn } from "@/lib/utils";
 
 export default function Navbar({ user }: { user: UserType }) {
   const date = format(new Date(), "EEEE, MMMM d");
+  const isEmployee = user.role === Role.EMPLOYEE;
 
   return (
-    <header className="bg-background flex h-16 w-full items-center justify-between rounded-md px-4">
+    <header
+      className={cn(
+        "bg-background flex h-14 w-full items-center justify-between rounded-md px-3 sm:h-16 sm:px-4",
+        isEmployee && "hidden lg:flex",
+      )}
+    >
       {/* Left: Date & Weather */}
-      <SidebarTrigger className="text-muted-foreground me-6 mt-0.5 -ml-1.5 shrink-0" />
+      <SidebarTrigger
+        className={cn(
+          "text-muted-foreground me-3 mt-0.5 -ml-1.5 shrink-0 sm:me-6",
+          isEmployee && "hidden lg:flex",
+        )}
+      />
 
-      <div className="flex items-center gap-4">
+      <div className="hidden items-center gap-4 sm:flex">
         <div className="leading-tight">
           <p className="text-muted-foreground text-sm">{date}</p>
 
@@ -46,11 +59,14 @@ export default function Navbar({ user }: { user: UserType }) {
       </div>
 
       {/* Right: Notification & Profile */}
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-1 sm:gap-2">
+        {/* Theme toggle */}
+        <ToggleTheme />
+
         {/* Notification */}
         <button
           type="button"
-          className="hover:bg-muted bg-card flex h-10 w-10 items-center justify-center rounded-full"
+          className="hover:bg-muted bg-card flex size-9 items-center justify-center rounded-full sm:size-10"
         >
           <Bell className="h-4 w-4" />
         </button>
@@ -58,10 +74,10 @@ export default function Navbar({ user }: { user: UserType }) {
         {/* Profile */}
         <button
           type="button"
-          className="hover:bg-muted flex items-center gap-3 rounded-lg px-2 py-1.5"
+          className="hover:bg-muted flex items-center gap-2 rounded-lg px-1.5 py-1.5 sm:gap-3 sm:px-2"
         >
           {/* Avatar */}
-          <div className="bg-card flex size-10 items-center justify-center overflow-hidden rounded-full">
+          <div className="bg-card flex size-9 items-center justify-center overflow-hidden rounded-full sm:size-10">
             <User className="text-primary h-5 w-5" />
           </div>
 

@@ -97,6 +97,8 @@ export async function main() {
     await prisma.workSchedule.create({
       data: {
         name: "Jam Kerja Standar",
+        // Terlambat tetap dicatat sebagai atribut absensi — statusnya tetap
+        // "Hadir di Kantor", tepat waktu maupun terlambat.
         lateToleranceMinutes: 15,
       },
     });

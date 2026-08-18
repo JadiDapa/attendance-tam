@@ -6,7 +6,7 @@ import EmployeeTable, {
   type EmployeeRow,
 } from "@/components/admin/EmployeeTable";
 import { Button } from "@/components/ui/button";
-import { LeaveType, Role } from "@/generated/prisma";
+import { Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import { resolveAttendanceRange } from "@/lib/attendance-days";
 import { formatWorkDate, getWorkDate, toDateInputValue } from "@/lib/date";
@@ -16,16 +16,27 @@ import { UserService } from "@/servers/services/user.service";
 type SearchParams = { start?: string; end?: string };
 
 type Recap = {
-  masuk: number;
+  hadirDikantor: number;
+  wfh: number;
+  dinasLuar: number;
   terlambat: number;
-  alpa: number;
+  alfa: number;
   izin: number;
   sakit: number;
   cuti: number;
 };
 
 function emptyRecap(): Recap {
-  return { masuk: 0, terlambat: 0, alpa: 0, izin: 0, sakit: 0, cuti: 0 };
+  return {
+    hadirDikantor: 0,
+    wfh: 0,
+    dinasLuar: 0,
+    terlambat: 0,
+    alfa: 0,
+    izin: 0,
+    sakit: 0,
+    cuti: 0,
+  };
 }
 
 export default async function RekapanKaryawanPage({
@@ -51,21 +62,27 @@ export default async function RekapanKaryawanPage({
   for (const row of recapRows) {
     const recap = recapByUser.get(row.user.id) ?? emptyRecap();
 
-    if (row.checkIn) recap.masuk += 1;
-    if (row.status === "TERLAMBAT") recap.terlambat += 1;
+    if (row.status === "HADIR_DIKANTOR") recap.hadirDikantor += 1;
+    if (row.status === "WFH") recap.wfh += 1;
+    if (row.status === "DINAS_LUAR") recap.dinasLuar += 1;
+
+    // Terlambat adalah atribut absen masuk, bukan status — sudah ikut terhitung
+    // di `hadirDikantor`.
+    if (row.status === "HADIR_DIKANTOR" && row.checkIn?.isLate) {
+      recap.terlambat += 1;
+    }
 
     // Hari libur sudah berstatus LIBUR sejak `buildRecap`, jadi di sini tinggal
     // menyaring hari yang belum lewat — hari berjalan belum bisa disebut bolos.
-    if (row.status === "ALPA" && row.workDate.getTime() < today.getTime()) {
-      recap.alpa += 1;
+    if (row.status === "ALFA" && row.workDate.getTime() < today.getTime()) {
+      recap.alfa += 1;
     }
 
-    // Hanya hari yang benar-benar dipakai izin (kalau tetap absen, dihitung hadir).
-    if (row.status === "IZIN") {
-      if (row.leaveType === LeaveType.IZIN) recap.izin += 1;
-      if (row.leaveType === LeaveType.SAKIT) recap.sakit += 1;
-      if (row.leaveType === LeaveType.CUTI) recap.cuti += 1;
-    }
+    // Hari yang benar-benar dipakai izin/sakit/cuti — kalau karyawan tetap
+    // absen, statusnya sudah jadi kehadiran di atas.
+    if (row.status === "IZIN") recap.izin += 1;
+    if (row.status === "SAKIT") recap.sakit += 1;
+    if (row.status === "CUTI") recap.cuti += 1;
 
     recapByUser.set(row.user.id, recap);
   }
@@ -83,9 +100,11 @@ export default async function RekapanKaryawanPage({
       isActive: user.isActive,
       createdAt: formatWorkDate(getWorkDate(user.createdAt)),
       hasRecap: user.role === Role.EMPLOYEE,
-      totalMasuk: recap.masuk,
+      totalHadirDikantor: recap.hadirDikantor,
+      totalWfh: recap.wfh,
+      totalDinasLuar: recap.dinasLuar,
       totalTerlambat: recap.terlambat,
-      totalAlpa: recap.alpa,
+      totalAlfa: recap.alfa,
       totalIzin: recap.izin,
       totalSakit: recap.sakit,
       totalCuti: recap.cuti,

@@ -13,51 +13,78 @@ import { cn } from "@/lib/utils";
 
 const WEEKDAYS = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 
-/** Warna latar kotak per status — penanda utamanya tetap teks jam/status. */
-const CELL_TONE: Record<CalendarStatus, string> = {
-  HADIR: "border-chart-hadir/40 bg-chart-hadir/10",
-  TERLAMBAT: "border-chart-terlambat/40 bg-chart-terlambat/10",
-  IZIN: "border-border bg-muted/60",
-  ALPA: "border-destructive/40 bg-destructive/10",
-  LIBUR: "border-transparent bg-muted/30",
-  PERLU_VERIFIKASI: "border-chart-terlambat/40 bg-chart-terlambat/10",
-  KOSONG: "border-border bg-card",
+/** Warna latar kotak — cuma hari libur/kosong yang dibedakan, sisanya polos
+ * supaya warna status terpusat di chip. */
+const CELL_TONE: Partial<Record<CalendarStatus, string>> = {
+  LIBUR: "bg-muted/30",
+  KOSONG: "bg-card",
 };
+
+/** Warna chip jam/status di dalam kotak — meniru "event chip" kalender asli. */
+const CHIP_TONE: Record<CalendarStatus, string> = {
+  HADIR_DIKANTOR: "bg-chart-hadir/15 text-chart-hadir",
+  WFH: "bg-chart-1/15 text-chart-1",
+  DINAS_LUAR: "bg-chart-3/15 text-chart-3",
+  SAKIT: "bg-chart-5/15 text-chart-5",
+  IZIN: "bg-muted-foreground/15 text-muted-foreground",
+  ALFA: "bg-destructive/15 text-destructive",
+  CUTI: "bg-chart-4/15 text-chart-4",
+  LIBUR: "bg-muted text-muted-foreground",
+  KOSONG: "bg-muted text-muted-foreground",
+};
+
+/** Status yang isinya perlu dijelaskan walau tidak ada jam absensinya. */
+const EMPTY_DAY_NOTE: Partial<Record<CalendarStatus, string>> = {
+  SAKIT: "Sakit",
+  IZIN: "Izin",
+  CUTI: "Cuti",
+  ALFA: "Alfa",
+};
+
+function LeadingGridCell({ index }: { index: number }) {
+  return (
+    <div
+      key={`lead-${index}`}
+      aria-hidden
+      className="bg-muted/10 border-border border-r border-b"
+    />
+  );
+}
 
 function DayCell({
   day,
-  isFirstOfGrid,
   dimmed,
   onSelect,
 }: {
   day: AttendanceDay;
-  /** Kotak pertama tiap bulan digeser ke kolom hari yang benar. */
-  isFirstOfGrid: boolean;
   dimmed: boolean;
   onSelect: (day: AttendanceDay) => void;
 }) {
   const hasEntry = Boolean(day.checkIn || day.checkOut);
+  const chipLabel = hasEntry
+    ? `${day.checkIn?.time ?? "--:--"} – ${day.checkOut?.time ?? "--:--"}`
+    : (day.statusDetail ?? EMPTY_DAY_NOTE[day.status]);
 
   return (
     <button
       type="button"
       onClick={() => onSelect(day)}
-      style={{
-        gridColumnStart: isFirstOfGrid ? day.weekdayIndex + 1 : undefined,
-      }}
       aria-label={`${day.dateLabel} — ${CALENDAR_STATUS_LABEL[day.status]}`}
       className={cn(
-        "hover:border-primary/60 focus-visible:ring-ring flex min-h-18 flex-col gap-1 rounded-lg border p-1.5 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none",
-        CELL_TONE[day.status],
-        day.isToday && "ring-primary ring-2",
+        "border-border hover:bg-muted/40 focus-visible:ring-ring flex min-h-24 flex-col gap-1.5 border-r border-b p-1.5 text-left transition-colors focus-visible:ring-2 focus-visible:-outline-offset-2 focus-visible:outline-none",
+        CELL_TONE[day.status] ?? "bg-card",
         dimmed && "opacity-35",
       )}
     >
       <span className="flex items-center justify-between gap-1">
         <span
           className={cn(
-            "text-xs font-semibold tabular-nums",
-            day.status === "LIBUR" && "text-muted-foreground",
+            "flex size-6 items-center justify-center rounded-full text-xs font-semibold tabular-nums",
+            day.isToday
+              ? "bg-primary text-primary-foreground"
+              : day.status === "LIBUR"
+                ? "text-muted-foreground"
+                : "text-foreground",
           )}
         >
           {day.dayOfMonth}
@@ -67,20 +94,14 @@ function DayCell({
         />
       </span>
 
-      {hasEntry ? (
-        <span className="flex flex-col gap-0.5 text-[11px] leading-tight tabular-nums">
-          <span className="truncate">↓ {day.checkIn?.time ?? "--:--"}</span>
-          <span className="text-muted-foreground truncate">
-            ↑ {day.checkOut?.time ?? "--:--"}
-          </span>
-        </span>
-      ) : (
-        <span className="text-muted-foreground truncate text-[11px] leading-tight">
-          {day.status === "IZIN"
-            ? (day.statusDetail ?? "Izin")
-            : day.status === "ALPA"
-              ? "Tidak absen"
-              : ""}
+      {chipLabel && (
+        <span
+          className={cn(
+            "truncate rounded-md px-1.5 py-1 text-[11px] leading-tight font-medium tabular-nums",
+            CHIP_TONE[day.status],
+          )}
+        >
+          {chipLabel}
         </span>
       )}
     </button>
@@ -109,31 +130,52 @@ export default function AttendanceCalendar({
               <p className="text-sm font-semibold">{month.label}</p>
             )}
 
-            <div className="text-muted-foreground grid grid-cols-7 gap-1 text-center text-xs font-medium">
-              {WEEKDAYS.map((weekday) => (
-                <span key={weekday}>{weekday}</span>
-              ))}
-            </div>
+            <div className="border-border overflow-hidden rounded-lg border-t border-l">
+              <div className="grid grid-cols-7">
+                {WEEKDAYS.map((weekday) => (
+                  <div
+                    key={weekday}
+                    className="border-border bg-muted/40 text-muted-foreground border-r border-b py-2 text-center text-xs font-medium"
+                  >
+                    {weekday}
+                  </div>
+                ))}
+              </div>
 
-            <div className="grid grid-cols-7 gap-1">
-              {month.days.map((day, index) => (
-                <DayCell
-                  key={day.key}
-                  day={day}
-                  isFirstOfGrid={index === 0}
-                  dimmed={
-                    highlightStatus !== null && day.status !== highlightStatus
-                  }
-                  onSelect={setSelected}
-                />
-              ))}
+              <div className="grid grid-cols-7">
+                {Array.from({ length: month.days[0]?.weekdayIndex ?? 0 }).map(
+                  (_, index) => (
+                    <LeadingGridCell key={`lead-${index}`} index={index} />
+                  ),
+                )}
+                {month.days.map((day) => (
+                  <DayCell
+                    key={day.key}
+                    day={day}
+                    dimmed={
+                      highlightStatus !== null && day.status !== highlightStatus
+                    }
+                    onSelect={setSelected}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         ))}
       </div>
 
       <div className="text-muted-foreground mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-        {(["HADIR", "TERLAMBAT", "IZIN", "ALPA"] as const).map((status) => (
+        {(
+          [
+            "HADIR_DIKANTOR",
+            "WFH",
+            "DINAS_LUAR",
+            "SAKIT",
+            "IZIN",
+            "CUTI",
+            "ALFA",
+          ] as const
+        ).map((status) => (
           <span key={status} className="flex items-center gap-1.5">
             <span
               className={cn("size-2 rounded-full", CALENDAR_STATUS_DOT[status])}

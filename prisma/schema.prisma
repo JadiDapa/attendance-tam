@@ -29,31 +29,38 @@ enum LeaveStatus {
   REJECTED
 }
 
-enum CorrectionStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
 enum HolidayType {
   NASIONAL
   CUTI_BERSAMA
   INTERNAL
 }
 
-/// Keputusan admin atas absensi yang terekam di luar radius kantor.
-/// `null` pada `Attendance.reviewStatus` berarti absensi normal — tidak perlu diverifikasi.
-enum RadiusReviewStatus {
-  /// Menunggu keputusan admin — belum dihitung hadir.
-  PENDING
-  /// Diterima apa adanya: dihitung hadir/terlambat seperti absensi biasa.
-  VALID
-  /// Ditolak: absensinya dianulir, hari itu dihitung tidak absen.
-  ALPA
-  /// Dikonversi jadi izin.
-  IZIN
-  /// Dikonversi jadi sakit.
+/// Cara karyawan bekerja pada satu absensi — inti klasifikasi kehadiran.
+///
+/// Absen di dalam radius kantor selalu `HADIR_DIKANTOR`. Absen di luar radius
+/// mewajibkan karyawan memilih `WFH` atau `DINAS_LUAR` beserta penjelasannya,
+/// dan menunggu persetujuan admin. `SAKIT` / `IZIN` / `CUTI` hanya bisa muncul
+/// di sini kalau admin menimpanya saat menyetujui (`Attendance.approvedMode`) —
+/// jalur normalnya adalah pengajuan `LeaveRequest`.
+enum WorkMode {
+  HADIR_DIKANTOR
+  WFH
+  DINAS_LUAR
   SAKIT
+  IZIN
+  CUTI
+}
+
+/// Persetujuan admin atas absensi yang terekam di luar radius kantor.
+/// `null` pada `Attendance.approvalStatus` berarti absensi di dalam radius —
+/// tidak ada yang perlu disetujui.
+enum AttendanceApproval {
+  /// Menunggu keputusan admin.
+  PENDING
+  /// Disetujui — mode final ada di `approvedMode ?? workMode`.
+  APPROVED
+  /// Ditolak: absensinya dianulir, hari itu dihitung Alfa.
+  REJECTED
 }
 
 model User {
@@ -68,12 +75,10 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  attendances         Attendance[]           @relation("AttendanceOwner")
-  reviewedAttendances Attendance[]           @relation("AttendanceReviewer")
-  leaveRequests       LeaveRequest[]         @relation("LeaveRequester")
-  reviewedLeaves      LeaveRequest[]         @relation("LeaveReviewer")
-  corrections         AttendanceCorrection[] @relation("CorrectionRequester")
-  reviewedCorrections AttendanceCorrection[] @relation("CorrectionReviewer")
+  attendances         Attendance[]    @relation("AttendanceOwner")
+  reviewedAttendances Attendance[]    @relation("AttendanceReviewer")
+  leaveRequests       LeaveRequest[]  @relation("LeaveRequester")
+  reviewedLeaves      LeaveRequest[]  @relation("LeaveReviewer")
   faceEmbeddings      FaceEmbedding[]
 
   @@index([role, isActive])
@@ -144,7 +149,7 @@ model Attendance {
   workDate  DateTime       @db.Date
   timestamp DateTime       @default(now())
 
-  /// Null untuk absensi hasil koreksi manual — tidak ada foto/GPS yang terekam.
+  /// Null untuk absensi yang dicatat admin manual — tidak ada foto/GPS yang terekam.
   latitude       Float?
   longitude      Float?
   distanceMeters Float?
@@ -154,15 +159,24 @@ model Attendance {
   isWithinRadius Boolean?
   isLate         Boolean  @default(false)
 
-  /// True kalau baris ini dibuat admin lewat koreksi, bukan absen langsung.
-  isManual     Boolean               @default(false)
-  correction   AttendanceCorrection? @relation(fields: [correctionId], references: [id], onDelete: SetNull)
-  correctionId String?               @unique
+  /// True kalau baris ini dicatat admin secara manual (mis. karyawan lupa absen
+  /// pulang), bukan absen langsung dari HP karyawan.
+  isManual Boolean @default(false)
 
-  /// Diisi hanya kalau absensi terekam di luar radius kantor dan perlu keputusan
-  /// admin. Null = absensi normal yang tidak perlu diverifikasi.
-  reviewStatus RadiusReviewStatus?
-  reviewedBy   User?               @relation("AttendanceReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  /// Cara kerja yang diklaim karyawan saat absen. Di dalam radius selalu
+  /// `HADIR_DIKANTOR`; di luar radius karyawan wajib memilih `WFH`/`DINAS_LUAR`.
+  workMode WorkMode @default(HADIR_DIKANTOR)
+  /// Penjelasan yang wajib diisi karyawan saat absen di luar radius.
+  /// Null untuk absensi di dalam radius.
+  workModeDetail String?
+
+  /// Diisi hanya kalau absensi terekam di luar radius kantor dan perlu
+  /// persetujuan admin. Null = absensi di dalam radius, tidak perlu disetujui.
+  approvalStatus AttendanceApproval?
+  /// Diisi kalau admin menyetujui dengan mode yang berbeda dari klaim karyawan.
+  /// Mode final selalu `approvedMode ?? workMode`.
+  approvedMode WorkMode?
+  reviewedBy   User?     @relation("AttendanceReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   reviewedById String?
   reviewedAt   DateTime?
   reviewNote   String?
@@ -172,36 +186,7 @@ model Attendance {
   @@unique([userId, workDate, type])
   @@index([workDate])
   @@index([userId, timestamp])
-  @@index([reviewStatus, workDate])
-}
-
-/// Pengajuan koreksi absensi (lupa absen, HP mati, kamera error).
-/// Diajukan karyawan lalu di-review admin, atau dibuat langsung oleh admin.
-model AttendanceCorrection {
-  id     String @id @default(cuid())
-  user   User   @relation("CorrectionRequester", fields: [userId], references: [id], onDelete: Cascade)
-  userId String
-
-  workDate DateTime       @db.Date
-  type     AttendanceType
-  /// Jam absen yang diusulkan, "HH:mm" pada zona APP_TIMEZONE.
-  requestedTime String
-  reason        String
-  status        CorrectionStatus @default(PENDING)
-
-  reviewedBy   User?     @relation("CorrectionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-  reviewedById String?
-  reviewedAt   DateTime?
-  reviewNote   String?
-
-  /// Absensi yang terbentuk setelah koreksi disetujui.
-  attendance Attendance?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId, status])
-  @@index([status, workDate])
+  @@index([approvalStatus, workDate])
 }
 
 /// Hari libur nasional / cuti bersama / libur internal perusahaan.

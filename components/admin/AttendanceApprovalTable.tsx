@@ -20,18 +20,17 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import DataTable from "@/components/dashboard/DataTable";
 import SearchDataTable from "@/components/dashboard/SearchDataTable";
-import { RadiusReviewStatus } from "@/generated/prisma";
+import { AttendanceApproval } from "@/generated/prisma";
 import {
-  RADIUS_DECISION_HINT,
-  RADIUS_DECISION_OPTIONS,
-  RADIUS_REVIEW_LABEL,
-  RADIUS_REVIEW_SHORT,
-  RADIUS_REVIEW_VARIANT,
-} from "@/lib/radius-review";
+  APPROVAL_MODES,
+  WORK_MODE_HINT,
+  WORK_MODE_LABEL,
+  type WorkModeValue,
+} from "@/lib/work-mode";
 import { cn } from "@/lib/utils";
-import { reviewAttendanceRadius } from "@/app/action/attendance.action";
+import { reviewAttendance } from "@/app/action/attendance.action";
 
-export type RadiusReviewRow = {
+export type AttendanceApprovalRow = {
   id: string;
   employeeName: string;
   employeePosition: string;
@@ -43,41 +42,55 @@ export type RadiusReviewRow = {
   officeRadiusLabel: string;
   photoUrl: string | null;
   mapUrl: string | null;
-  status: RadiusReviewStatus;
-  reviewNote: string | null;
-  reviewedBy: string | null;
+  /** Mode yang diklaim karyawan sendiri. */
+  claimedMode: WorkModeValue;
+  /** Penjelasan yang ditulis karyawan saat absen. */
+  detail: string | null;
+  isLate: boolean;
 };
 
-type Decision = (typeof RADIUS_DECISION_OPTIONS)[number];
-
-export default function RadiusReviewTable({
+export default function AttendanceApprovalTable({
   rows,
 }: {
-  rows: RadiusReviewRow[];
+  rows: AttendanceApprovalRow[];
 }) {
   const router = useRouter();
-  const [target, setTarget] = useState<RadiusReviewRow | null>(null);
-  const [decision, setDecision] = useState<Decision>("VALID");
+  const [target, setTarget] = useState<AttendanceApprovalRow | null>(null);
+  const [mode, setMode] = useState<WorkModeValue>("WFH");
   const [note, setNote] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState<"approve" | "reject" | null>(
+    null,
+  );
 
-  const closeDialog = () => {
-    setTarget(null);
-    setDecision("VALID");
+  const openDialog = (row: AttendanceApprovalRow) => {
+    setTarget(row);
+    // Default ke klaim karyawan — admin tinggal menyetujui kalau setuju.
+    setMode(row.claimedMode);
     setNote("");
   };
 
-  const confirmReview = async () => {
+  const closeDialog = () => {
+    setTarget(null);
+    setNote("");
+  };
+
+  const decide = async (
+    status:
+      | typeof AttendanceApproval.APPROVED
+      | typeof AttendanceApproval.REJECTED,
+  ) => {
     if (!target) return;
 
-    setSubmitting(true);
+    const isApprove = status === AttendanceApproval.APPROVED;
+    setSubmitting(isApprove ? "approve" : "reject");
 
-    const result = await reviewAttendanceRadius(target.id, {
-      status: decision,
+    const result = await reviewAttendance(target.id, {
+      status,
+      mode: isApprove ? mode : null,
       reviewNote: note,
     });
 
-    setSubmitting(false);
+    setSubmitting(null);
 
     if (!result.ok) {
       toast.error(result.error);
@@ -89,7 +102,7 @@ export default function RadiusReviewTable({
     router.refresh();
   };
 
-  const columns: ColumnDef<RadiusReviewRow>[] = [
+  const columns: ColumnDef<AttendanceApprovalRow>[] = [
     {
       accessorKey: "employeeName",
       header: "Karyawan",
@@ -117,13 +130,27 @@ export default function RadiusReviewTable({
       ),
     },
     {
+      id: "claim",
+      header: "Alasan",
+      cell: ({ row }) => (
+        <div className="max-w-xs space-y-1">
+          <Badge variant="default">
+            {WORK_MODE_LABEL[row.original.claimedMode]}
+          </Badge>
+          {row.original.detail && (
+            <p className="text-muted-foreground text-xs">
+              {row.original.detail}
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
       id: "distance",
       header: "Jarak",
       cell: ({ row }) => (
         <div className="whitespace-nowrap">
-          <p className="text-destructive font-medium">
-            {row.original.distanceLabel}
-          </p>
+          <p className="font-medium">{row.original.distanceLabel}</p>
           <p className="text-muted-foreground text-xs">
             radius {row.original.officeRadiusLabel} · akurasi{" "}
             {row.original.accuracyLabel}
@@ -154,43 +181,19 @@ export default function RadiusReviewTable({
       ),
     },
     {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => (
-        <div className="space-y-1">
-          <Badge variant={RADIUS_REVIEW_VARIANT[row.original.status]}>
-            {RADIUS_REVIEW_SHORT[row.original.status]}
-          </Badge>
-          {row.original.reviewedBy && (
-            <p className="text-muted-foreground text-xs">
-              oleh {row.original.reviewedBy}
-            </p>
-          )}
-          {row.original.reviewNote && (
-            <p className="text-muted-foreground max-w-xs text-xs">
-              {row.original.reviewNote}
-            </p>
-          )}
-        </div>
-      ),
-    },
-    {
       id: "actions",
       header: "Aksi",
-      cell: ({ row }) =>
-        row.original.status === RadiusReviewStatus.PENDING ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            title="Verifikasi"
-            onClick={() => setTarget(row.original)}
-          >
-            <ShieldCheck className="size-4" />
-            Verifikasi
-          </Button>
-        ) : (
-          "—"
-        ),
+      cell: ({ row }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          title="Tinjau"
+          onClick={() => openDialog(row.original)}
+        >
+          <ShieldCheck className="size-4" />
+          Tinjau
+        </Button>
+      ),
     },
   ];
 
@@ -200,7 +203,7 @@ export default function RadiusReviewTable({
         columns={columns}
         data={rows}
         title="Cari"
-        emptyMessage="Tidak ada absensi yang perlu diverifikasi."
+        emptyMessage="Tidak ada absensi yang menunggu persetujuan."
         filters={(instance) => (
           <SearchDataTable
             table={instance}
@@ -216,9 +219,9 @@ export default function RadiusReviewTable({
           if (!open) closeDialog();
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Verifikasi Absensi Luar Radius</DialogTitle>
+            <DialogTitle>Approval Absensi Luar Kantor</DialogTitle>
             <DialogDescription>
               {target &&
                 `${target.employeeName} · ${target.typeLabel} ${target.dateLabel} jam ${target.time} · ${target.distanceLabel} dari kantor`}
@@ -234,26 +237,40 @@ export default function RadiusReviewTable({
             />
           )}
 
+          {target?.detail && (
+            <div className="bg-muted/50 rounded-lg p-3">
+              <p className="text-muted-foreground text-xs font-medium">
+                Penjelasan karyawan · {WORK_MODE_LABEL[target.claimedMode]}
+              </p>
+              <p className="mt-1 text-sm">{target.detail}</p>
+            </div>
+          )}
+
           <div className="flex flex-col gap-2">
-            <Label>Keputusan</Label>
+            <Label>Setujui sebagai</Label>
             <div className="grid gap-2">
-              {RADIUS_DECISION_OPTIONS.map((option) => (
+              {APPROVAL_MODES.map((option) => (
                 <button
                   key={option}
                   type="button"
-                  onClick={() => setDecision(option)}
+                  onClick={() => setMode(option)}
                   className={cn(
                     "rounded-xl border p-3 text-left transition-colors",
-                    decision === option
+                    mode === option
                       ? "border-primary bg-primary/5"
                       : "border-border hover:bg-muted",
                   )}
                 >
-                  <p className="text-sm font-medium">
-                    {RADIUS_REVIEW_LABEL[option]}
+                  <p className="flex items-center gap-2 text-sm font-medium">
+                    {WORK_MODE_LABEL[option]}
+                    {target?.claimedMode === option && (
+                      <span className="text-muted-foreground text-xs font-normal">
+                        (klaim karyawan)
+                      </span>
+                    )}
                   </p>
                   <p className="text-muted-foreground text-xs">
-                    {RADIUS_DECISION_HINT[option]}
+                    {WORK_MODE_HINT[option]}
                   </p>
                 </button>
               ))}
@@ -267,21 +284,26 @@ export default function RadiusReviewTable({
               rows={2}
               value={note}
               onChange={(event) => setNote(event.target.value)}
-              placeholder="Contoh: sedang tugas luar, sudah dikonfirmasi atasan"
+              maxLength={300}
+              placeholder="Contoh: sudah dikonfirmasi atasan"
             />
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:justify-between">
             <Button
-              variant="outline"
-              onClick={closeDialog}
-              disabled={submitting}
+              variant="destructive"
+              onClick={() => decide(AttendanceApproval.REJECTED)}
+              disabled={submitting !== null}
             >
-              Batal
+              {submitting === "reject" && <Spinner />}
+              Tolak → Alfa
             </Button>
-            <Button onClick={confirmReview} disabled={submitting}>
-              {submitting && <Spinner />}
-              Simpan Keputusan
+            <Button
+              onClick={() => decide(AttendanceApproval.APPROVED)}
+              disabled={submitting !== null}
+            >
+              {submitting === "approve" && <Spinner />}
+              Setujui
             </Button>
           </DialogFooter>
         </DialogContent>

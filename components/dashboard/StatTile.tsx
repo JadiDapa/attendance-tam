@@ -10,7 +10,8 @@ type Props = {
   label: string;
   icon: LucideIcon;
   value: string;
-  footerLabel: string;
+  /** Opsional — kartu status hanya menampilkan angkanya saja. */
+  footerLabel?: string;
   delta?: {
     text: string;
     direction: "up" | "down" | "flat";
@@ -31,7 +32,7 @@ export default function StatTile({
   return (
     <div
       className={cn(
-        "relative flex min-h-40 flex-col justify-between rounded-2xl p-4 transition-colors",
+        "relative flex min-h-32 flex-col justify-between gap-3 rounded-2xl p-3.5 transition-colors sm:min-h-40 sm:p-4",
         highlighted
           ? "border-primary bg-primary text-primary-foreground"
           : "bg-card text-card-foreground",
@@ -64,7 +65,7 @@ export default function StatTile({
       {/* Value */}
       <p
         className={cn(
-          "text-5xl font-semibold tracking-tight tabular-nums",
+          "text-3xl font-semibold tracking-tight tabular-nums sm:text-5xl",
           highlighted ? "text-primary-foreground" : "text-foreground",
         )}
       >

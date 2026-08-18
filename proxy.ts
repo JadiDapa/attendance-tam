@@ -7,7 +7,7 @@ import { authConfig, defaultRouteForRole } from "./auth.config";
 const { auth } = NextAuth(authConfig);
 
 const PUBLIC_ROUTES = ["/login"];
-const EMPLOYEE_ROUTES = ["/dashboard", "/riwayat", "/izin", "/koreksi"];
+const EMPLOYEE_ROUTES = ["/dashboard", "/riwayat", "/izin"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;

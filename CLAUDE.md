@@ -20,7 +20,8 @@ npx prisma migrate deploy    # apply migrations in prod
 
 ## Architecture
 
-Sistem absensi karyawan (MVP, ~30 karyawan): absen masuk/pulang dengan foto + GPS,
+Sistem absensi karyawan (MVP, ~30 karyawan): absen masuk/pulang dengan foto +
+verifikasi wajah + GPS, klaim WFH/dinas luar yang butuh approval admin,
 pengajuan izin/cuti, dan rekap untuk admin.
 Stack: Next.js 16 App Router, React 19, TypeScript, Tailwind v4, Prisma 7 + PostgreSQL,
 Auth.js v5 (credentials), TanStack Query + Table, shadcn/ui.
@@ -28,8 +29,8 @@ Auth.js v5 (credentials), TanStack Query + Table, shadcn/ui.
 ### Route groups
 
 - `app/(auth)/` — `/login` (redirect ke dashboard sesuai role kalau sudah login)
-- `app/(employee)/` — `/dashboard`, `/riwayat`, `/izin`, `/koreksi` — butuh session role `EMPLOYEE`
-- `app/(admin)/` — `/admin/dashboard`, `/admin/kehadiran`, `/admin/rekapan-karyawan`, `/admin/izin`, `/admin/koreksi`, `/admin/verifikasi`, `/admin/laporan`, `/admin/lokasi`, `/admin/waktu-kerja`, `/admin/hari-libur` — butuh session role `ADMIN`
+- `app/(employee)/` — `/dashboard`, `/riwayat`, `/izin` — butuh session role `EMPLOYEE`
+- `app/(admin)/` — `/admin/dashboard`, `/admin/kehadiran`, `/admin/rekapan-karyawan`, `/admin/izin`, `/admin/verifikasi`, `/admin/laporan`, `/admin/lokasi`, `/admin/waktu-kerja`, `/admin/hari-libur` — butuh session role `ADMIN`
 - `app/(account)/` — `/profil` — cukup `requireUser()`, dipakai kedua role
 - `app/action/` — Next.js Server Actions (semua file `"use server"`)
 - `app/api/images/[filename]/` — serve foto absensi dari `uploads/images/` di disk
@@ -50,8 +51,9 @@ Actions import validators and services. Services import from `lib/prisma`. Nothi
 
 Helper domain (dipakai action, bukan service):
 
-- `lib/geo.ts` — `haversineDistance()` (meter) + `formatDistance()`
-- `lib/date.ts` — semua konversi timezone: `getWorkDate()`, `getMinutesOfDay()`, `parseTimeToMinutes()`, `formatTime()`, `formatWorkDate()`, `workDateTimeToUtc()` (tanggal kerja + "HH:mm" → timestamp UTC, dipakai koreksi absensi)
+- `lib/geo.ts` — `haversineDistance()` (meter) + `formatDistance()`. Bebas Prisma, jadi
+  `AttendanceDialog` ikut memakainya di client untuk tahu lebih awal kalau absennya di luar radius.
+- `lib/date.ts` — semua konversi timezone: `getWorkDate()`, `getMinutesOfDay()`, `parseTimeToMinutes()`, `formatTime()`, `formatWorkDate()`, `workDateTimeToUtc()` (tanggal kerja + "HH:mm" → timestamp UTC, dipakai pencatatan absensi manual admin)
 - `lib/storage.ts` — `saveImage()` menulis foto ke `uploads/images/`, mengembalikan URL `/api/images/[filename]`
 - `lib/leave.ts` — label & varian badge untuk `LeaveType`/`LeaveStatus` + `countLeaveDays()`
 - `lib/csv.ts` — `toCsv()` (pemisah `;` + BOM UTF-8 supaya rapi di Excel id-ID)
@@ -60,8 +62,9 @@ Helper domain (dipakai action, bukan service):
   `isLateAt()` adalah satu-satunya definisi "terlambat" — dipakai absen langsung maupun koreksi.
 - `lib/holiday.ts` — hari libur tanggalan: `findHoliday()`, `indexHolidays()`, label & varian badge.
   Bebas Prisma, seperti `work-schedule.ts`.
-- `lib/correction.ts` — label & varian badge untuk koreksi absensi.
-- `lib/radius-review.ts` — label, varian badge, dan penjelasan tiap keputusan verifikasi radius.
+- `lib/work-mode.ts` — label, varian badge, dan penjelasan untuk `WorkMode` + `AttendanceApproval`,
+  `OUTSIDE_RADIUS_MODES` (yang boleh dipilih karyawan), `APPROVAL_MODES` (yang boleh dipilih admin),
+  dan `isLateEligible()`. Bebas Prisma seperti `work-schedule.ts`.
 - `lib/storage.ts` — `saveImage()` (foto absensi, gambar saja) dan `saveAttachment()`
   (lampiran izin, gambar + PDF). `MAX_SIZE` di sini harus selaras dengan
   `experimental.serverActions.bodySizeLimit` di `next.config.ts`.
@@ -75,10 +78,21 @@ halaman karyawan supaya angka di layar dan di file selalu sama. `buildRecap()`
 sendiri yang menentukan status `LIBUR` (pola mingguan `WorkDay` + tabel `Holiday`)
 dan `missingCheckOut` — konsumennya tinggal memakai hasilnya.
 
-Status rekap (`RecapStatus` di `lib/attendance.ts`) dipakai bersama rekap harian dan
-laporan: `HADIR` | `TERLAMBAT` | `IZIN` | `ALPA` | `LIBUR` | `PERLU_VERIFIKASI`.
+**Klasifikasi kehadiran.** `RecapStatus` di `lib/attendance.ts` punya tujuh nilai:
+`HADIR_DIKANTOR` | `WFH` | `DINAS_LUAR` | `SAKIT` | `IZIN` | `ALFA` | `CUTI`.
+`DayStatus` = tujuh itu + `LIBUR` (hari yang tidak menuntut kehadiran, bukan
+klasifikasi kehadiran — tanpa dia setiap akhir pekan terbaca `ALFA`).
+`CalendarStatus` = `DayStatus` + `KOSONG`.
+
+`HADIR_DIKANTOR` mencakup yang tepat waktu **maupun** yang terlambat.
+Keterlambatan tetap dicatat dan ditampilkan, tapi sebagai atribut
+(`Attendance.isLate`) — bukan status tersendiri. Jadi satu hari bisa berstatus
+"Hadir di Kantor" sekaligus punya badge "Terlambat", dan `summary.terlambat`
+adalah bagian dari `summary.hadirDikantor`, bukan tambahan.
+
 Urutan penentuannya absen → izin → libur: karyawan yang tetap masuk di hari libur
-dihitung hadir.
+dihitung hadir. `LeaveType` (`IZIN`/`SAKIT`/`CUTI`) sengaja sama persis dengan tiga
+status izin, jadi jenis pengajuan terbawa apa adanya jadi status hari.
 
 `buildRecap()` hanya menyertakan karyawan **aktif**, dan hanya untuk tanggal sejak
 `createdAt` masing-masing — tanpa ini, karyawan yang berhenti muncul sebagai tidak
@@ -86,13 +100,39 @@ absen selamanya dan karyawan baru terlihat bolos sebelum tanggal masuknya.
 Konsekuensinya: menonaktifkan karyawan juga menghapus dia dari laporan bulan-bulan
 sebelumnya.
 
-**Verifikasi radius.** Absen di luar radius kantor disimpan dengan
-`Attendance.reviewStatus = PENDING` dan **belum** dihitung hadir. Admin memutuskan
-di `/admin/verifikasi`: `VALID` (hadir/terlambat biasa), `ALPA` (absensi dianulir),
-`IZIN`, atau `SAKIT`. Dua helper di `lib/attendance.ts` adalah satu-satunya tempat
-keputusan itu diterjemahkan jadi status rekap — `isVoidedAttendance()` dan
-`statusFromCheckIn()` — dipakai `buildRecap()` maupun `buildDailyRecap()`. Baris yang
-dianulir tetap tersimpan sebagai jejak, tapi diperlakukan seolah tidak pernah ada.
+**Absen di luar radius + approval.** Absen di dalam radius selalu
+`HADIR_DIKANTOR`, langsung sah. Absen di **luar** radius mewajibkan karyawan
+memilih `WFH` atau `DINAS_LUAR` (`OUTSIDE_RADIUS_MODES`) **beserta penjelasannya**
+(`workModeDetail`, minimal 5 karakter), lalu disimpan dengan
+`approvalStatus = PENDING`. Klaim itu **tidak pernah** dihitung terlambat.
+
+Sakit/izin/cuti tidak bisa diklaim dari form absensi — jalurnya tetap pengajuan
+`LeaveRequest` di `/izin`. Admin masih bisa menimpanya jadi salah satu itu saat
+menyetujui.
+
+Admin memutuskan di `/admin/verifikasi`: **setujui** (dengan mode apa pun dari
+`APPROVAL_MODES`, termasuk menimpa klaim karyawan lewat `approvedMode`) atau
+**tolak** (absensi dianulir, hari itu `ALFA`). Menyetujui sebagai `HADIR_DIKANTOR`
+berarti GPS-nya dianggap meleset, jadi `isLate` dihitung ulang dari jam absen
+aslinya.
+
+Tiga helper di `lib/attendance.ts` adalah satu-satunya tempat keputusan itu
+diterjemahkan jadi status rekap — `effectiveWorkMode()` (= `approvedMode ?? workMode`),
+`isVoidedAttendance()`, dan `statusFromCheckIn()` — dipakai `buildRecap()` maupun
+`buildDailyRecap()`. Baris yang ditolak tetap tersimpan sebagai jejak, tapi
+diperlakukan seolah tidak pernah ada.
+
+`PENDING` sengaja jadi **penanda** (`pendingApproval` di `RecapRow`/`ReportRow`),
+bukan status tersendiri: harinya tetap terbaca sebagai mode yang diklaim karyawan,
+dengan catatan bahwa admin belum memutuskan.
+
+**Pencatatan manual admin.** Fitur pengajuan koreksi absensi sudah dihapus.
+Penggantinya `createManualAttendance()` + `ManualAttendanceDialog` di
+`/admin/kehadiran`: admin mengisi sendiri jam absen yang terlewat, tanpa antrean
+review. Barisnya ditandai `isManual` dengan `photoUrl`/koordinat null dan alasan
+wajib di `reviewNote`. Karyawan tidak punya jalur pengajuan apa pun untuk ini —
+konsekuensinya sidebar karyawan tidak punya badge notifikasi lagi
+(`NotificationService.forUser()` mengembalikan `{}` untuk `EMPLOYEE`).
 
 **Akurasi GPS.** `Attendance.accuracyMeters` selalu disimpan. Absensi ditolak kalau
 akurasinya lebih buruk dari `WorkSchedule.maxAccuracyMeters` (default 100 m, diatur
@@ -102,7 +142,7 @@ lokasi, lalu dicek lagi di server sebagai penentu.
 **Absensi menggantung** (absen masuk ada, absen pulang tidak pernah tercatat)
 sengaja tidak ditutup oleh cron. Statusnya dihitung saat render lewat
 `isMissingCheckOut()`, jadi tidak pernah ada baris `CHECK_OUT` palsu di database —
-kalau jam pulangnya perlu ada, jalurnya adalah koreksi absensi.
+kalau jam pulangnya perlu ada, admin mencatatnya manual di `/admin/kehadiran`.
 
 Format tanggal/jam selalu dilakukan di server lalu dikirim ke client sebagai string,
 supaya timezone tidak bergeser mengikuti perangkat karyawan.
@@ -124,16 +164,16 @@ Run `npm run db:generate` after any schema change. Migrations live in `prisma/mi
 - **OfficeLocation** — titik kantor (lat/long) + `radiusMeters`; dipakai untuk validasi jarak (haversine)
 - **WorkSchedule** — kebijakan global: `lateToleranceMinutes` (satu baris aktif)
 - **WorkDay** — selalu 7 baris, `dayOfWeek` unik (0 = Minggu … 6 = Sabtu, sama dengan `Date#getUTCDay()`) + `isWorkingDay` + jam masuk/pulang (`"HH:mm"`). Menentukan `isLate` dan hari libur — tidak ada lagi asumsi Sabtu/Minggu di kode
-- **Attendance** — satu baris per `CHECK_IN`/`CHECK_OUT`; unik per (`userId`, `workDate`, `type`) supaya tidak dobel; simpan foto, koordinat, `distanceMeters`, `isWithinRadius`, `isLate`. `photoUrl` / `latitude` / `longitude` / `isWithinRadius` **nullable** — absensi hasil koreksi manual (`isManual`) memang tidak punya foto & GPS, jadi jangan perlakukan null sebagai "di luar radius"
-- **LeaveRequest** — pengajuan izin/sakit/cuti; status `PENDING` → `APPROVED`/`REJECTED` beserta `reviewedBy` / `reviewedAt` / `reviewNote`
-- **AttendanceCorrection** — pengajuan koreksi absensi (lupa absen, HP mati). Diajukan karyawan lalu di-review admin, atau dibuat admin langsung dengan status `APPROVED`. Saat disetujui, `CorrectionService.approve()` menulis/memperbarui `Attendance` dalam satu transaksi dan menandainya `isManual`
+- **Attendance** — satu baris per `CHECK_IN`/`CHECK_OUT`; unik per (`userId`, `workDate`, `type`) supaya tidak dobel; simpan foto, koordinat, `distanceMeters`, `isWithinRadius`, `isLate`, `workMode`, `workModeDetail`, `approvalStatus`, `approvedMode`. `photoUrl` / `latitude` / `longitude` / `isWithinRadius` **nullable** — absensi yang dicatat admin manual (`isManual`) memang tidak punya foto & GPS, jadi jangan perlakukan null sebagai "di luar radius"
+- **LeaveRequest** — pengajuan izin/sakit/cuti; status `PENDING` → `APPROVED`/`REJECTED` beserta `reviewedBy` / `reviewedAt` / `reviewNote`. Satu-satunya jalur untuk `SAKIT`/`IZIN`/`CUTI`
 - **Holiday** — tanggal merah, cuti bersama, dan libur internal (`date` unik). Melengkapi `WorkDay` yang hanya mengatur pola mingguan
 
 `servers/services/notification.service.ts` menghitung angka merah di sidebar
 (`NotificationService.forUser()`), dipanggil sekali di `DashboardShell` supaya
 ketiga layout tidak menghitungnya sendiri-sendiri. Isinya sengaja hanya hal yang
-perlu ditindak orang yang sedang login: antrean review untuk admin, dan hari yang
-absensinya menggantung/terlewat untuk karyawan.
+perlu ditindak orang yang sedang login — setelah koreksi absensi dihapus itu
+berarti hanya antrean admin (pengajuan izin + approval absensi luar kantor);
+karyawan tidak punya antrean apa pun, jadi badge-nya kosong.
 
 `workDate`, `startDate`, dan `endDate` disimpan sebagai kolom `date` (tanpa jam) dan dihitung
 memakai timezone `APP_TIMEZONE` (default `Asia/Jakarta`).

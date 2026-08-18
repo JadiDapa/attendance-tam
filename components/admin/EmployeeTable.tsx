@@ -22,9 +22,11 @@ export type EmployeeRow = EmployeeFormValues & {
   createdAt: string;
   /** Rekap pada rentang tanggal yang dipilih. Akun admin tidak punya rekap. */
   hasRecap: boolean;
-  totalMasuk: number;
+  totalHadirDikantor: number;
+  totalWfh: number;
+  totalDinasLuar: number;
   totalTerlambat: number;
-  totalAlpa: number;
+  totalAlfa: number;
   totalIzin: number;
   totalSakit: number;
   totalCuti: number;
@@ -106,11 +108,11 @@ const columns: ColumnDef<EmployeeRow>[] = [
     ),
   },
   {
-    accessorKey: "totalMasuk",
-    header: ({ column }) => <TableSorter column={column} header="Masuk" />,
+    accessorKey: "totalHadirDikantor",
+    header: ({ column }) => <TableSorter column={column} header="Di Kantor" />,
     cell: ({ row }) => (
       <RecapCell
-        value={row.original.totalMasuk}
+        value={row.original.totalHadirDikantor}
         hasRecap={row.original.hasRecap}
         hint={
           row.original.totalTerlambat > 0
@@ -121,11 +123,31 @@ const columns: ColumnDef<EmployeeRow>[] = [
     ),
   },
   {
-    accessorKey: "totalAlpa",
-    header: ({ column }) => <TableSorter column={column} header="Tidak Absen" />,
+    accessorKey: "totalWfh",
+    header: ({ column }) => <TableSorter column={column} header="WFH" />,
     cell: ({ row }) => (
       <RecapCell
-        value={row.original.totalAlpa}
+        value={row.original.totalWfh}
+        hasRecap={row.original.hasRecap}
+      />
+    ),
+  },
+  {
+    accessorKey: "totalDinasLuar",
+    header: ({ column }) => <TableSorter column={column} header="Dinas Luar" />,
+    cell: ({ row }) => (
+      <RecapCell
+        value={row.original.totalDinasLuar}
+        hasRecap={row.original.hasRecap}
+      />
+    ),
+  },
+  {
+    accessorKey: "totalAlfa",
+    header: ({ column }) => <TableSorter column={column} header="Alfa" />,
+    cell: ({ row }) => (
+      <RecapCell
+        value={row.original.totalAlfa}
         hasRecap={row.original.hasRecap}
       />
     ),

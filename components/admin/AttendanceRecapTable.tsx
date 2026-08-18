@@ -17,8 +17,8 @@ import CheckOutCell from "@/components/dashboard/CheckOutCell";
 import DataTable from "@/components/dashboard/DataTable";
 import SearchDataTable from "@/components/dashboard/SearchDataTable";
 import {
-  RECAP_STATUS_LABEL,
-  RECAP_STATUS_VARIANT,
+  DAY_STATUS_LABEL,
+  DAY_STATUS_VARIANT,
   type RecapRow,
 } from "@/lib/attendance";
 
@@ -86,11 +86,11 @@ const columns: ColumnDef<RecapRow>[] = [
     header: "Status",
     cell: ({ row }) => (
       <div className="space-y-1">
-        <Badge variant={RECAP_STATUS_VARIANT[row.original.status]}>
-          {RECAP_STATUS_LABEL[row.original.status]}
+        <Badge variant={DAY_STATUS_VARIANT[row.original.status]}>
+          {DAY_STATUS_LABEL[row.original.status]}
         </Badge>
         {row.original.statusDetail && (
-          <p className="text-muted-foreground text-xs">
+          <p className="text-muted-foreground max-w-xs text-xs">
             {row.original.statusDetail}
           </p>
         )}

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   CALENDAR_STATUS_LABEL,
-  RECAP_STATUS_VARIANT,
+  DAY_STATUS_VARIANT,
   type AttendanceDay,
 } from "@/lib/attendance";
 
@@ -25,7 +25,7 @@ export default function AttendanceDayDialog({
 }) {
   return (
     <Dialog open={day !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="flex-2">
         {day && (
           <>
             <DialogHeader>
@@ -38,9 +38,9 @@ export default function AttendanceDayDialog({
             <div className="flex flex-wrap items-center gap-2">
               <Badge
                 variant={
-                  day.status === "LIBUR" || day.status === "KOSONG"
+                  day.status === "KOSONG"
                     ? "outline"
-                    : RECAP_STATUS_VARIANT[day.status]
+                    : DAY_STATUS_VARIANT[day.status]
                 }
               >
                 {CALENDAR_STATUS_LABEL[day.status]}

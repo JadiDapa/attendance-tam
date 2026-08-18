@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { useTheme } from "next-themes";
 import Link from "next/link";
 import { User } from "@/generated/prisma";
 import {
@@ -23,14 +22,7 @@ import {
   settingsItems,
   type MenuItem,
 } from "@/lib/sidebar-menu";
-import {
-  LogOut,
-  ChevronsUpDown,
-  Monitor,
-  Moon,
-  Sun,
-  UserRound,
-} from "lucide-react";
+import { LogOut, ChevronsUpDown, UserRound } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -145,7 +137,6 @@ export default function DashboardSidebar({
   badges: Record<string, number>;
 }) {
   const pathname = usePathname();
-  const { setTheme } = useTheme();
 
   const mainItems = filterMenuByRole(overviewItems, user.role);
   const otherItems = filterMenuByRole(settingsItems, user.role);
@@ -231,19 +222,6 @@ export default function DashboardSidebar({
                 <UserRound className="size-4" />
                 Profil Saya
               </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setTheme("light")}>
-              <Sun className="size-4" />
-              Terang
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme("dark")}>
-              <Moon className="size-4" />
-              Gelap
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme("system")}>
-              <Monitor className="size-4" />
-              Sistem
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onClick={handleSignOut}>

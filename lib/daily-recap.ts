@@ -2,7 +2,7 @@
  * Perakit rekap kehadiran satu hari.
  *
  * Dipakai bersama oleh halaman Kehadiran (tabel + filter status) dan Dashboard
- * admin (persentase ringkasan) supaya angka di keduanya tidak pernah berbeda.
+ * admin (ringkasan) supaya angka di keduanya tidak pernah berbeda.
  *
  * Dipakai dari server component saja — mengimpor enum dari Prisma client.
  */
@@ -14,18 +14,19 @@ import {
   type User,
 } from "@/generated/prisma";
 import {
-  RECAP_STATUS_OPTIONS,
+  DAY_STATUS_OPTIONS,
   isMissingCheckOut,
+  isPendingApproval,
   isVoidedAttendance,
   statusFromCheckIn,
   toRecapEntry,
+  type DayStatus,
   type RecapRow,
-  type RecapStatus,
 } from "./attendance";
 import { LEAVE_TYPE_LABEL } from "./leave";
-import { RADIUS_REVIEW_LABEL } from "./radius-review";
+import { APPROVAL_LABEL } from "./work-mode";
 
-export type RecapCounts = Record<RecapStatus, number>;
+export type RecapCounts = Record<DayStatus, number>;
 
 /** Satu baris per karyawan: status hari itu + absen masuk/pulang kalau ada. */
 export function buildDailyRecap(input: {
@@ -59,27 +60,28 @@ export function buildDailyRecap(input: {
       own.find((item) => item.type === AttendanceType.CHECK_OUT) ?? null;
     const leave = approvedLeaves.find((item) => item.userId === employee.id);
 
-    // Absensi yang dianulir admin diperlakukan seolah tidak pernah ada.
+    // Absensi yang ditolak admin diperlakukan seolah tidak pernah ada.
     const effectiveCheckIn = isVoidedAttendance(checkIn) ? null : checkIn;
     const effectiveCheckOut = isVoidedAttendance(checkOut) ? null : checkOut;
 
-    let status: RecapStatus = "ALPA";
+    let status: DayStatus = "ALFA";
     let statusDetail: string | null = null;
 
     // Absen tetap menang atas izin: kalau karyawan datang, dia dihitung hadir.
     if (effectiveCheckIn) {
       status = statusFromCheckIn(effectiveCheckIn);
-      statusDetail = effectiveCheckIn.reviewStatus
-        ? RADIUS_REVIEW_LABEL[effectiveCheckIn.reviewStatus]
-        : null;
+      statusDetail = isPendingApproval(effectiveCheckIn)
+        ? APPROVAL_LABEL.PENDING
+        : effectiveCheckIn.workModeDetail;
     } else if (leave) {
-      status = "IZIN";
+      status = leave.type;
       statusDetail = LEAVE_TYPE_LABEL[leave.type];
     } else if (isDayOff) {
       status = "LIBUR";
       statusDetail = holidayName;
     } else if (checkIn) {
-      statusDetail = RADIUS_REVIEW_LABEL.ALPA;
+      // Absensinya ada tapi ditolak admin — jelaskan kenapa harinya jadi Alfa.
+      statusDetail = APPROVAL_LABEL.REJECTED;
     }
 
     return {
@@ -96,16 +98,23 @@ export function buildDailyRecap(input: {
         workDate,
         today,
       }),
+      pendingApproval:
+        isPendingApproval(checkIn) || isPendingApproval(checkOut),
     };
   });
 }
 
 export function countRecapStatus(rows: RecapRow[]): RecapCounts {
   const counts = Object.fromEntries(
-    RECAP_STATUS_OPTIONS.map((status) => [status, 0]),
+    DAY_STATUS_OPTIONS.map((status) => [status, 0]),
   ) as RecapCounts;
 
   for (const row of rows) counts[row.status] += 1;
 
   return counts;
+}
+
+/** Hari yang dihitung hadir bekerja: di kantor, WFH, atau dinas luar. */
+export function countPresent(counts: RecapCounts): number {
+  return counts.HADIR_DIKANTOR + counts.WFH + counts.DINAS_LUAR;
 }

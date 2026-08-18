@@ -13,6 +13,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { ChevronRight } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -22,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import TablePagination from "./TablePagination";
+import { cn } from "@/lib/utils";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -31,6 +33,11 @@ interface DataTableProps<TData, TValue> {
   emptyMessage?: string;
   /** Tanpa kartu pembungkus — dipakai kalau tabelnya sudah berada di dalam panel. */
   bare?: boolean;
+  /** Kartu mobile jadi bisa di-tap untuk buka detail baris — kolom aksi jadi berlebihan. */
+  onRowClick?: (row: TData) => void;
+  /** Tampilan kartu mobile sepenuhnya kustom — dipakai kalau kartu label:value
+   * generik dari kolom tabel tidak cocok untuk data ini. */
+  renderMobileCard?: (row: TData) => ReactNode;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,6 +48,8 @@ const DataTable: React.FC<DataTableProps<any, any>> = ({
   title = "Data Filters",
   emptyMessage = "Tidak ada data.",
   bare = false,
+  onRowClick,
+  renderMobileCard,
 }) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -59,6 +68,10 @@ const DataTable: React.FC<DataTableProps<any, any>> = ({
       columnFilters,
     },
   });
+
+  const headerById = new Map(
+    table.getFlatHeaders().map((header) => [header.column.id, header]),
+  );
 
   return (
     <div
@@ -83,7 +96,8 @@ const DataTable: React.FC<DataTableProps<any, any>> = ({
           </>
         ))}
 
-      <div className="overflow-x-auto">
+      {/* Table — dari md ke atas */}
+      <div className="hidden overflow-x-auto md:block">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -134,7 +148,101 @@ const DataTable: React.FC<DataTableProps<any, any>> = ({
         </Table>
       </div>
 
-      <TablePagination table={table} />
+      {/* Kartu per baris — di bawah md, supaya tidak scroll horizontal. Pakai
+          semua baris yang lolos filter/sort, tanpa paginasi. */}
+      <div className={cn("flex flex-col gap-3 md:hidden", !bare && "px-4")}>
+        {table.getSortedRowModel().rows?.length ? (
+          table.getSortedRowModel().rows.map((row) => {
+            const rowProps = {
+              role: onRowClick ? "button" : undefined,
+              tabIndex: onRowClick ? 0 : undefined,
+              onClick: onRowClick
+                ? () => onRowClick(row.original)
+                : undefined,
+              onKeyDown: onRowClick
+                ? (event: React.KeyboardEvent) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onRowClick(row.original);
+                    }
+                  }
+                : undefined,
+            };
+
+            if (renderMobileCard) {
+              return (
+                <div
+                  key={row.id}
+                  {...rowProps}
+                  className={cn(onRowClick && "cursor-pointer")}
+                >
+                  {renderMobileCard(row.original)}
+                </div>
+              );
+            }
+
+            const cells = row
+              .getVisibleCells()
+              .filter((cell) => !cell.column.columnDef.meta?.hiddenInCard);
+
+            return (
+              <div
+                key={row.id}
+                {...rowProps}
+                className={cn(
+                  "divide-border relative flex flex-col divide-y rounded-xl border",
+                  onRowClick &&
+                    "hover:bg-muted/60 active:bg-muted cursor-pointer transition-colors",
+                  bare ? "bg-background" : "bg-muted/30",
+                )}
+              >
+                {cells.map((cell) => {
+                  const header = headerById.get(cell.column.id);
+                  const label =
+                    header && !header.isPlaceholder
+                      ? flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )
+                      : null;
+
+                  return (
+                    <div
+                      key={cell.id}
+                      className={cn(
+                        "flex items-start gap-4 px-4 py-2.5 text-sm",
+                        onRowClick && "pr-8",
+                      )}
+                    >
+                      <span className="text-muted-foreground w-24 shrink-0 pt-0.5 text-xs font-medium">
+                        {label}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {onRowClick && (
+                  <ChevronRight className="text-muted-foreground absolute top-1/2 right-3 size-4 -translate-y-1/2" />
+                )}
+              </div>
+            );
+          })
+        ) : (
+          <div className="text-muted-foreground rounded-xl border py-10 text-center text-sm">
+            {emptyMessage}
+          </div>
+        )}
+      </div>
+
+      <div className="hidden md:block">
+        <TablePagination table={table} />
+      </div>
     </div>
   );
 };
