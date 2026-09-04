@@ -1,4 +1,4 @@
-import { writeFile, mkdir } from "fs/promises";
+import { writeFile, mkdir, unlink } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 
@@ -54,4 +54,22 @@ export function saveAttachment(file: File): Promise<string> {
     ATTACHMENT_TYPES,
     "Format lampiran harus JPG, PNG, WEBP, atau PDF",
   );
+}
+
+/**
+ * Hapus berkas yang sudah disimpan `saveImage`/`saveAttachment`, mis. karena
+ * baris DB yang mestinya memakainya gagal dibuat. Diam-diam kalau berkasnya
+ * sudah tidak ada — dipanggil sebagai best-effort cleanup, bukan langkah yang
+ * boleh menggagalkan alur utama.
+ */
+export async function deleteUpload(url: string): Promise<void> {
+  const filename = path.basename(url);
+
+  if (!filename) return;
+
+  try {
+    await unlink(path.join(UPLOAD_DIR, filename));
+  } catch {
+    // Sudah terhapus atau tidak pernah ada — tidak masalah.
+  }
 }

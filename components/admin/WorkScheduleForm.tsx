@@ -4,13 +4,19 @@ import { useRouter } from "next/navigation";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { CalendarClock, Copy } from "lucide-react";
+import {
+  CalendarIcon as CalendarClock,
+  CopyIcon as Copy,
+} from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
+import Panel from "@/components/dashboard/Panel";
 import { saveWorkSchedule } from "@/app/action/setting.action";
+import { APP_TIMEZONE } from "@/lib/date";
 import { DAY_LABEL, summarizeWeek } from "@/lib/work-schedule";
 import { cn } from "@/lib/utils";
 import {
@@ -88,155 +94,187 @@ export default function WorkScheduleForm({
   });
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-5">
-      <div className="flex flex-col gap-2">
-        {fields.map((field, index) => {
-          const day = days?.[index];
-          const isWorking = Boolean(day?.isWorkingDay);
-          const dayError = errors.days?.[index];
+    <form onSubmit={onSubmit} className="grid gap-6 lg:grid-cols-3">
+      <div className="flex flex-col gap-6 lg:col-span-2">
+        <Panel
+          title="Jadwal Mingguan"
+          icon={CalendarClock}
+          contentClassName="flex flex-col gap-4 p-4 sm:p-5"
+        >
+          <p className="text-muted-foreground -mt-1 text-sm">
+            Hari yang dimatikan dihitung libur: karyawan tidak wajib absen dan
+            tidak muncul sebagai tidak absen di rekap (zona waktu {APP_TIMEZONE}
+            ).
+          </p>
 
-          return (
-            <div
-              key={field.id}
-              className={cn(
-                "border-border flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border p-3 transition-colors",
-                !isWorking && "bg-muted/40",
-              )}
-            >
-              {/* Hari tidak bisa diubah dari UI, tapi harus ikut terkirim. */}
-              <input
-                type="hidden"
-                {...register(`days.${index}.dayOfWeek`, { valueAsNumber: true })}
-              />
+          <div className="flex flex-col gap-2">
+            {fields.map((field, index) => {
+              const day = days?.[index];
+              const isWorking = Boolean(day?.isWorkingDay);
+              const dayError = errors.days?.[index];
 
-              <Controller
-                control={control}
-                name={`days.${index}.isWorkingDay`}
-                render={({ field: toggle }) => (
-                  <Switch
-                    checked={toggle.value}
-                    onCheckedChange={toggle.onChange}
-                    aria-label={`Hari kerja ${DAY_LABEL[Number(day?.dayOfWeek ?? 0)]}`}
+              return (
+                <div
+                  key={field.id}
+                  className={cn(
+                    "border-border flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border p-3 transition-colors",
+                    !isWorking && "bg-muted/40",
+                  )}
+                >
+                  {/* Hari tidak bisa diubah dari UI, tapi harus ikut terkirim. */}
+                  <input
+                    type="hidden"
+                    {...register(`days.${index}.dayOfWeek`, {
+                      valueAsNumber: true,
+                    })}
                   />
-                )}
-              />
 
-              <span
-                className={cn(
-                  "w-20 text-sm font-medium",
-                  !isWorking && "text-muted-foreground",
-                )}
-              >
-                {DAY_LABEL[Number(day?.dayOfWeek ?? 0)]}
-              </span>
+                  <Controller
+                    control={control}
+                    name={`days.${index}.isWorkingDay`}
+                    render={({ field: toggle }) => (
+                      <Switch
+                        checked={toggle.value}
+                        onCheckedChange={toggle.onChange}
+                        aria-label={`Hari kerja ${DAY_LABEL[Number(day?.dayOfWeek ?? 0)]}`}
+                      />
+                    )}
+                  />
 
-              {isWorking ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Input
-                    type="time"
-                    className="w-32"
-                    aria-label="Jam masuk"
-                    {...register(`days.${index}.checkInTime`)}
-                  />
-                  <span className="text-muted-foreground text-sm">–</span>
-                  <Input
-                    type="time"
-                    className="w-32"
-                    aria-label="Jam pulang"
-                    {...register(`days.${index}.checkOutTime`)}
-                  />
+                  <span
+                    className={cn(
+                      "w-20 text-sm font-medium",
+                      !isWorking && "text-muted-foreground",
+                    )}
+                  >
+                    {DAY_LABEL[Number(day?.dayOfWeek ?? 0)]}
+                  </span>
+
+                  {isWorking ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        type="time"
+                        className="w-32"
+                        aria-label="Jam masuk"
+                        {...register(`days.${index}.checkInTime`)}
+                      />
+                      <span className="text-muted-foreground text-sm">–</span>
+                      <Input
+                        type="time"
+                        className="w-32"
+                        aria-label="Jam pulang"
+                        {...register(`days.${index}.checkOutTime`)}
+                      />
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">Libur</span>
+                  )}
+
+                  {(dayError?.checkInTime || dayError?.checkOutTime) && (
+                    <p className="text-destructive w-full text-sm">
+                      {dayError.checkOutTime?.message ??
+                        dayError.checkInTime?.message}
+                    </p>
+                  )}
                 </div>
-              ) : (
-                <span className="text-muted-foreground text-sm">Libur</span>
-              )}
+              );
+            })}
 
-              {(dayError?.checkInTime || dayError?.checkOutTime) && (
-                <p className="text-destructive w-full text-sm">
-                  {dayError.checkOutTime?.message ??
-                    dayError.checkInTime?.message}
-                </p>
-              )}
+            {errors.days?.root && (
+              <p className="text-destructive text-sm">
+                {errors.days.root.message}
+              </p>
+            )}
+            {errors.days?.message && (
+              <p className="text-destructive text-sm">{errors.days.message}</p>
+            )}
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="self-start"
+            onClick={applyToAll}
+          >
+            <Copy className="size-4" />
+            Samakan semua hari kerja
+          </Button>
+        </Panel>
+      </div>
+
+      <div className="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
+        <Panel
+          title="Pengaturan Tambahan"
+          icon={CalendarClock}
+          contentClassName="flex flex-col gap-4 p-4 sm:p-5"
+        >
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="lateToleranceMinutes">
+              Toleransi telat (menit)
+            </Label>
+            <Input
+              id="lateToleranceMinutes"
+              type="number"
+              min={0}
+              max={180}
+              {...register("lateToleranceMinutes")}
+            />
+            <p className="text-muted-foreground text-xs">
+              Berlaku sama untuk semua hari. Absen masuk setelah jam masuk +
+              toleransi ditandai terlambat.
+            </p>
+            {errors.lateToleranceMinutes && (
+              <p className="text-destructive text-sm">
+                {errors.lateToleranceMinutes.message}
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="maxAccuracyMeters">
+              Akurasi GPS maksimal (meter)
+            </Label>
+            <Input
+              id="maxAccuracyMeters"
+              type="number"
+              min={10}
+              max={5000}
+              {...register("maxAccuracyMeters")}
+            />
+            <p className="text-muted-foreground text-xs">
+              Absensi ditolak kalau perangkat melaporkan akurasi lebih buruk
+              dari ini — pembacaan kasar bikin jarak ke kantor tidak bermakna.
+              Naikkan kalau karyawan sering gagal absen di dalam gedung.
+            </p>
+            {errors.maxAccuracyMeters && (
+              <p className="text-destructive text-sm">
+                {errors.maxAccuracyMeters.message}
+              </p>
+            )}
+          </div>
+
+          <Separator />
+
+          <div className="border-border bg-muted/40 flex items-start gap-2.5 rounded-xl border p-3 text-sm">
+            <CalendarClock className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+            <div>
+              <p className="font-medium">{summary.scheduleLabel}</p>
+              <p className="text-muted-foreground text-xs">
+                {summary.workingDays} hari kerja · total {summary.totalLabel}{" "}
+                per minggu
+              </p>
             </div>
-          );
-        })}
+          </div>
 
-        {errors.days?.root && (
-          <p className="text-destructive text-sm">{errors.days.root.message}</p>
-        )}
-        {errors.days?.message && (
-          <p className="text-destructive text-sm">{errors.days.message}</p>
-        )}
+          <Separator />
+
+          <Button type="submit" disabled={isSubmitting} className="w-full">
+            {isSubmitting && <Spinner />}
+            Simpan Waktu Kerja
+          </Button>
+        </Panel>
       </div>
-
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="self-start"
-        onClick={applyToAll}
-      >
-        <Copy className="size-4" />
-        Samakan semua hari kerja
-      </Button>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="lateToleranceMinutes">Toleransi telat (menit)</Label>
-        <Input
-          id="lateToleranceMinutes"
-          type="number"
-          min={0}
-          max={180}
-          className="w-32"
-          {...register("lateToleranceMinutes")}
-        />
-        <p className="text-muted-foreground text-xs">
-          Berlaku sama untuk semua hari. Absen masuk setelah jam masuk +
-          toleransi ditandai terlambat.
-        </p>
-        {errors.lateToleranceMinutes && (
-          <p className="text-destructive text-sm">
-            {errors.lateToleranceMinutes.message}
-          </p>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="maxAccuracyMeters">Akurasi GPS maksimal (meter)</Label>
-        <Input
-          id="maxAccuracyMeters"
-          type="number"
-          min={10}
-          max={5000}
-          className="w-32"
-          {...register("maxAccuracyMeters")}
-        />
-        <p className="text-muted-foreground text-xs">
-          Absensi ditolak kalau perangkat melaporkan akurasi lebih buruk dari
-          ini — pembacaan kasar bikin jarak ke kantor tidak bermakna. Naikkan
-          kalau karyawan sering gagal absen di dalam gedung.
-        </p>
-        {errors.maxAccuracyMeters && (
-          <p className="text-destructive text-sm">
-            {errors.maxAccuracyMeters.message}
-          </p>
-        )}
-      </div>
-
-      <div className="border-border bg-muted/40 flex items-start gap-2.5 rounded-xl border p-3 text-sm">
-        <CalendarClock className="text-muted-foreground mt-0.5 size-4 shrink-0" />
-        <div>
-          <p className="font-medium">{summary.scheduleLabel}</p>
-          <p className="text-muted-foreground text-xs">
-            {summary.workingDays} hari kerja · total {summary.totalLabel} per
-            minggu
-          </p>
-        </div>
-      </div>
-
-      <Button type="submit" disabled={isSubmitting} className="self-start">
-        {isSubmitting && <Spinner />}
-        Simpan Waktu Kerja
-      </Button>
     </form>
   );
 }

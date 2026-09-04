@@ -1,11 +1,11 @@
 import { Table } from "@tanstack/react-table";
 import { Button } from "../ui/button";
 import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-} from "lucide-react";
+  ChevronLeftIcon as ChevronLeft,
+  ChevronRightIcon as ChevronRight,
+  DoubleArrowLeftIcon as ChevronsLeft,
+  DoubleArrowRightIcon as ChevronsRight,
+} from "@radix-ui/react-icons";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type TData = any;
@@ -35,7 +35,7 @@ export default function TablePagination({ table }: Props) {
           disabled={!table.getCanPreviousPage()}
           className="size-8"
         >
-          <ChevronsLeft className="size-4" strokeWidth={1.5} />
+          <ChevronsLeft className="size-4" />
         </Button>
         <Button
           variant="outline"
@@ -45,7 +45,7 @@ export default function TablePagination({ table }: Props) {
           disabled={!table.getCanPreviousPage()}
           className="size-8"
         >
-          <ChevronLeft className="size-4" strokeWidth={1.5} />
+          <ChevronLeft className="size-4" />
         </Button>
         <Button
           variant="outline"
@@ -55,7 +55,7 @@ export default function TablePagination({ table }: Props) {
           disabled={!table.getCanNextPage()}
           className="size-8"
         >
-          <ChevronRight className="size-4" strokeWidth={1.5} />
+          <ChevronRight className="size-4" />
         </Button>
         <Button
           variant="outline"
@@ -65,7 +65,7 @@ export default function TablePagination({ table }: Props) {
           disabled={!table.getCanNextPage()}
           className="size-8"
         >
-          <ChevronsRight className="size-4" strokeWidth={1.5} />
+          <ChevronsRight className="size-4" />
         </Button>
       </div>
     </div>

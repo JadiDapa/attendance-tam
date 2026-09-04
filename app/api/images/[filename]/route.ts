@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createReadStream, existsSync } from "fs";
 import path from "path";
+import { getCurrentUser } from "@/lib/session";
+import { Role } from "@/generated/prisma";
+import { AttendanceService } from "@/servers/services/attendance.service";
+import { LeaveService } from "@/servers/services/leave.service";
+
+/** UUID + ekstensi yang benar-benar dihasilkan `saveImage`/`saveAttachment`. */
+const FILENAME_PATTERN = /^[0-9a-f-]+\.(jpg|jpeg|png|webp|gif|pdf)$/i;
 
 export async function GET(
   _req: NextRequest,
@@ -8,9 +15,29 @@ export async function GET(
 ) {
   const { filename } = await params;
 
-  // Prevent path traversal attacks
-  if (!filename || filename.includes("..")) {
+  if (!filename || !FILENAME_PATTERN.test(filename)) {
     return new NextResponse("Invalid filename", { status: 400 });
+  }
+
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  // Admin boleh lihat semua foto absensi & lampiran izin. Karyawan hanya
+  // boleh lihat miliknya sendiri.
+  if (user.role !== Role.ADMIN) {
+    const url = `/api/images/${filename}`;
+    const [attendance, leave] = await Promise.all([
+      AttendanceService.findByPhotoUrl(url),
+      LeaveService.findByAttachmentUrl(url),
+    ]);
+    const owns = attendance?.userId === user.id || leave?.userId === user.id;
+
+    if (!owns) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
   }
 
   const filePath = path.join(process.cwd(), "uploads/images", filename);
@@ -33,7 +60,7 @@ export async function GET(
   return new NextResponse(webStream, {
     headers: {
       "Content-Type": getContentType(filename),
-      "Cache-Control": "public, max-age=31536000, immutable",
+      "Cache-Control": "private, max-age=31536000, immutable",
     },
   });
 }

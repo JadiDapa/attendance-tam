@@ -1,44 +1,38 @@
 "use client";
 
-import * as React from "react";
-import { Moon, Sun } from "lucide-react";
+import {
+  MoonIcon as Moon,
+  SunIcon as Sun,
+  DesktopIcon as Monitor,
+} from "@radix-ui/react-icons";
 import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
+const CYCLE = [
+  { value: "light", label: "Terang", icon: Sun },
+  { value: "dark", label: "Gelap", icon: Moon },
+  { value: "system", label: "Ikuti Sistem", icon: Monitor },
+] as const;
 
 export function ToggleTheme() {
-  const { setTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
+
+  const index = CYCLE.findIndex((mode) => mode.value === theme);
+  const current = CYCLE[index] ?? CYCLE[2];
+  const next = CYCLE[(index + 1) % CYCLE.length] ?? CYCLE[0];
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          className="bg-card rounded-full border-none"
-          size="icon"
-        >
-          <Sun className="size-5 scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-          <Moon className="absolute size-5 scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
-          <span className="sr-only">Toggle theme</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>
-          Light
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>
-          Dark
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>
-          System
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      variant="outline"
+      className="bg-muted/60 hover:bg-muted rounded-full border-none"
+      size="icon"
+      onClick={() => setTheme(next.value)}
+    >
+      <current.icon className="size-5" />
+      <span className="sr-only">
+        Tema saat ini: {current.label}. Klik untuk ganti ke {next.label}.
+      </span>
+    </Button>
   );
 }

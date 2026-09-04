@@ -87,10 +87,10 @@ export default function AttendancePunctuality({
   ];
 
   return (
-    <div className="flex w-full flex-col items-center gap-4">
+    <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-4">
       <ChartContainer
         config={chartConfig}
-        className="mx-auto aspect-square max-h-[220px] w-full"
+        className="mx-auto h-56 w-full min-h-0 flex-1"
       >
         <PieChart>
           <ChartTooltip
@@ -108,7 +108,7 @@ export default function AttendancePunctuality({
         </PieChart>
       </ChartContainer>
 
-      <div className="flex items-center gap-4 text-sm">
+      <div className="flex w-full shrink-0 flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm">
         <div className="flex items-center gap-2">
           <span
             className="size-2.5 shrink-0 rounded-full"
@@ -127,7 +127,7 @@ export default function AttendancePunctuality({
           <span className="font-medium">{late}</span>)
         </div>
 
-        <span className="text-muted-foreground ml-auto">Total {total}</span>
+        <span className="text-muted-foreground">Total {total}</span>
       </div>
     </div>
   );

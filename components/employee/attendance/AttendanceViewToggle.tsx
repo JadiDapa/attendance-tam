@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { CalendarDays, Rows3 } from "lucide-react";
+import {
+  CalendarIcon as CalendarDays,
+  RowsIcon as Rows3,
+} from "@radix-ui/react-icons";
 import { cn } from "@/lib/utils";
 
 export type AttendanceView = "calendar" | "table";

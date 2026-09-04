@@ -1,23 +1,25 @@
+import type { ComponentType } from "react";
 import {
-  LayoutDashboard,
-  CalendarCheck,
-  CalendarClock,
-  CalendarOff,
-  FileText,
-  Users,
-  MapPin,
-  ClipboardCheck,
-  Clock,
-  Download,
-  ShieldCheck,
-  Settings,
-  LucideIcon,
-} from "lucide-react";
+  DashboardIcon as LayoutDashboard,
+  CalendarIcon as CalendarCheck,
+  CalendarIcon as CalendarClock,
+  CalendarIcon as CalendarOff,
+  FileTextIcon as FileText,
+  AvatarIcon as Users,
+  SewingPinIcon as MapPin,
+  ClipboardIcon as ClipboardCheck,
+  ClockIcon as Clock,
+  DownloadIcon as Download,
+  BadgeIcon as ShieldCheck,
+  GearIcon as Settings,
+} from "@radix-ui/react-icons";
+
+type Icon = ComponentType<{ className?: string }>;
 
 export type MenuItem = {
   title: string;
   url: string;
-  icon: LucideIcon;
+  icon: Icon;
   roles?: string[];
   submenu?: { title: string; url: string }[];
 };
@@ -108,4 +110,22 @@ export const settingsItems: MenuItem[] = [
 
 export function filterMenuByRole(items: MenuItem[], role: string): MenuItem[] {
   return items.filter((item) => !item.roles || item.roles.includes(role));
+}
+
+/** Judul halaman untuk navbar, diturunkan dari menu item yang paling cocok
+ * dengan path saat ini (fallback ke segmen URL terakhir). */
+export function getPageTitle(pathname: string, role: string): string {
+  const items = filterMenuByRole([...overviewItems, ...settingsItems], role);
+
+  let best: MenuItem | undefined;
+  for (const item of items) {
+    if (pathname === item.url || pathname.startsWith(`${item.url}/`)) {
+      if (!best || item.url.length > best.url.length) best = item;
+    }
+  }
+  if (best) return best.title;
+
+  const segments = pathname.split("/").filter(Boolean);
+  const last = segments[segments.length - 1] ?? "Dashboard";
+  return last.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }

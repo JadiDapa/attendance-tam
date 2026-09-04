@@ -62,7 +62,7 @@ export async function updateEmployee(
   userId: string,
   input: z.input<typeof UpdateUserSchema>,
 ): Promise<UserResult> {
-  await requireRole(Role.ADMIN);
+  const admin = await requireRole(Role.ADMIN);
 
   const parsed = UpdateUserSchema.safeParse(input);
 
@@ -71,6 +71,11 @@ export async function updateEmployee(
   }
 
   const { name, email, password, role, phone, position } = parsed.data;
+
+  if (admin.id === userId && role && role !== Role.ADMIN) {
+    return { ok: false, error: "Tidak bisa mengubah role akun sendiri" };
+  }
+
   const data: Prisma.UserUpdateInput = {};
 
   if (name) data.name = name;

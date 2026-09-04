@@ -11,6 +11,8 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarSeparator,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -22,15 +24,7 @@ import {
   settingsItems,
   type MenuItem,
 } from "@/lib/sidebar-menu";
-import { LogOut, ChevronsUpDown, UserRound } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { ExitIcon as LogOut } from "@radix-ui/react-icons";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 
@@ -60,13 +54,13 @@ function NavGroup({
   if (items.length === 0) return null;
 
   return (
-    <SidebarGroup className="p-0">
-      <SidebarGroupLabel className="text-muted-foreground mb-1 px-6 text-xs font-medium tracking-wide uppercase">
+    <SidebarGroup className="p-0 px-6">
+      <SidebarGroupLabel className="text-muted-foreground/70 mb-2 px-6 text-[11px] font-semibold tracking-widest uppercase">
         {label}
       </SidebarGroupLabel>
 
       <SidebarGroupContent>
-        <SidebarMenu className="gap-1">
+        <SidebarMenu className="gap-1.5">
           {items.map((item) => {
             const active =
               pathname === item.url || pathname.startsWith(`${item.url}/`);
@@ -75,19 +69,14 @@ function NavGroup({
 
             return (
               <SidebarMenuItem key={item.url} className="relative">
-                {/* Active indicator */}
-                {active && (
-                  <span className="bg-primary absolute top-1/2 left-0 z-10 h-9 w-1.5 -translate-y-1/2 rounded-r-full" />
-                )}
-
                 <SidebarMenuButton
                   asChild
                   isActive={active}
                   tooltip={badge > 0 ? `${item.title} (${badge})` : item.title}
                   className={cn(
-                    `h-11 rounded-xl px-6 text-sm font-medium transition-all duration-200`,
+                    `h-11 rounded-xl text-sm font-medium transition-all duration-200`,
                     active
-                      ? `text-foreground! bg-transparent! hover:bg-transparent!`
+                      ? `bg-primary/10! text-primary-subtle! hover:bg-primary/10!`
                       : `text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground bg-transparent!`,
                   )}
                 >
@@ -97,15 +86,15 @@ function NavGroup({
                   >
                     <item.icon
                       className={cn(
-                        "size-7 shrink-0 transition-colors",
-                        active ? "text-primary" : "text-muted-foreground",
+                        "size-5 shrink-0 transition-colors",
+                        active ? "text-icon-active" : "text-muted-foreground",
                       )}
                     />
 
                     <span
                       className={cn(
-                        "truncate text-base",
-                        active ? "text-primary" : "text-muted-foreground",
+                        "truncate text-sm",
+                        active ? "text-primary-subtle font-semibold" : "font-medium",
                       )}
                     >
                       {item.title}
@@ -141,24 +130,17 @@ export default function DashboardSidebar({
   const mainItems = filterMenuByRole(overviewItems, user.role);
   const otherItems = filterMenuByRole(settingsItems, user.role);
 
-  const displayName = user.name || user.email || "User";
-  const initial = displayName.charAt(0).toUpperCase();
-
   const handleSignOut = async () => {
     await signOut({ redirectTo: "/login" });
   };
 
   return (
-    <Sidebar
-      variant="sidebar"
-      collapsible="icon"
-      className="bg-card border-0 p-3"
-    >
-      <SidebarHeader className="bg-background overflow-hidden rounded-t-md p-3">
-        <div className="flex items-center gap-5 rounded-xl px-2 py-2.5">
-          <Image src="/icon.webp" alt="Logo" width={50} height={30} />
+    <Sidebar variant="sidebar" collapsible="icon" className="bg-card border-r">
+      <SidebarHeader className="border-b p-3">
+        <div className="flex items-center gap-3 rounded-xl px-2 py-2.5">
+          <Image src="/icon.webp" alt="Logo" width={40} height={24} />
 
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
             <p className="letter truncate text-xl font-semibold tracking-wide">
               ABSENSI
             </p>
@@ -167,16 +149,21 @@ export default function DashboardSidebar({
               Taruna Anugerah Mandiri
             </p>
           </div>
+
+          <SidebarTrigger className="text-muted-foreground ml-auto shrink-0" />
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="bg-background gap-7 py-3 group-data-[collapsible=icon]:px-1.5">
+      <SidebarContent className="gap-4 py-4 group-data-[collapsible=icon]:px-1.5">
         <NavGroup
           label="Menu"
           items={mainItems}
           pathname={pathname}
           badges={badges}
         />
+
+        {otherItems.length > 0 && <SidebarSeparator className="mx-6 w-full" />}
+
         <NavGroup
           label="Lainnya"
           items={otherItems}
@@ -185,51 +172,19 @@ export default function DashboardSidebar({
         />
       </SidebarContent>
 
-      <SidebarFooter className="bg-background overflow-hidden rounded-b-md border-t p-3 group-data-[collapsible=icon]:px-1.5">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild className="border-2 border-dashed">
-            <button
-              type="button"
-              className="hover:bg-sidebar-accent flex w-full items-center gap-3 rounded-xl border-0 bg-transparent p-2 text-left transition-colors group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-1"
+      <SidebarFooter className="border-t p-3 group-data-[collapsible=icon]:px-1.5">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={handleSignOut}
+              tooltip="Keluar"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive h-11 rounded-xl px-6 text-sm font-medium"
             >
-              <div className="bg-primary text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-lg text-sm font-semibold">
-                {initial}
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col leading-tight group-data-[collapsible=icon]:hidden">
-                <span className="text-foreground truncate text-sm font-semibold">
-                  {displayName}
-                </span>
-                <span className="text-muted-foreground truncate text-xs capitalize">
-                  {user.role.toLowerCase()}
-                </span>
-              </div>
-              <ChevronsUpDown className="text-muted-foreground size-4 shrink-0 group-data-[collapsible=icon]:hidden" />
-            </button>
-          </DropdownMenuTrigger>
-
-          <DropdownMenuContent side="top" align="start" className="w-56">
-            <DropdownMenuLabel className="flex flex-col leading-tight">
-              <span className="truncate text-sm font-semibold">
-                {displayName}
-              </span>
-              <span className="text-muted-foreground truncate text-xs font-normal">
-                {user.email}
-              </span>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/profil">
-                <UserRound className="size-4" />
-                Profil Saya
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={handleSignOut}>
-              <LogOut className="size-4" />
-              Keluar
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <LogOut className="size-5 shrink-0" />
+              <span className="truncate text-sm font-medium">Keluar</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   );

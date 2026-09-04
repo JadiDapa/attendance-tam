@@ -198,7 +198,7 @@ pada subclass `CredentialsSignin` (`invalid_credentials`, `inactive_account`).
 ### Components
 
 - `components/ui/` — shadcn/ui primitives (radix-ui based); do not edit these manually, use the `shadcn` CLI
-- `components/dashboard/` — shared dashboard pieces: `DataTable`, `TablePagination`, `TableSorter`, `SearchDataTable`, `DashboardSidebar`, `DashboardNavbar`, `DynamicBreadcrumb`, `PageHeader`
+- `components/dashboard/` — shared dashboard pieces: `DataTable`, `TablePagination`, `TableSorter`, `SearchDataTable`, `DashboardSidebar`, `Navbar`, `PageHeader`
 - `components/auth/` — login form dan layout pieces
 - `components/admin/LocationMap.tsx` — peta Leaflet + OpenStreetMap (pin bisa digeser, lingkaran radius). Leaflet menyentuh `window` saat modul dimuat, jadi selalu diimpor lewat `next/dynamic` dengan `ssr: false`
 

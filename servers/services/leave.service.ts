@@ -32,6 +32,14 @@ export const LeaveService = {
     });
   },
 
+  /** Cari pengajuan lewat URL lampiran — dipakai untuk cek kepemilikan saat serve file. */
+  async findByAttachmentUrl(attachmentUrl: string) {
+    return prisma.leaveRequest.findFirst({
+      where: { attachmentUrl },
+      select: { userId: true },
+    });
+  },
+
   async countPending() {
     return prisma.leaveRequest.count({
       where: { status: LeaveStatus.PENDING },
@@ -49,6 +57,34 @@ export const LeaveService = {
 
   async create(data: CreateLeaveDTO) {
     return prisma.leaveRequest.create({ data });
+  },
+
+  /**
+   * Cek tabrakan tanggal lalu buat pengajuan dalam satu transaksi
+   * Serializable, supaya dua submit hampir bersamaan (double-click, dua tab)
+   * tidak bisa sama-sama lolos cek lalu membuat baris yang tumpang tindih —
+   * beda dari `findOverlapping` + `create` terpisah yang punya celah race.
+   */
+  async createIfNotOverlapping(data: CreateLeaveDTO) {
+    return prisma.$transaction(
+      async (tx) => {
+        const overlapping = await tx.leaveRequest.findFirst({
+          where: {
+            userId: data.userId,
+            status: { in: [LeaveStatus.PENDING, LeaveStatus.APPROVED] },
+            startDate: { lte: data.endDate },
+            endDate: { gte: data.startDate },
+          },
+        });
+
+        if (overlapping) return { ok: false as const, overlapping };
+
+        const leave = await tx.leaveRequest.create({ data });
+
+        return { ok: true as const, leave };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   },
 
   /**

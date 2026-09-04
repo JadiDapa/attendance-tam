@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { PlusIcon as Plus } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -157,7 +157,9 @@ export default function LeaveRequestForm({ today }: { today: string }) {
               {...register("reason")}
             />
             {errors.reason && (
-              <p className="text-destructive text-sm">{errors.reason.message}</p>
+              <p className="text-destructive text-sm">
+                {errors.reason.message}
+              </p>
             )}
           </div>
 

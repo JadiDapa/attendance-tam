@@ -1,19 +1,19 @@
 import Link from "next/link";
 import {
-  ArrowRight,
-  BellDot,
-  CalendarRange,
-  CheckCircle2,
-  ClipboardCheck,
-  ClipboardList,
-  TrendingUp,
-  Users,
-} from "lucide-react";
+  ArrowRightIcon as ArrowRight,
+  BellIcon as BellDot,
+  CalendarIcon as CalendarRange,
+  CheckCircledIcon as CheckCircle2,
+  ClipboardIcon as ClipboardCheck,
+  ClipboardIcon as ClipboardList,
+  ClockIcon as Clock4,
+  ArrowTopRightIcon as TrendingUp,
+  AvatarIcon as Users,
+} from "@radix-ui/react-icons";
 import PageHeader from "@/components/dashboard/PageHeader";
 import AttendanceRecapTable from "@/components/admin/AttendanceRecapTable";
-import AttendanceTrendChart, {
-  type TrendPoint,
-} from "@/components/admin/dashboard/AttendanceTrendChart";
+import AttendanceStatusChart from "@/components/dashboard/AttendanceStatusChart";
+import AttendancePunctuality from "@/components/dashboard/AttendancePunctuality";
 import DashboardDateNav from "@/components/admin/dashboard/DashboardDateNav";
 import Panel from "@/components/dashboard/Panel";
 import StatTile from "@/components/dashboard/StatTile";
@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { LeaveStatus, Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import {
-  DAY_STATUS_DOT,
   DAY_STATUS_LABEL,
   DAY_STATUS_OPTIONS,
   type DayStatus,
@@ -47,14 +46,10 @@ import { isNonWorkingDate } from "@/lib/work-schedule";
 import { UserService } from "@/servers/services/user.service";
 import { AttendanceService } from "@/servers/services/attendance.service";
 import { LeaveService } from "@/servers/services/leave.service";
-import { ReportService } from "@/servers/services/report.service";
 import { HolidayService } from "@/servers/services/holiday.service";
 import { WorkDayService } from "@/servers/services/setting.service";
 
 type SearchParams = { date?: string; status?: string };
-
-/** Jumlah hari yang ditampilkan di grafik tren. */
-const TREND_DAYS = 14;
 
 export default async function AdminDashboardPage({
   searchParams,
@@ -70,7 +65,6 @@ export default async function AdminDashboardPage({
     ? (params.status as DayStatus)
     : null;
 
-  const trendStart = addDays(workDate, -(TREND_DAYS - 1));
   const weekStart = addDays(
     workDate,
     workDate.getUTCDay() === 0 ? -6 : 1 - workDate.getUTCDay(),
@@ -81,7 +75,6 @@ export default async function AdminDashboardPage({
     attendances,
     approvedLeaves,
     pendingLeaves,
-    trendRows,
     upcomingLeaves,
     pendingAttendanceApprovals,
     holiday,
@@ -91,7 +84,6 @@ export default async function AdminDashboardPage({
     AttendanceService.listByDate(workDate),
     LeaveService.listApprovedOnDate(workDate),
     LeaveService.list({ status: LeaveStatus.PENDING }),
-    ReportService.buildRecap({ startDate: trendStart, endDate: workDate }),
     LeaveService.listApprovedInRange({
       startDate: weekStart,
       endDate: addDays(weekStart, 6),
@@ -101,7 +93,6 @@ export default async function AdminDashboardPage({
     WorkDayService.list(),
   ]);
 
-  const activeIds = new Set(employees.map((employee) => employee.id));
   const employeeById = new Map(
     employees.map((employee) => [employee.id, employee]),
   );
@@ -123,48 +114,11 @@ export default async function AdminDashboardPage({
   const total = rows.length;
   const presentToday = countPresent(counts);
 
-  // Tren dibatasi ke karyawan aktif juga, supaya angkanya sejalan dengan kartu
-  // di atas. Hari libur dilewati — kalau ikut dihitung, grafiknya turun tajam
-  // tiap akhir pekan dan tanggal merah tanpa ada yang benar-benar bolos.
-  //
-  // Terlambat digambar sebagai bagian dari kehadiran di kantor, bukan status
-  // tersendiri: `hadir` sudah mencakup keduanya.
-  const trendByDate = new Map<
-    number,
-    { hadir: number; terlambat: number; total: number }
-  >();
-
-  for (const row of trendRows) {
-    if (!activeIds.has(row.user.id) || row.status === "LIBUR") continue;
-
-    const key = row.workDate.getTime();
-    const bucket = trendByDate.get(key) ?? { hadir: 0, terlambat: 0, total: 0 };
-
-    bucket.total += 1;
-
-    if (
-      row.status === "HADIR_DIKANTOR" ||
-      row.status === "WFH" ||
-      row.status === "DINAS_LUAR"
-    ) {
-      bucket.hadir += 1;
-    }
-
-    if (row.checkIn?.isLate) bucket.terlambat += 1;
-
-    trendByDate.set(key, bucket);
-  }
-
-  const trendDates = [...trendByDate.keys()].sort((a, b) => a - b);
-  const trend: TrendPoint[] = trendDates.map((key) => {
-    const bucket = trendByDate.get(key)!;
-
-    return {
-      label: formatShortDate(new Date(key)),
-      hadir: bucket.hadir,
-      terlambat: bucket.terlambat,
-    };
-  });
+  // Sama seperti summary.terlambat di dashboard karyawan: atribut dari
+  // HADIR_DIKANTOR, bukan status tersendiri.
+  const lateToday = rows.filter(
+    (row) => row.status === "HADIR_DIKANTOR" && row.checkIn?.isLate,
+  ).length;
 
   const weekAgo = addDays(today, -7);
   const newEmployees = employees.filter(
@@ -272,79 +226,65 @@ export default async function AdminDashboardPage({
             />
           </div>
 
-          <Panel
-            title="Ringkasan Kehadiran"
-            icon={TrendingUp}
-            action={
-              <div className="text-primary flex items-center gap-2">
-                <Link
-                  href="/admin/laporan"
-                  className="shrink-0 text-sm font-medium hover:underline"
-                >
-                  Lihat laporan
-                </Link>
-                <ArrowRight className="size-4" strokeWidth={1.5} />
-              </div>
-            }
-            contentClassName="p-4 pt-3 min-h-108 sm:p-5 sm:pt-4"
-          >
-            <div className="mb-4 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
-              <div className="flex flex-wrap items-end gap-8">
-                <div>
-                  <p className="text-3xl font-bold tracking-tight tabular-nums">
-                    {presentToday}
-                    <span className="text-muted-foreground text-xl font-medium">
-                      /{total}
-                    </span>
-                  </p>
-                  <p className="text-muted-foreground text-sm">
-                    Hadir hari ini
-                  </p>
-                </div>
-              </div>
-
-              {/* Tiap status menyaring tabel rekap di bawah. */}
-              <div className="flex flex-wrap gap-5">
-                {DAY_STATUS_OPTIONS.map((status) => (
-                  <Link key={status} href={buildHref(status)} className="group">
-                    <span
-                      className={cn(
-                        "mb-1.5 block h-1 w-7 rounded-full",
-                        DAY_STATUS_DOT[status],
-                      )}
-                    />
-                    <p className="text-sm font-semibold tabular-nums">
-                      {counts[status]}
-                    </p>
-                    <p className="text-muted-foreground group-hover:text-foreground text-xs transition-colors">
-                      {DAY_STATUS_LABEL[status]}
-                    </p>
+          <div className="flex min-w-0 flex-1 gap-4">
+            <Panel
+              title="Ringkasan Kehadiran"
+              icon={TrendingUp}
+              action={
+                <div className="text-primary flex items-center gap-2">
+                  <Link
+                    href="/admin/laporan"
+                    className="shrink-0 text-sm font-medium hover:underline"
+                  >
+                    Lihat laporan
                   </Link>
-                ))}
-              </div>
-            </div>
+                  <ArrowRight className="size-4" />
+                </div>
+              }
+              className="min-w-0 flex-2"
+              contentClassName="flex flex-1 flex-col p-4 min-h-0"
+            >
+              <AttendanceStatusChart
+                total={
+                  presentToday +
+                  counts.SAKIT +
+                  counts.IZIN +
+                  counts.CUTI +
+                  counts.ALFA
+                }
+                data={[
+                  {
+                    key: "HADIR_DIKANTOR",
+                    label: "Hadir di Kantor",
+                    value: counts.HADIR_DIKANTOR,
+                  },
+                  { key: "WFH", label: "WFH", value: counts.WFH },
+                  {
+                    key: "DINAS_LUAR",
+                    label: "Dinas Luar",
+                    value: counts.DINAS_LUAR,
+                  },
+                  { key: "SAKIT", label: "Sakit", value: counts.SAKIT },
+                  { key: "IZIN", label: "Izin", value: counts.IZIN },
+                  { key: "CUTI", label: "Cuti", value: counts.CUTI },
+                  { key: "ALFA", label: "Alfa", value: counts.ALFA },
+                ]}
+              />
+            </Panel>
 
-            {/* Legenda: identitas seri tidak boleh hanya lewat warna. */}
-            <div className="text-muted-foreground mb-2 flex items-center gap-4 text-xs">
-              <span className="flex items-center gap-1.5">
-                <span className="bg-chart-hadir size-2 rounded-full" />
-                Hadir
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="bg-chart-terlambat size-2 rounded-full" />
-                Terlambat
-              </span>
-              <span className="ml-auto">{TREND_DAYS} hari terakhir</span>
-            </div>
-
-            {trend.length > 0 ? (
-              <AttendanceTrendChart data={trend} />
-            ) : (
-              <p className="text-muted-foreground py-10 text-center text-sm">
-                Belum ada data absensi pada rentang ini.
-              </p>
-            )}
-          </Panel>
+            <Panel
+              title="Ketepatan Waktu"
+              icon={Clock4}
+              className="flex min-w-0 flex-1"
+              contentClassName="flex flex-1 flex-col p-4 min-h-0"
+            >
+              {/* Hanya kehadiran di kantor yang dinilai tepat waktu/terlambat. */}
+              <AttendancePunctuality
+                onTime={counts.HADIR_DIKANTOR - lateToday}
+                late={lateToday}
+              />
+            </Panel>
+          </div>
         </div>
 
         {/* Kolom kanan */}
@@ -361,7 +301,7 @@ export default async function AdminDashboardPage({
                 >
                   Semua
                 </Link>
-                <ArrowRight className="size-4" strokeWidth={1.5} />
+                <ArrowRight className="size-4" />
               </div>
             }
             contentClassName="flex flex-col gap-3 p-4"
@@ -425,7 +365,7 @@ export default async function AdminDashboardPage({
                 >
                   Semua
                 </Link>
-                <ArrowRight className="size-4" strokeWidth={1.5} />
+                <ArrowRight className="size-4" />
               </div>
             }
           >
@@ -448,7 +388,7 @@ export default async function AdminDashboardPage({
                     <span className="tabular-nums">{day.getUTCDate()}</span>
                     <span
                       className={cn(
-                        isToday && !isSelected && "text-primary font-semibold",
+                        isToday && !isSelected && "text-primary-subtle font-semibold",
                       )}
                     >
                       {formatWeekday(day)}

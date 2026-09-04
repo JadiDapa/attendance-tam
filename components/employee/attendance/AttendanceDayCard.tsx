@@ -1,4 +1,7 @@
-import { Info, MapPin } from "lucide-react";
+import {
+  InfoCircledIcon as Info,
+  SewingPinIcon as MapPin,
+} from "@radix-ui/react-icons";
 import { Badge } from "@/components/ui/badge";
 import {
   CALENDAR_STATUS_LABEL,
@@ -25,9 +28,7 @@ const STATUS_FALLBACK_NOTE: Record<CalendarStatus, string> = {
 };
 
 function locationLabel(day: AttendanceDay) {
-  const entries = [day.checkIn, day.checkOut].filter(
-    (entry) => entry !== null,
-  );
+  const entries = [day.checkIn, day.checkOut].filter((entry) => entry !== null);
 
   if (!entries.length) return null;
 
@@ -52,7 +53,7 @@ export default function AttendanceDayCard({ day }: { day: AttendanceDay }) {
   const location = locationLabel(day);
 
   return (
-    <div className="bg-card flex items-stretch gap-3 rounded-2xl border p-3">
+    <div className="bg-card flex items-stretch gap-3 rounded-xl border p-3">
       <div
         className={cn(
           "flex w-16 shrink-0 flex-col items-center justify-center gap-1 rounded-xl",
@@ -90,17 +91,13 @@ export default function AttendanceDayCard({ day }: { day: AttendanceDay }) {
                 <p className="truncate text-sm font-semibold tabular-nums">
                   {day.checkOut?.time ?? "-"}
                 </p>
-                <p className="text-muted-foreground text-[11px]">
-                  Check out
-                </p>
+                <p className="text-muted-foreground text-[11px]">Check out</p>
               </div>
               <div className="min-w-0 pl-2">
                 <p className="truncate text-sm font-semibold tabular-nums">
                   {day.durationLabel ?? "-"}
                 </p>
-                <p className="text-muted-foreground text-[11px]">
-                  Total Hours
-                </p>
+                <p className="text-muted-foreground text-[11px]">Total Hours</p>
               </div>
             </div>
 

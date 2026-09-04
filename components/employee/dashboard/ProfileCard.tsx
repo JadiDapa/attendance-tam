@@ -1,4 +1,10 @@
-import { Mail, MapPin, Phone, Clock, Upload } from "lucide-react";
+import {
+  EnvelopeClosedIcon as Mail,
+  SewingPinIcon as MapPin,
+  MobileIcon as Phone,
+  ClockIcon as Clock,
+  UploadIcon as Upload,
+} from "@radix-ui/react-icons";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type Props = {
@@ -52,7 +58,7 @@ export default function ProfileCard({
   officeLabel,
 }: Props) {
   return (
-    <section className="bg-primary/70 border-border flex-1 rounded-2xl border p-6 shadow-xs">
+    <section className="bg-primary/70 border-border flex-1 rounded-xl border p-6 shadow-xs">
       <div className="flex items-start gap-6">
         {/* Avatar with update icon */}
         <div className="relative shrink-0">

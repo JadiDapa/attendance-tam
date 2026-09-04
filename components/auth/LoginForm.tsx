@@ -3,7 +3,12 @@
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Eye, EyeClosed, Lock, User } from "lucide-react";
+import {
+  EyeOpenIcon as Eye,
+  EyeClosedIcon as EyeClosed,
+  LockClosedIcon as Lock,
+  PersonIcon as User,
+} from "@radix-ui/react-icons";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -61,10 +66,7 @@ export default function LoginForm({ callbackUrl }: Props) {
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <div className="relative">
-                <User
-                  size={24}
-                  className="text-primary pointer-events-none absolute top-1/2 left-5 z-10 -translate-y-1/2"
-                />
+                <User className="text-primary-subtle pointer-events-none absolute top-1/2 left-5 z-10 size-6 -translate-y-1/2" />
 
                 <Input
                   {...field}
@@ -89,10 +91,7 @@ export default function LoginForm({ callbackUrl }: Props) {
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <div className="relative">
-                <Lock
-                  size={24}
-                  className="text-primary pointer-events-none absolute top-1/2 left-5 z-10 -translate-y-1/2"
-                />
+                <Lock className="text-primary-subtle pointer-events-none absolute top-1/2 left-5 z-10 size-6 -translate-y-1/2" />
 
                 <Input
                   {...field}
@@ -106,10 +105,14 @@ export default function LoginForm({ callbackUrl }: Props) {
                 <button
                   type="button"
                   onClick={() => setIsVisible((prev) => !prev)}
-                  className="text-primary absolute top-1/2 right-5 z-10 -translate-y-1/2"
+                  className="text-primary-subtle absolute top-1/2 right-5 z-10 -translate-y-1/2"
                   aria-label={isVisible ? "Hide password" : "Show password"}
                 >
-                  {isVisible ? <Eye size={24} /> : <EyeClosed size={24} />}
+                  {isVisible ? (
+                    <Eye className="size-6" />
+                  ) : (
+                    <EyeClosed className="size-6" />
+                  )}
                 </button>
               </div>
 

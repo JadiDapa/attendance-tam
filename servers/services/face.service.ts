@@ -4,6 +4,16 @@ const MIN_ENROLLMENT_PHOTOS = Number(
   process.env.FACE_ENROLLMENT_MIN_PHOTOS ?? 3,
 );
 
+/**
+ * Batas atas embedding tersimpan per karyawan. Tanpa ini, tombol "Tambah foto
+ * lagi" bisa dipencet tanpa henti dan terus menambah baris — memperlambat
+ * `/verify` (semua reference_vectors dikirim tiap absen) tanpa manfaat nyata
+ * setelah variasi sudut/pencahayaan sudah cukup terekam.
+ */
+const MAX_ENROLLMENT_PHOTOS = Number(
+  process.env.FACE_ENROLLMENT_MAX_PHOTOS ?? 10,
+);
+
 export const FaceService = {
   async listByUser(userId: string) {
     return prisma.faceEmbedding.findMany({
@@ -39,4 +49,5 @@ export const FaceService = {
   },
 
   minEnrollmentPhotos: MIN_ENROLLMENT_PHOTOS,
+  maxEnrollmentPhotos: MAX_ENROLLMENT_PHOTOS,
 };

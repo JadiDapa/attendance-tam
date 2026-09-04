@@ -1,6 +1,13 @@
-import { Plus } from "lucide-react";
+import {
+  CheckCircledIcon as CheckCircle2,
+  PlusIcon as Plus,
+  IdCardIcon as UserCheck,
+  CrossCircledIcon as UserX,
+  AvatarIcon as Users,
+} from "@radix-ui/react-icons";
 import PageHeader from "@/components/dashboard/PageHeader";
 import DateRangeNav from "@/components/dashboard/DateRangeNav";
+import StatTile from "@/components/dashboard/StatTile";
 import EmployeeFormDialog from "@/components/admin/EmployeeFormDialog";
 import EmployeeTable, {
   type EmployeeRow,
@@ -114,6 +121,15 @@ export default async function RekapanKaryawanPage({
   const activeCount = rows.filter((row) => row.isActive).length;
   const rangeLabel = `${formatWorkDate(range.startDate)} — ${formatWorkDate(range.endDate)}`;
 
+  // Cuma karyawan (hasRecap) yang punya angka kehadiran — admin tidak absen.
+  const recapEligible = rows.filter((row) => row.hasRecap);
+  const totalHadir = recapEligible.reduce(
+    (sum, row) =>
+      sum + row.totalHadirDikantor + row.totalWfh + row.totalDinasLuar,
+    0,
+  );
+  const totalAlfa = recapEligible.reduce((sum, row) => sum + row.totalAlfa, 0);
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -145,6 +161,33 @@ export default async function RekapanKaryawanPage({
           {range.error} — menampilkan bulan ini.
         </p>
       )}
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatTile
+          label="Total Akun"
+          icon={Users}
+          value={String(rows.length)}
+          footerLabel={`${activeCount} aktif · ${rows.length - activeCount} nonaktif`}
+        />
+        <StatTile
+          label="Akun Aktif"
+          icon={UserCheck}
+          value={String(activeCount)}
+          footerLabel="Bisa login sekarang"
+        />
+        <StatTile
+          label="Total Hadir"
+          icon={CheckCircle2}
+          value={String(totalHadir)}
+          footerLabel={`Kantor, WFH, dinas luar · ${rangeLabel}`}
+        />
+        <StatTile
+          label="Total Alfa"
+          icon={UserX}
+          value={String(totalAlfa)}
+          footerLabel={`Sepanjang ${rangeLabel}`}
+        />
+      </div>
 
       <EmployeeTable rows={rows} />
     </div>

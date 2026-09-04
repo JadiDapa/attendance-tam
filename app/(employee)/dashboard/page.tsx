@@ -1,11 +1,11 @@
 import Link from "next/link";
 import {
-  CalendarRange,
-  CheckCircle2,
-  ClipboardList,
-  Clock4,
-  LogOut,
-} from "lucide-react";
+  CalendarIcon as CalendarRange,
+  CheckCircledIcon as CheckCircle2,
+  ClipboardIcon as ClipboardList,
+  ClockIcon as Clock4,
+  ExitIcon as LogOut,
+} from "@radix-ui/react-icons";
 import Panel from "@/components/dashboard/Panel";
 import PageHeader from "@/components/dashboard/PageHeader";
 import StatTile from "@/components/dashboard/StatTile";
@@ -56,8 +56,8 @@ import {
   getWorkDayFor,
   summarizeWeek,
 } from "@/lib/work-schedule";
-import AttendancePunctuality from "@/components/employee/attendance/AttendancePunctuality";
-import AttendanceStatusChart from "@/components/employee/attendance/AttendanceStatusChart";
+import AttendancePunctuality from "@/components/dashboard/AttendancePunctuality";
+import AttendanceStatusChart from "@/components/dashboard/AttendanceStatusChart";
 import { cn } from "@/lib/utils";
 
 type SearchParams = {
@@ -96,24 +96,31 @@ export default async function EmployeeDashboardPage({
   // daftar riwayat mobile selalu menunjukkan absensi terbaru karyawan.
   const historyRange = { startDate: addDays(today, -89), endDate: today };
 
-  const [todayStatus, schedule, workDays, office, rows, historyRows, faceEnrolled] =
-    await Promise.all([
-      AttendanceService.getTodayStatus(user.id, today),
-      WorkScheduleService.getActive(),
-      WorkDayService.list(),
-      OfficeLocationService.getActive(),
-      ReportService.buildRecap({
-        startDate: range.startDate,
-        endDate: range.endDate,
-        userId: user.id,
-      }),
-      ReportService.buildRecap({
-        startDate: historyRange.startDate,
-        endDate: historyRange.endDate,
-        userId: user.id,
-      }),
-      FaceService.isEnrolled(user.id),
-    ]);
+  const [
+    todayStatus,
+    schedule,
+    workDays,
+    office,
+    rows,
+    historyRows,
+    faceEnrolled,
+  ] = await Promise.all([
+    AttendanceService.getTodayStatus(user.id, today),
+    WorkScheduleService.getActive(),
+    WorkDayService.list(),
+    OfficeLocationService.getActive(),
+    ReportService.buildRecap({
+      startDate: range.startDate,
+      endDate: range.endDate,
+      userId: user.id,
+    }),
+    ReportService.buildRecap({
+      startDate: historyRange.startDate,
+      endDate: historyRange.endDate,
+      userId: user.id,
+    }),
+    FaceService.isEnrolled(user.id),
+  ]);
 
   const days = buildAttendanceDays({
     rows,
@@ -264,9 +271,7 @@ export default async function EmployeeDashboardPage({
                 : "Hari ini libur"
             }
             officeLabel={
-              office
-                ? `${office.name} · radius ${office.radiusMeters} m`
-                : null
+              office ? `${office.name} · radius ${office.radiusMeters} m` : null
             }
           />
 
@@ -353,11 +358,7 @@ export default async function EmployeeDashboardPage({
             />
           </Panel>
 
-          <Panel
-            title="Ketepatan Waktu"
-            icon={Clock4}
-            className="flex flex-1"
-          >
+          <Panel title="Ketepatan Waktu" icon={Clock4} className="flex flex-1">
             {/* Hanya kehadiran di kantor yang dinilai tepat waktu/terlambat. */}
             <AttendancePunctuality
               onTime={summary.hadirDikantor - summary.terlambat}
@@ -388,7 +389,7 @@ export default async function EmployeeDashboardPage({
                 href={buildHref({ status: null })}
                 aria-current={statusFilter === null ? "true" : undefined}
                 className={cn(
-                  "flex basis-0 flex-1 items-center justify-center px-2 py-2 text-center text-sm font-medium whitespace-nowrap transition-all",
+                  "flex flex-1 basis-0 items-center justify-center px-2 py-2 text-center text-sm font-medium whitespace-nowrap transition-all",
                   "[clip-path:polygon(0_14%,6%_0,82%_0,92%_14%,100%_100%,0_100%)]",
                   statusFilter === null
                     ? "bg-primary/10 text-foreground relative z-10 shadow-sm"
@@ -404,7 +405,7 @@ export default async function EmployeeDashboardPage({
                   href={buildHref({ status })}
                   aria-current={statusFilter === status ? "true" : undefined}
                   className={cn(
-                    "flex basis-0 flex-1 items-center justify-center px-2 py-2 text-center text-sm font-medium whitespace-nowrap transition-all",
+                    "flex flex-1 basis-0 items-center justify-center px-2 py-2 text-center text-sm font-medium whitespace-nowrap transition-all",
                     "[clip-path:polygon(0_14%,6%_0,82%_0,92%_14%,100%_100%,0_100%)]",
                     statusFilter === status
                       ? "bg-primary/10 text-foreground relative z-10 shadow-sm"

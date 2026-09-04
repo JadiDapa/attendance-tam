@@ -30,7 +30,7 @@ export default function AttendanceDayTable({ days }: { days: AttendanceDay[] }) 
         <span className="font-medium whitespace-nowrap">
           {row.original.dateLabel}
           {row.original.isToday && (
-            <span className="text-primary ml-1.5 text-xs">hari ini</span>
+            <span className="text-primary-subtle ml-1.5 text-xs">hari ini</span>
           )}
         </span>
       ),

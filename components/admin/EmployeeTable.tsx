@@ -4,7 +4,11 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
-import { Pencil, Power, PowerOff } from "lucide-react";
+import {
+  Pencil2Icon as Pencil,
+  LightningBoltIcon as Power,
+  CircleBackslashIcon as PowerOff,
+} from "@radix-ui/react-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -186,7 +190,9 @@ const columns: ColumnDef<EmployeeRow>[] = [
     accessorKey: "role",
     header: "Role",
     cell: ({ row }) => (
-      <Badge variant={row.original.role === Role.ADMIN ? "default" : "secondary"}>
+      <Badge
+        variant={row.original.role === Role.ADMIN ? "default" : "secondary"}
+      >
         {row.original.role === Role.ADMIN ? "Admin" : "Karyawan"}
       </Badge>
     ),

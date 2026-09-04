@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRightIcon as ChevronRight } from "@radix-ui/react-icons";
 import AttendanceDayCard from "@/components/employee/attendance/AttendanceDayCard";
 import type { AttendanceDay } from "@/lib/attendance";
 

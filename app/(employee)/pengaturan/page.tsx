@@ -1,4 +1,7 @@
-import { LogOut, Palette } from "lucide-react";
+import {
+  ExitIcon as LogOut,
+  ColorWheelIcon as Palette,
+} from "@radix-ui/react-icons";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
 import ThemeOptions from "@/components/settings/ThemeOptions";

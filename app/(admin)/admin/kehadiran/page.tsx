@@ -1,19 +1,16 @@
 import Link from "next/link";
 import {
-  Briefcase,
-  CalendarOff,
-  ClipboardList,
-  Download,
-  FileText,
-  House,
-  Palmtree,
-  Stethoscope,
-  UserCheck,
-  UserX,
-  type LucideIcon,
-} from "lucide-react";
+  ClipboardIcon as ClipboardList,
+  ClockIcon as Clock4,
+  DownloadIcon as Download,
+  ArrowTopRightIcon as TrendingUp,
+  IdCardIcon as UserCheck,
+  AvatarIcon as Users,
+} from "@radix-ui/react-icons";
 import PageHeader from "@/components/dashboard/PageHeader";
 import AttendanceRecapTable from "@/components/admin/AttendanceRecapTable";
+import AttendanceStatusChart from "@/components/dashboard/AttendanceStatusChart";
+import AttendancePunctuality from "@/components/dashboard/AttendancePunctuality";
 import ManualAttendanceDialog from "@/components/admin/ManualAttendanceDialog";
 import DashboardDateNav from "@/components/admin/dashboard/DashboardDateNav";
 import Panel from "@/components/dashboard/Panel";
@@ -46,17 +43,6 @@ import { HolidayService } from "@/servers/services/holiday.service";
 import { WorkDayService } from "@/servers/services/setting.service";
 
 type SearchParams = { date?: string; status?: string };
-
-const STATUS_ICON: Record<DayStatus, LucideIcon> = {
-  HADIR_DIKANTOR: UserCheck,
-  WFH: House,
-  DINAS_LUAR: Briefcase,
-  SAKIT: Stethoscope,
-  IZIN: FileText,
-  ALFA: UserX,
-  CUTI: Palmtree,
-  LIBUR: CalendarOff,
-};
 
 export default async function KehadiranPage({
   searchParams,
@@ -97,6 +83,12 @@ export default async function KehadiranPage({
   const total = rows.length;
   const presentToday = countPresent(counts);
   const pendingApproval = rows.filter((row) => row.pendingApproval).length;
+
+  // Sama seperti summary.terlambat di dashboard karyawan: atribut dari
+  // HADIR_DIKANTOR, bukan status tersendiri.
+  const lateToday = rows.filter(
+    (row) => row.status === "HADIR_DIKANTOR" && row.checkIn?.isLate,
+  ).length;
 
   const visibleRows = statusFilter
     ? rows.filter((row) => row.status === statusFilter)
@@ -168,15 +160,74 @@ export default async function KehadiranPage({
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
-        {DAY_STATUS_OPTIONS.map((status) => (
-          <StatTile
-            key={status}
-            label={DAY_STATUS_LABEL[status]}
-            icon={STATUS_ICON[status]}
-            value={String(counts[status])}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatTile
+          label="Total Karyawan"
+          icon={Users}
+          value={String(total)}
+          footerLabel="Karyawan aktif"
+        />
+        <StatTile
+          label="Hadir Hari Ini"
+          icon={UserCheck}
+          value={`${presentToday}/${total}`}
+          footerLabel={`${counts.HADIR_DIKANTOR} kantor · ${counts.WFH} WFH · ${counts.DINAS_LUAR} dinas luar`}
+        />
+        <StatTile
+          label="Menunggu Approval"
+          icon={ClipboardList}
+          value={String(pendingApproval)}
+          footerLabel="Absensi luar kantor belum disetujui"
+        />
+        <StatTile
+          label="Terlambat"
+          icon={Clock4}
+          value={String(lateToday)}
+          footerLabel="Dari total hadir di kantor"
+        />
+      </div>
+
+      <div className="flex gap-4">
+        <Panel
+          title="Ringkasan Kehadiran"
+          icon={TrendingUp}
+          className="flex-2 p-4"
+        >
+          <AttendanceStatusChart
+            total={
+              presentToday +
+              counts.SAKIT +
+              counts.IZIN +
+              counts.CUTI +
+              counts.ALFA
+            }
+            data={[
+              {
+                key: "HADIR_DIKANTOR",
+                label: "Hadir di Kantor",
+                value: counts.HADIR_DIKANTOR,
+              },
+              { key: "WFH", label: "WFH", value: counts.WFH },
+              {
+                key: "DINAS_LUAR",
+                label: "Dinas Luar",
+                value: counts.DINAS_LUAR,
+              },
+              { key: "SAKIT", label: "Sakit", value: counts.SAKIT },
+              { key: "IZIN", label: "Izin", value: counts.IZIN },
+              { key: "CUTI", label: "Cuti", value: counts.CUTI },
+              { key: "ALFA", label: "Alfa", value: counts.ALFA },
+            ]}
           />
-        ))}
+        </Panel>
+
+        <Panel title="Ketepatan Waktu" icon={Clock4} className="flex flex-1">
+          {/* Hanya kehadiran di kantor yang dinilai tepat waktu/terlambat. */}
+          <AttendancePunctuality
+            onTime={counts.HADIR_DIKANTOR - lateToday}
+            late={lateToday}
+          />
+        </Panel>
       </div>
 
       <Panel

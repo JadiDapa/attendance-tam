@@ -2,7 +2,7 @@
 
 import { AuthError } from "next-auth";
 import { z } from "zod";
-import { signIn, signOut } from "@/auth";
+import { signIn } from "@/auth";
 import { defaultRouteForRole } from "@/auth.config";
 import { LoginSchema } from "@/servers/validators/auth.validator";
 import { UserService } from "@/servers/services/user.service";
@@ -51,6 +51,3 @@ export async function login(
   };
 }
 
-export async function logout() {
-  await signOut({ redirectTo: "/login" });
-}

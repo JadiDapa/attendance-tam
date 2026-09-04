@@ -1,10 +1,11 @@
-import { ReactNode } from "react";
-import { LucideIcon } from "lucide-react";
+import { ReactNode, ComponentType } from "react";
 import { cn } from "@/lib/utils";
+
+type Icon = ComponentType<{ className?: string }>;
 
 type Props = {
   title: string;
-  icon: LucideIcon;
+  icon: Icon;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
@@ -20,12 +21,10 @@ export default function Panel({
   contentClassName,
 }: Props) {
   return (
-    <section className={cn("bg-card flex flex-col rounded-2xl", className)}>
+    <section className={cn("bg-card flex flex-col rounded-xl", className)}>
       <header className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-3.5">
         <div className="flex min-w-0 items-center gap-2.5">
-          <h2 className="truncate text-base font-medium sm:text-lg">
-            {title}
-          </h2>
+          <h2 className="truncate text-base font-medium sm:text-lg">{title}</h2>
         </div>
 
         {action}

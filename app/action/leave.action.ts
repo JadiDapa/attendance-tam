@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
-import { saveAttachment } from "@/lib/storage";
+import { saveAttachment, deleteUpload } from "@/lib/storage";
 import { formatWorkDate, fromDateInputValue } from "@/lib/date";
 import {
   LeaveFormSchema,
@@ -71,7 +71,7 @@ export async function createLeaveRequest(
     }
   }
 
-  await LeaveService.create({
+  const result = await LeaveService.createIfNotOverlapping({
     userId: user.id,
     type: parsed.data.type,
     startDate,
@@ -79,6 +79,17 @@ export async function createLeaveRequest(
     reason: parsed.data.reason,
     attachmentUrl,
   });
+
+  if (!result.ok) {
+    // Baru ketahuan tabrakan saat commit (race dengan submit lain) —
+    // lampiran yang sudah terlanjur diunggah jadi yatim, bersihkan.
+    if (attachmentUrl) await deleteUpload(attachmentUrl);
+
+    return {
+      ok: false,
+      error: `Sudah ada pengajuan pada rentang tanggal itu (${formatWorkDate(result.overlapping.startDate)} — ${formatWorkDate(result.overlapping.endDate)})`,
+    };
+  }
 
   revalidatePath("/izin");
   revalidatePath("/admin/izin");

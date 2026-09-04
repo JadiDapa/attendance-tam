@@ -1,11 +1,11 @@
 import Link from "next/link";
 import {
-  AlertTriangle,
-  CalendarCheck,
-  LogIn,
-  LogOut,
-  ScanFace,
-} from "lucide-react";
+  ExclamationTriangleIcon as AlertTriangle,
+  CalendarIcon as CalendarCheck,
+  EnterIcon as LogIn,
+  ExitIcon as LogOut,
+  FaceIcon as ScanFace,
+} from "@radix-ui/react-icons";
 import Panel from "@/components/dashboard/Panel";
 import AttendanceDialog from "@/components/employee/AttendanceDialog";
 import { Badge } from "@/components/ui/badge";

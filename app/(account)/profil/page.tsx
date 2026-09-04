@@ -1,4 +1,9 @@
-import { KeyRound, Phone, ScanFace, UserRound } from "lucide-react";
+import {
+  LockClosedIcon as KeyRound,
+  MobileIcon as Phone,
+  FaceIcon as ScanFace,
+  PersonIcon as UserRound,
+} from "@radix-ui/react-icons";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
 import ChangePasswordForm from "@/components/profile/ChangePasswordForm";
@@ -57,14 +62,23 @@ export default async function ProfilPage() {
         <ProfileContactForm phone={user.phone ?? ""} />
       </Panel>
 
-      <Panel title="Pendaftaran Wajah" icon={ScanFace} contentClassName="p-4 sm:p-5">
+      <Panel
+        title="Pendaftaran Wajah"
+        icon={ScanFace}
+        contentClassName="p-4 sm:p-5"
+      >
         <FaceEnrollmentCard
           totalPhotos={totalPhotos}
           minRequired={FaceService.minEnrollmentPhotos}
+          maxPhotos={FaceService.maxEnrollmentPhotos}
         />
       </Panel>
 
-      <Panel title="Ganti Password" icon={KeyRound} contentClassName="p-4 sm:p-5">
+      <Panel
+        title="Ganti Password"
+        icon={KeyRound}
+        contentClassName="p-4 sm:p-5"
+      >
         <ChangePasswordForm />
       </Panel>
     </div>

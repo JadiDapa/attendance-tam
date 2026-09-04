@@ -1,6 +1,10 @@
 "use client";
 
-import { Moon, Sun, Monitor } from "lucide-react";
+import {
+  MoonIcon as Moon,
+  SunIcon as Sun,
+  DesktopIcon as Monitor,
+} from "@radix-ui/react-icons";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 

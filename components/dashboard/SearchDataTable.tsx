@@ -1,4 +1,5 @@
-import { Search } from "lucide-react";
+import { MagnifyingGlassIcon as Search } from "@radix-ui/react-icons";
+
 import { Input } from "../ui/input";
 import { Table } from "@tanstack/react-table";
 
@@ -15,10 +16,7 @@ export default function SearchDataTable<TData>({
 }: SearchDataTableProps<TData>) {
   return (
     <div className="relative w-full">
-      <Search
-        size={18}
-        className="text-text-400 absolute left-3 top-1/2 -translate-y-1/2"
-      />
+      <Search className="text-text-400 absolute top-1/2 left-3 size-4.5 -translate-y-1/2" />
       <Input
         placeholder={placeholder}
         value={(table.getColumn(column)?.getFilterValue() as string) ?? ""}

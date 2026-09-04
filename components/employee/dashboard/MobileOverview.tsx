@@ -1,5 +1,9 @@
 import type { ReactNode } from "react";
-import { CalendarDays, LogIn, LogOut } from "lucide-react";
+import {
+  CalendarIcon as CalendarDays,
+  EnterIcon as LogIn,
+  ExitIcon as LogOut,
+} from "@radix-ui/react-icons";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import AttendanceDialog from "@/components/employee/AttendanceDialog";
@@ -77,10 +81,10 @@ function Row({
       type="button"
       disabled={disabled || !office}
       title={disabled ? disabledReason : undefined}
-      className="flex w-full items-start justify-between gap-3 py-4 text-left transition-colors enabled:hover:bg-muted/30 disabled:cursor-not-allowed"
+      className="enabled:hover:bg-muted/30 flex w-full items-start justify-between gap-3 py-4 text-left transition-colors disabled:cursor-not-allowed"
     >
       <div className="flex min-w-0 items-center gap-3">
-        <span className="bg-primary/15 text-primary flex size-11 shrink-0 items-center justify-center rounded-2xl">
+        <span className="bg-primary/15 text-primary-subtle flex size-11 shrink-0 items-center justify-center rounded-lg">
           {icon}
         </span>
         <div className="min-w-0">
@@ -149,12 +153,10 @@ export default function MobileOverview({
 
   return (
     <div className="-mx-4 -mt-4 flex flex-col lg:hidden">
-      <div className="bg-primary text-primary-foreground rounded-b-[2.5rem] px-6 pt-8 pb-24">
+      <div className="bg-primary text-primary-foreground rounded-b-[1.25rem] px-6 pt-8 pb-24">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-primary-foreground/80 text-base">
-              {greeting},
-            </p>
+            <p className="text-primary-foreground/80 text-base">{greeting},</p>
             <p className="truncate text-[28px] leading-tight font-bold tracking-tight">
               {name}
             </p>
@@ -172,7 +174,7 @@ export default function MobileOverview({
         </div>
       </div>
 
-      <div className="bg-card border-border -mt-16 flex flex-col rounded-[2rem] border px-5 pt-5 pb-2 shadow-lg">
+      <div className="bg-card border-border -mt-16 flex flex-col rounded-[1rem] border px-5 pt-5 pb-2 shadow-lg">
         <div className="flex items-center justify-between gap-2 pb-4">
           <h2 className="text-lg font-semibold">Ringkasan</h2>
 

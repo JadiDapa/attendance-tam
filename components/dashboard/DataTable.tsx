@@ -13,7 +13,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ChevronRight } from "lucide-react";
+import { ChevronRightIcon as ChevronRight } from "@radix-ui/react-icons";
 import {
   Table,
   TableBody,
@@ -156,9 +156,7 @@ const DataTable: React.FC<DataTableProps<any, any>> = ({
             const rowProps = {
               role: onRowClick ? "button" : undefined,
               tabIndex: onRowClick ? 0 : undefined,
-              onClick: onRowClick
-                ? () => onRowClick(row.original)
-                : undefined,
+              onClick: onRowClick ? () => onRowClick(row.original) : undefined,
               onKeyDown: onRowClick
                 ? (event: React.KeyboardEvent) => {
                     if (event.key === "Enter" || event.key === " ") {

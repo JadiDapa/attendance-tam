@@ -1,10 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
-import { Pencil, Trash2 } from "lucide-react";
+import {
+  Pencil2Icon as Pencil,
+  TrashIcon as Trash2,
+} from "@radix-ui/react-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +26,6 @@ import SearchDataTable from "@/components/dashboard/SearchDataTable";
 import { HolidayType } from "@/generated/prisma";
 import { HOLIDAY_TYPE_LABEL, HOLIDAY_TYPE_VARIANT } from "@/lib/holiday";
 import { deleteHoliday } from "@/app/action/holiday.action";
-import HolidayFormDialog from "./HolidayFormDialog";
 
 export type HolidayRow = {
   id: string;
@@ -89,19 +92,11 @@ export default function HolidayTable({ rows }: { rows: HolidayRow[] }) {
       header: "Aksi",
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
-          <HolidayFormDialog
-            holiday={{
-              id: row.original.id,
-              date: row.original.date,
-              name: row.original.name,
-              type: row.original.type,
-            }}
-            trigger={
-              <Button variant="ghost" size="sm" title="Ubah">
-                <Pencil className="size-4" />
-              </Button>
-            }
-          />
+          <Button variant="ghost" size="sm" title="Ubah" asChild>
+            <Link href={`/admin/hari-libur/${row.original.id}/edit`}>
+              <Pencil className="size-4" />
+            </Link>
+          </Button>
           <Button
             variant="ghost"
             size="sm"

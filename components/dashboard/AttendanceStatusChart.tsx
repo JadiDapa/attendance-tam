@@ -43,7 +43,7 @@ export default function AttendanceStatusChart({
   }));
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
       {/* <div className="flex items-baseline justify-between">
         <span className="text-muted-foreground text-sm font-medium">
           {totalLabel}
@@ -51,7 +51,10 @@ export default function AttendanceStatusChart({
         <span className="text-2xl font-semibold">{total}</span>
       </div> */}
 
-      <ChartContainer config={chartConfig} className="h-64 w-full">
+      <ChartContainer
+        config={chartConfig}
+        className="h-64 w-full min-h-0 flex-1"
+      >
         <BarChart accessibilityLayer data={chartData} margin={{ top: 20 }}>
           <CartesianGrid vertical={false} />
           <XAxis

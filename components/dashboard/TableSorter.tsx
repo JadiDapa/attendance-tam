@@ -1,4 +1,5 @@
-import { ArrowUpDown } from "lucide-react";
+import { CaretSortIcon as ArrowUpDown } from "@radix-ui/react-icons";
+
 import { Column } from "@tanstack/react-table";
 
 type TableSorterProps = {

@@ -1,14 +1,16 @@
+import type { ComponentType } from "react";
 import {
-  ArrowUpRight,
-  LucideIcon,
-  TrendingDown,
-  TrendingUp,
-} from "lucide-react";
+  ExternalLinkIcon as ArrowUpRight,
+  ArrowBottomRightIcon as TrendingDown,
+  ArrowTopRightIcon as TrendingUp,
+} from "@radix-ui/react-icons";
 import { cn } from "@/lib/utils";
+
+type Icon = ComponentType<{ className?: string }>;
 
 type Props = {
   label: string;
-  icon: LucideIcon;
+  icon: Icon;
   value: string;
   /** Opsional — kartu status hanya menampilkan angkanya saja. */
   footerLabel?: string;
@@ -32,7 +34,7 @@ export default function StatTile({
   return (
     <div
       className={cn(
-        "relative flex min-h-32 flex-col justify-between gap-3 rounded-2xl p-3.5 transition-colors sm:min-h-40 sm:p-4",
+        "relative flex min-h-32 flex-col justify-between gap-3 rounded-xl p-3.5 transition-colors sm:min-h-40 sm:p-4",
         highlighted
           ? "border-primary bg-primary text-primary-foreground"
           : "bg-card text-card-foreground",
@@ -77,14 +79,14 @@ export default function StatTile({
         <Icon
           className={cn(
             "size-3.5 shrink-0",
-            highlighted ? "text-primary-foreground/80" : "text-primary",
+            highlighted ? "text-primary-foreground/80" : "text-primary-subtle",
           )}
         />
 
         <span
           className={cn(
             "truncate text-xs",
-            highlighted ? "text-primary-foreground/80" : "text-primary",
+            highlighted ? "text-primary-foreground/80" : "text-primary-subtle",
           )}
         >
           {footerLabel}
@@ -97,7 +99,7 @@ export default function StatTile({
               highlighted
                 ? "text-primary-foreground"
                 : delta.direction === "up"
-                  ? "text-primary"
+                  ? "text-primary-subtle"
                   : delta.direction === "down"
                     ? "text-destructive"
                     : "text-muted-foreground",

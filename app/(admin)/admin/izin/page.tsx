@@ -1,4 +1,10 @@
-import { CalendarClock, CheckCircle2, Clock4, XCircle } from "lucide-react";
+import Link from "next/link";
+import {
+  CalendarIcon as CalendarClock,
+  CheckCircledIcon as CheckCircle2,
+  ClockIcon as Clock4,
+  CrossCircledIcon as XCircle,
+} from "@radix-ui/react-icons";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
 import StatTile from "@/components/dashboard/StatTile";
@@ -7,9 +13,6 @@ import LeaveStatusChart from "@/components/dashboard/LeaveStatusChart";
 import LeaveApprovalTable, {
   type LeaveApprovalRow,
 } from "@/components/admin/LeaveApprovalTable";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
 import { LeaveStatus, LeaveType, Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import { formatWorkDate, getWorkDate } from "@/lib/date";
@@ -18,6 +21,7 @@ import {
   LEAVE_TYPE_LABEL,
   countLeaveDays,
 } from "@/lib/leave";
+import { cn } from "@/lib/utils";
 import { LeaveService } from "@/servers/services/leave.service";
 
 type SearchParams = { status?: string };
@@ -79,32 +83,45 @@ export default async function AdminIzinPage({
     REJECTED: countByStatus(LeaveStatus.REJECTED),
   };
 
+  const buildHref = (status: LeaveStatus | null) =>
+    status ? `/admin/izin?status=${status}` : "/admin/izin";
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Pengajuan Izin"
         subtitle="Setujui atau tolak pengajuan izin, sakit, dan cuti karyawan."
-      />
+        actions={
+          <div className="bg-muted flex w-fit max-w-full flex-wrap gap-1 rounded-full p-1">
+            <Link
+              href={buildHref(null)}
+              className={cn(
+                "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+                statusFilter === null
+                  ? "bg-card text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Semua ({requests.length})
+            </Link>
 
-      <form className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="status">Status</Label>
-          <NativeSelect
-            id="status"
-            name="status"
-            defaultValue={statusFilter ?? ""}
-            className="w-44"
-          >
-            <option value="">Semua status</option>
             {STATUS_OPTIONS.map((status) => (
-              <option key={status} value={status}>
-                {LEAVE_STATUS_LABEL[status]}
-              </option>
+              <Link
+                key={status}
+                href={buildHref(status)}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+                  statusFilter === status
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {LEAVE_STATUS_LABEL[status]} ({countByStatus(status)})
+              </Link>
             ))}
-          </NativeSelect>
-        </div>
-        <Button type="submit">Terapkan</Button>
-      </form>
+          </div>
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-3">
         {STATUS_OPTIONS.map((status) => (

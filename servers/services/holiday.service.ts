@@ -19,6 +19,10 @@ export const HolidayService = {
     return prisma.holiday.findUnique({ where: { date } });
   },
 
+  async getById(id: string) {
+    return prisma.holiday.findUnique({ where: { id } });
+  },
+
   async create(data: CreateHolidayDTO) {
     return prisma.holiday.create({ data });
   },

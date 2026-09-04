@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
-import { Check, X } from "lucide-react";
+import { CheckIcon as Check, Cross2Icon as X } from "@radix-ui/react-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -241,7 +241,11 @@ export default function LeaveApprovalTable({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={closeDialog} disabled={submitting}>
+            <Button
+              variant="outline"
+              onClick={closeDialog}
+              disabled={submitting}
+            >
               Batal
             </Button>
             <Button

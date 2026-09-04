@@ -1,4 +1,8 @@
-import { Briefcase, House, ShieldCheck } from "lucide-react";
+import {
+  BackpackIcon as Briefcase,
+  HomeIcon as House,
+  BadgeIcon as ShieldCheck,
+} from "@radix-ui/react-icons";
 import PageHeader from "@/components/dashboard/PageHeader";
 import StatTile from "@/components/dashboard/StatTile";
 import AttendanceApprovalTable, {

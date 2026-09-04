@@ -1,9 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Camera, Check, MapPin, RefreshCw } from "lucide-react";
+import {
+  CameraIcon as Camera,
+  CheckIcon as Check,
+  SewingPinIcon as MapPin,
+  ReloadIcon as RefreshCw,
+} from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -92,9 +103,7 @@ function readPosition(acceptableAccuracy: number): Promise<Coords> {
 
       if (result) resolve(result);
       else
-        reject(
-          error ?? new Error("Gagal membaca lokasi. Pastikan GPS aktif."),
-        );
+        reject(error ?? new Error("Gagal membaca lokasi. Pastikan GPS aktif."));
     };
 
     const timer = setTimeout(() => settle(best), POSITION_TIMEOUT_MS);
@@ -462,7 +471,7 @@ export default function AttendanceDialog({
           </div>
         </DialogHeader>
 
-        <div className="border-border relative aspect-4/3 w-full overflow-hidden rounded-2xl border bg-black shadow-inner">
+        <div className="border-border relative aspect-4/3 w-full overflow-hidden rounded-xl border bg-black shadow-inner">
           {photo ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}

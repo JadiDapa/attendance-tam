@@ -1,7 +1,10 @@
-import { CalendarOff, Plus } from "lucide-react";
+import Link from "next/link";
+import {
+  CalendarIcon as CalendarOff,
+  PlusIcon as Plus,
+} from "@radix-ui/react-icons";
 import PageHeader from "@/components/dashboard/PageHeader";
 import StatTile from "@/components/dashboard/StatTile";
-import HolidayFormDialog from "@/components/admin/HolidayFormDialog";
 import HolidayTable, { type HolidayRow } from "@/components/admin/HolidayTable";
 import { Button } from "@/components/ui/button";
 import { HolidayType, Role } from "@/generated/prisma";
@@ -41,14 +44,12 @@ export default async function HariLiburPage() {
         title="Hari Libur"
         subtitle="Tanggal merah, cuti bersama, dan libur internal — melengkapi pola hari kerja mingguan."
         actions={
-          <HolidayFormDialog
-            trigger={
-              <Button>
-                <Plus className="size-4" />
-                Tambah Hari Libur
-              </Button>
-            }
-          />
+          <Button asChild>
+            <Link href="/admin/hari-libur/baru">
+              <Plus className="size-4" />
+              Tambah Hari Libur
+            </Link>
+          </Button>
         }
       />
 

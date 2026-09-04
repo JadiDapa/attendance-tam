@@ -25,6 +25,14 @@ export const AttendanceService = {
     });
   },
 
+  /** Cari absensi lewat URL foto — dipakai untuk cek kepemilikan saat serve file. */
+  async findByPhotoUrl(photoUrl: string) {
+    return prisma.attendance.findFirst({
+      where: { photoUrl },
+      select: { userId: true },
+    });
+  },
+
   /** Absensi semua karyawan pada satu hari kerja (untuk rekap admin). */
   async listByDate(workDate: Date) {
     return prisma.attendance.findMany({
@@ -54,6 +62,17 @@ export const AttendanceService = {
     return prisma.attendance.findMany({
       where: { userId, workDate },
       orderBy: { timestamp: "asc" },
+    });
+  },
+
+  /** Satu baris absensi tertentu (dipakai admin sebelum mencatat manual). */
+  async findByUserDateType(
+    userId: string,
+    workDate: Date,
+    type: AttendanceType,
+  ) {
+    return prisma.attendance.findUnique({
+      where: { userId_workDate_type: { userId, workDate, type } },
     });
   },
 

@@ -1,18 +1,20 @@
 "use client";
 
+import type { ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  CalendarClock,
-  FileText,
-  Fingerprint,
-  Settings,
-  UserRound,
-  type LucideIcon,
-} from "lucide-react";
+  CalendarIcon as CalendarClock,
+  FileTextIcon as FileText,
+  FaceIcon as Fingerprint,
+  GearIcon as Settings,
+  PersonIcon as UserRound,
+} from "@radix-ui/react-icons";
 import { cn } from "@/lib/utils";
 
-type NavItem = { title: string; url: string; icon: LucideIcon };
+type Icon = ComponentType<{ className?: string }>;
+
+type NavItem = { title: string; url: string; icon: Icon };
 
 const leftItems: NavItem[] = [
   { title: "Riwayat", url: "/riwayat", icon: CalendarClock },
@@ -43,13 +45,13 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
       <item.icon
         className={cn(
           "size-5 shrink-0 transition-colors",
-          active ? "text-primary" : "text-muted-foreground",
+          active ? "text-primary-subtle" : "text-muted-foreground",
         )}
       />
       <span
         className={cn(
           "text-[10px] leading-none font-medium transition-colors",
-          active ? "text-primary" : "text-muted-foreground",
+          active ? "text-primary-subtle" : "text-muted-foreground",
         )}
       >
         {item.title}

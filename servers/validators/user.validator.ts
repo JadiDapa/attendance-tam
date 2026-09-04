@@ -21,10 +21,12 @@ export const CreateUserSchema = z.object({
   position: z.string().trim().max(60).optional().or(z.literal("")),
 });
 
-/** Password opsional saat edit — kosong berarti tidak diganti. */
+/**
+ * Password opsional saat edit — kosong berarti tidak diganti. Aktif/nonaktif
+ * bukan bagian dari form ini — jalurnya `setEmployeeActive()`.
+ */
 export const UpdateUserSchema = CreateUserSchema.partial().extend({
   password: passwordField.optional().or(z.literal("")),
-  isActive: z.boolean().optional(),
 });
 
 /**

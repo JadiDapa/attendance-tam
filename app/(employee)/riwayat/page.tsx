@@ -1,11 +1,11 @@
 import Link from "next/link";
 import {
-  CalendarRange,
-  CheckCircle2,
-  ClipboardList,
-  Clock4,
-  LogOut,
-} from "lucide-react";
+  CalendarIcon as CalendarRange,
+  CheckCircledIcon as CheckCircle2,
+  ClipboardIcon as ClipboardList,
+  ClockIcon as Clock4,
+  ExitIcon as LogOut,
+} from "@radix-ui/react-icons";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
 import StatTile from "@/components/dashboard/StatTile";
@@ -43,8 +43,8 @@ import {
   WorkScheduleService,
 } from "@/servers/services/setting.service";
 import { summarizeWeek } from "@/lib/work-schedule";
-import AttendanceStatusChart from "@/components/employee/attendance/AttendanceStatusChart";
-import AttendancePunctuality from "@/components/employee/attendance/AttendancePunctuality";
+import AttendanceStatusChart from "@/components/dashboard/AttendanceStatusChart";
+import AttendancePunctuality from "@/components/dashboard/AttendancePunctuality";
 
 type SearchParams = {
   start?: string;
@@ -284,7 +284,7 @@ export default async function RiwayatPage({
               href={buildHref({ status: null })}
               aria-current={statusFilter === null ? "true" : undefined}
               className={cn(
-                "flex basis-0 flex-1 items-center justify-center px-2 py-2 text-center text-sm font-medium whitespace-nowrap transition-all",
+                "flex flex-1 basis-0 items-center justify-center px-2 py-2 text-center text-sm font-medium whitespace-nowrap transition-all",
                 "[clip-path:polygon(0_14%,6%_0,82%_0,92%_14%,100%_100%,0_100%)]",
                 statusFilter === null
                   ? "bg-primary/10 text-foreground relative z-10 shadow-sm"
@@ -300,7 +300,7 @@ export default async function RiwayatPage({
                 href={buildHref({ status })}
                 aria-current={statusFilter === status ? "true" : undefined}
                 className={cn(
-                  "flex basis-0 flex-1 items-center justify-center px-2 py-2 text-center text-sm font-medium whitespace-nowrap transition-all",
+                  "flex flex-1 basis-0 items-center justify-center px-2 py-2 text-center text-sm font-medium whitespace-nowrap transition-all",
                   "[clip-path:polygon(0_14%,6%_0,82%_0,92%_14%,100%_100%,0_100%)]",
                   statusFilter === status
                     ? "bg-primary/10 text-foreground relative z-10 shadow-sm"

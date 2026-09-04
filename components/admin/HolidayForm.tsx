@@ -1,22 +1,16 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { CalendarIcon as CalendarOff } from "@radix-ui/react-icons";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -25,8 +19,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import Panel from "@/components/dashboard/Panel";
 import { HolidayType } from "@/generated/prisma";
-import { HOLIDAY_TYPE_LABEL } from "@/lib/holiday";
+import { formatWorkDate, fromDateInputValue } from "@/lib/date";
+import { HOLIDAY_TYPE_LABEL, HOLIDAY_TYPE_VARIANT } from "@/lib/holiday";
 import { saveHoliday } from "@/app/action/holiday.action";
 import {
   HolidayFormSchema,
@@ -34,8 +30,7 @@ import {
 } from "@/servers/validators/holiday.validator";
 
 type Props = {
-  trigger: ReactNode;
-  /** Diisi kalau dialog dipakai untuk mengubah hari libur yang sudah ada. */
+  /** Diisi kalau form dipakai untuk mengubah hari libur yang sudah ada. */
   holiday?: {
     id: string;
     date: string;
@@ -44,9 +39,9 @@ type Props = {
   };
 };
 
-export default function HolidayFormDialog({ trigger, holiday }: Props) {
+export default function HolidayForm({ holiday }: Props) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const isEdit = Boolean(holiday);
 
   const defaultValues: HolidayFormInput = {
     date: holiday?.date ?? "",
@@ -58,15 +53,18 @@ export default function HolidayFormDialog({ trigger, holiday }: Props) {
     control,
     register,
     handleSubmit,
-    reset,
     formState: { errors, isSubmitting },
   } = useForm<HolidayFormInput>({
     resolver: zodResolver(HolidayFormSchema),
     defaultValues,
   });
 
-  const onSubmit = handleSubmit(async (values) => {
-    const result = await saveHoliday(values, holiday?.id);
+  const values = useWatch({ control });
+  const parsedDate = values.date ? fromDateInputValue(values.date) : null;
+  const type = values.type ?? HolidayType.NASIONAL;
+
+  const onSubmit = handleSubmit(async (formValues) => {
+    const result = await saveHoliday(formValues, holiday?.id);
 
     if (!result.ok) {
       toast.error(result.error);
@@ -74,33 +72,23 @@ export default function HolidayFormDialog({ trigger, holiday }: Props) {
     }
 
     toast.success(result.message);
-    setOpen(false);
-    reset(holiday ? values : defaultValues);
+    router.push("/admin/hari-libur");
     router.refresh();
   });
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) reset(defaultValues);
-      }}
-    >
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
-
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {holiday ? "Ubah Hari Libur" : "Tambah Hari Libur"}
-          </DialogTitle>
-          <DialogDescription>
+    <form onSubmit={onSubmit} className="grid gap-6 lg:grid-cols-3">
+      <div className="flex flex-col gap-6 lg:col-span-2">
+        <Panel
+          title="Detail Hari Libur"
+          icon={CalendarOff}
+          contentClassName="flex flex-col gap-4 p-4 sm:p-5"
+        >
+          <p className="text-muted-foreground -mt-1 text-sm">
             Tanggal ini tidak dihitung sebagai hari kerja: karyawan tidak wajib
             absen dan tidak muncul sebagai tidak absen di rekap.
-          </DialogDescription>
-        </DialogHeader>
+          </p>
 
-        <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="date">Tanggal</Label>
             <Input id="date" type="date" {...register("date")} />
@@ -142,15 +130,51 @@ export default function HolidayFormDialog({ trigger, holiday }: Props) {
               )}
             />
           </div>
+        </Panel>
+      </div>
 
-          <DialogFooter>
-            <Button type="submit" disabled={isSubmitting}>
+      <div className="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
+        <Panel
+          title="Ringkasan"
+          icon={CalendarOff}
+          contentClassName="flex flex-col gap-4 p-4 sm:p-5"
+        >
+          <dl className="flex flex-col gap-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">Tanggal</dt>
+              <dd className="font-medium">
+                {parsedDate ? formatWorkDate(parsedDate) : "—"}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">Nama</dt>
+              <dd className="max-w-[60%] truncate text-right font-medium">
+                {values.name || "—"}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">Jenis</dt>
+              <dd>
+                <Badge variant={HOLIDAY_TYPE_VARIANT[type]}>
+                  {HOLIDAY_TYPE_LABEL[type]}
+                </Badge>
+              </dd>
+            </div>
+          </dl>
+
+          <Separator />
+
+          <div className="flex flex-col gap-2">
+            <Button type="submit" disabled={isSubmitting} className="w-full">
               {isSubmitting && <Spinner />}
-              Simpan
+              {isEdit ? "Simpan Perubahan" : "Tambah Hari Libur"}
             </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <Button asChild type="button" variant="outline" className="w-full">
+              <Link href="/admin/hari-libur">Batal</Link>
+            </Button>
+          </div>
+        </Panel>
+      </div>
+    </form>
   );
 }

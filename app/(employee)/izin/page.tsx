@@ -1,4 +1,9 @@
-import { CalendarClock, CheckCircle2, Clock4, XCircle } from "lucide-react";
+import {
+  CalendarIcon as CalendarClock,
+  CheckCircledIcon as CheckCircle2,
+  ClockIcon as Clock4,
+  CrossCircledIcon as XCircle,
+} from "@radix-ui/react-icons";
 import Panel from "@/components/dashboard/Panel";
 import PageHeader from "@/components/dashboard/PageHeader";
 import StatTile from "@/components/dashboard/StatTile";

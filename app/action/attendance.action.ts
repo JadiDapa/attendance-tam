@@ -10,7 +10,7 @@ import {
   WorkMode,
 } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
-import { saveImage } from "@/lib/storage";
+import { saveImage, deleteUpload } from "@/lib/storage";
 import { haversineDistance, formatDistance } from "@/lib/geo";
 import {
   formatWorkDate,
@@ -287,6 +287,10 @@ export async function submitAttendance(
       approvalStatus: isWithinRadius ? null : AttendanceApproval.PENDING,
     });
   } catch (error) {
+    // Baris DB gagal dibuat — foto yang sudah ditulis ke disk jadi yatim,
+    // bersihkan supaya tidak menumpuk dari absen ganda/percobaan gagal.
+    await deleteUpload(photoUrl);
+
     // Absen ganda tertangkap unique constraint (userId, workDate, type).
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -443,6 +447,23 @@ export async function createManualAttendance(
 
   if (!employee || employee.role !== Role.EMPLOYEE) {
     return { ok: false, error: "Karyawan tidak ditemukan" };
+  }
+
+  // Baris yang sudah ada dari HP karyawan (foto+GPS asli, termasuk klaim yang
+  // masih menunggu approval) tidak boleh ditimpa diam-diam lewat form manual —
+  // itu jalannya lewat menu Verifikasi. Manual hanya boleh menimpa manual.
+  const existing = await AttendanceService.findByUserDateType(
+    employee.id,
+    workDate,
+    parsed.data.type,
+  );
+
+  if (existing && !existing.isManual) {
+    return {
+      ok: false,
+      error:
+        "Absensi ini sudah tercatat dari HP karyawan. Putuskan lewat menu Verifikasi kalau masih menunggu persetujuan — jangan ditimpa di sini.",
+    };
   }
 
   const [schedule, workDays, holiday] = await Promise.all([

@@ -3,19 +3,37 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Camera, CheckCircle2, RotateCcw, ScanFace } from "lucide-react";
+import {
+  CameraIcon as Camera,
+  CheckCircledIcon as CheckCircle2,
+  ResetIcon as RotateCcw,
+  FaceIcon as ScanFace,
+} from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { enrollFace, resetFaceEnrollment } from "@/app/action/face.action";
 
 type Props = {
   totalPhotos: number;
   minRequired: number;
+  maxPhotos: number;
 };
 
 export default function FaceEnrollmentCard({
   totalPhotos: initialTotal,
   minRequired,
+  maxPhotos,
 }: Props) {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -29,6 +47,7 @@ export default function FaceEnrollmentCard({
   const [totalPhotos, setTotalPhotos] = useState(initialTotal);
 
   const enrolled = totalPhotos >= minRequired;
+  const atMax = totalPhotos >= maxPhotos;
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -141,7 +160,7 @@ export default function FaceEnrollmentCard({
         <div
           className={
             enrolled
-              ? "bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-full"
+              ? "bg-primary/10 text-primary-subtle flex size-9 shrink-0 items-center justify-center rounded-full"
               : "bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-full"
           }
         >
@@ -158,9 +177,11 @@ export default function FaceEnrollmentCard({
               : "Wajah kamu belum terdaftar"}
           </p>
           <p className="text-muted-foreground text-xs">
-            {enrolled
-              ? `${totalPhotos} foto tersimpan. Data ini dipakai untuk memverifikasi kamu saat absen.`
-              : `Ambil ${minRequired} foto wajah dari sudut/pencahayaan berbeda (${totalPhotos}/${minRequired} tersimpan) sebelum bisa absen.`}
+            {atMax
+              ? `${totalPhotos} foto tersimpan (batas maksimal). Data ini dipakai untuk memverifikasi kamu saat absen.`
+              : enrolled
+                ? `${totalPhotos} foto tersimpan. Data ini dipakai untuk memverifikasi kamu saat absen.`
+                : `Ambil ${minRequired} foto wajah dari sudut/pencahayaan berbeda (${totalPhotos}/${minRequired} tersimpan) sebelum bisa absen.`}
           </p>
         </div>
       </div>
@@ -219,15 +240,17 @@ export default function FaceEnrollmentCard({
 
       <div className="flex flex-wrap gap-2">
         {!cameraOn ? (
-          <Button
-            type="button"
-            variant={enrolled ? "outline" : "default"}
-            onClick={startCamera}
-            disabled={preparing}
-          >
-            {preparing ? <Spinner /> : <Camera className="size-4" />}
-            {enrolled ? "Tambah foto lagi" : "Mulai pendaftaran wajah"}
-          </Button>
+          !atMax && (
+            <Button
+              type="button"
+              variant={enrolled ? "outline" : "default"}
+              onClick={startCamera}
+              disabled={preparing}
+            >
+              {preparing ? <Spinner /> : <Camera className="size-4" />}
+              {enrolled ? "Tambah foto lagi" : "Mulai pendaftaran wajah"}
+            </Button>
+          )
         ) : (
           <Button
             type="button"
@@ -241,16 +264,32 @@ export default function FaceEnrollmentCard({
         )}
 
         {totalPhotos > 0 && !cameraOn && (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={handleReset}
-            disabled={resetting}
-          >
-            {resetting && <Spinner />}
-            <RotateCcw className="size-4" />
-            Hapus & daftar ulang
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button type="button" variant="ghost" disabled={resetting}>
+                {resetting && <Spinner />}
+                <RotateCcw className="size-4" />
+                Hapus & daftar ulang
+              </Button>
+            </AlertDialogTrigger>
+
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Hapus semua foto wajah?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {totalPhotos} foto terdaftar akan dihapus. Kamu tidak akan
+                  bisa absen sampai mendaftar ulang minimal {minRequired} foto.
+                  Tindakan ini tidak bisa dibatalkan.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction variant="destructive" onClick={handleReset}>
+                  Hapus & daftar ulang
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )}
       </div>
     </div>

@@ -23,18 +23,12 @@ export default async function DashboardShell({ user, children }: Props) {
         <DashboardSidebar user={user} badges={badges} />
       </div>
 
-      <SidebarInset
-        className={cn(
-          "bg-card flex-1 space-y-3 overflow-auto",
-          isEmployee ? "p-0 lg:p-3 lg:ps-0" : "p-3 ps-0",
-        )}
-      >
-        <Navbar user={user} />
+      <SidebarInset className="bg-background flex-1 overflow-auto">
+        <Navbar user={user} badges={badges} />
         <main
           className={cn(
-            "bg-background rounded-md p-3 sm:p-4",
-            isEmployee &&
-              "flex flex-1 flex-col rounded-none p-4 pb-28 lg:rounded-md lg:pb-4",
+            "p-3 sm:p-4",
+            isEmployee && "flex flex-1 flex-col p-4 pb-28 lg:pb-4",
           )}
         >
           {children}

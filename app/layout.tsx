@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { Manrope } from "next/font/google";
+import { Montserrat } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import Providers from "@/providers/Providers";
 import { Toaster } from "sonner";
 
-const manrope = Manrope({
+const montserrat = Montserrat({
   subsets: ["latin"],
-  variable: "--font-manrope",
+  variable: "--font-montserrat",
 });
 
 export const metadata: Metadata = {
@@ -22,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html className={cn(manrope.variable)} suppressHydrationWarning lang="en">
+    <html className={cn(montserrat.variable)} suppressHydrationWarning lang="en">
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>

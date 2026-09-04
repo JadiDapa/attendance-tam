@@ -41,6 +41,15 @@ export async function enrollFace(formData: FormData): Promise<FaceResult> {
     return { ok: false, error: "Foto wajah wajib diambil" };
   }
 
+  const currentTotal = await FaceService.countByUser(user.id);
+
+  if (currentTotal >= FaceService.maxEnrollmentPhotos) {
+    return {
+      ok: false,
+      error: `Maksimal ${FaceService.maxEnrollmentPhotos} foto wajah tersimpan. Hapus & daftar ulang kalau ingin mengganti.`,
+    };
+  }
+
   try {
     const embedding = await extractFaceEmbedding(photo);
     await FaceService.add(user.id, embedding.vector, embedding.model);
