@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/session";
 import { Role } from "@/generated/prisma";
 import { AttendanceService } from "@/servers/services/attendance.service";
 import { LeaveService } from "@/servers/services/leave.service";
+import { FieldAssignmentService } from "@/servers/services/field-assignment.service";
 
 /** UUID + ekstensi yang benar-benar dihasilkan `saveImage`/`saveAttachment`. */
 const FILENAME_PATTERN = /^[0-9a-f-]+\.(jpg|jpeg|png|webp|gif|pdf)$/i;
@@ -25,15 +26,25 @@ export async function GET(
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  // Admin boleh lihat semua foto absensi & lampiran izin. Karyawan hanya
-  // boleh lihat miliknya sendiri.
+  // Admin boleh lihat semua foto absensi & lampiran izin/dinas luar. Manager
+  // juga dibolehkan untuk lampiran dinas luar — dia satu-satunya reviewer
+  // fitur itu dan perlu melihat surat tugasnya untuk memutuskan, sama seperti
+  // admin dibolehkan untuk lampiran sakit yang direview admin. Karyawan &
+  // supervisor lain hanya boleh lihat yang terkait mereka.
   if (user.role !== Role.ADMIN) {
     const url = `/api/images/${filename}`;
-    const [attendance, leave] = await Promise.all([
+    const [attendance, leave, fieldAssignment] = await Promise.all([
       AttendanceService.findByPhotoUrl(url),
       LeaveService.findByAttachmentUrl(url),
+      FieldAssignmentService.findByAttachmentUrl(url),
     ]);
-    const owns = attendance?.userId === user.id || leave?.userId === user.id;
+    const owns =
+      attendance?.userId === user.id ||
+      leave?.userId === user.id ||
+      (fieldAssignment !== null &&
+        (user.role === Role.MANAGER ||
+          fieldAssignment.createdById === user.id ||
+          fieldAssignment.employees.some((employee) => employee.id === user.id)));
 
     if (!owns) {
       return new NextResponse("Forbidden", { status: 403 });

@@ -3,17 +3,6 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import AttendanceEntryDetail from "@/components/dashboard/AttendanceEntryDetail";
-import AttendanceLocationBadge from "@/components/dashboard/AttendanceLocationBadge";
-import CheckOutCell from "@/components/dashboard/CheckOutCell";
 import DataTable from "@/components/dashboard/DataTable";
 import SearchDataTable from "@/components/dashboard/SearchDataTable";
 import {
@@ -21,31 +10,38 @@ import {
   DAY_STATUS_VARIANT,
   type RecapRow,
 } from "@/lib/attendance";
+import { cn } from "@/lib/utils";
 
-function DetailDialog({ row }: { row: RecapRow }) {
-  const hasEntry = row.checkIn || row.checkOut;
+function AttendanceEntryCell({
+  entry,
+}: {
+  entry: RecapRow["checkIn"] | RecapRow["checkOut"];
+}) {
+  if (!entry) return <span className="text-muted-foreground">—</span>;
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" disabled={!hasEntry}>
-          Detail
+    <div className="whitespace-nowrap">
+      <p
+        className={cn(
+          "font-medium tabular-nums",
+          entry.isLate && "text-destructive",
+        )}
+      >
+        {entry.time}
+        {entry.isLate && (
+          <span className="text-destructive ml-1.5 text-xs font-normal">
+            Telat
+          </span>
+        )}
+      </p>
+      {entry.photoUrl && (
+        <Button variant="link" size="sm" asChild className="h-auto p-0">
+          <a href={entry.photoUrl} target="_blank" rel="noreferrer">
+            Lihat Foto
+          </a>
         </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{row.name}</DialogTitle>
-          <DialogDescription>
-            Foto dan koordinat absensi yang terekam.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          {row.checkIn && <AttendanceEntryDetail entry={row.checkIn} />}
-          {row.checkOut && <AttendanceEntryDetail entry={row.checkOut} />}
-        </div>
-      </DialogContent>
-    </Dialog>
+      )}
+    </div>
   );
 }
 
@@ -54,62 +50,45 @@ const columns: ColumnDef<RecapRow>[] = [
     accessorKey: "name",
     header: "Karyawan",
     cell: ({ row }) => (
-      <div>
+      <div className="min-w-40">
         <p className="font-medium">{row.original.name}</p>
-        {row.original.position && (
-          <p className="text-muted-foreground text-xs">
-            {row.original.position}
-          </p>
-        )}
+        <p className="text-muted-foreground text-xs">
+          {row.original.position || "Tanpa jabatan"}
+        </p>
       </div>
-    ),
-  },
-  {
-    id: "checkIn",
-    header: "Masuk",
-    cell: ({ row }) => (
-      <CheckOutCell entry={row.original.checkIn} missing={false} />
-    ),
-  },
-  {
-    id: "checkOut",
-    header: "Pulang",
-    cell: ({ row }) => (
-      <CheckOutCell
-        entry={row.original.checkOut}
-        missing={row.original.missingCheckOut}
-      />
     ),
   },
   {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => (
-      <div className="space-y-1">
+      <div className="flex flex-col items-start gap-1">
         <Badge variant={DAY_STATUS_VARIANT[row.original.status]}>
           {DAY_STATUS_LABEL[row.original.status]}
         </Badge>
         {row.original.statusDetail && (
-          <p className="text-muted-foreground max-w-xs text-xs">
+          <p className="text-muted-foreground max-w-48 text-xs">
             {row.original.statusDetail}
           </p>
+        )}
+        {row.original.pendingApproval && (
+          <Badge variant="outline">Menunggu Approval</Badge>
+        )}
+        {row.original.missingCheckOut && (
+          <Badge variant="outline">Belum Absen Pulang</Badge>
         )}
       </div>
     ),
   },
   {
-    id: "radius",
-    header: "Lokasi",
-    cell: ({ row }) => (
-      <AttendanceLocationBadge
-        entries={[row.original.checkIn, row.original.checkOut]}
-      />
-    ),
+    id: "checkIn",
+    header: "Absen Masuk",
+    cell: ({ row }) => <AttendanceEntryCell entry={row.original.checkIn} />,
   },
   {
-    id: "actions",
-    header: "",
-    cell: ({ row }) => <DetailDialog row={row.original} />,
+    id: "checkOut",
+    header: "Absen Pulang",
+    cell: ({ row }) => <AttendanceEntryCell entry={row.original.checkOut} />,
   },
 ];
 
@@ -124,9 +103,9 @@ export default function AttendanceRecapTable({
     <DataTable
       columns={columns}
       data={rows}
-      bare={bare}
       title="Cari"
-      emptyMessage="Tidak ada data untuk filter ini."
+      bare={bare}
+      emptyMessage="Belum ada karyawan."
       filters={(instance) => (
         <SearchDataTable
           table={instance}

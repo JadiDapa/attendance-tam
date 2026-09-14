@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { LeaveStatus, LeaveType } from "@/generated/prisma";
+import { LeaveReasonCategory, LeaveType, LeaveStatus } from "@/generated/prisma";
+import {
+  CUTI_MIN_ADVANCE_DAYS,
+  LEAVE_REASON_CATEGORIES_BY_TYPE,
+  minCutiStartDateInputValue,
+} from "@/lib/leave";
 
 const DATE_INPUT = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -9,15 +14,51 @@ export const LeaveFormSchema = z
     type: z.enum(LeaveType),
     startDate: z.string().regex(DATE_INPUT, "Tanggal mulai wajib diisi"),
     endDate: z.string().regex(DATE_INPUT, "Tanggal selesai wajib diisi"),
-    reason: z
+    detail: z
       .string()
       .trim()
-      .min(5, "Alasan minimal 5 karakter")
-      .max(500, "Alasan maksimal 500 karakter"),
+      .min(5, "Detail minimal 5 karakter")
+      .max(500, "Detail maksimal 500 karakter"),
+    /** "Alasan" — wajib untuk CUTI/IZIN (lihat superRefine di bawah), harus
+     * kosong untuk SAKIT. */
+    reasonCategory: z.enum(LeaveReasonCategory).optional(),
   })
   .refine((data) => data.endDate >= data.startDate, {
     message: "Tanggal selesai tidak boleh sebelum tanggal mulai",
     path: ["endDate"],
+  })
+  .refine(
+    (data) => data.type !== LeaveType.CUTI || data.startDate >= minCutiStartDateInputValue(),
+    {
+      message: `Cuti wajib diajukan minimal ${CUTI_MIN_ADVANCE_DAYS} hari sebelum tanggal mulai`,
+      path: ["startDate"],
+    },
+  )
+  .superRefine((data, ctx) => {
+    const allowedCategories = LEAVE_REASON_CATEGORIES_BY_TYPE[data.type];
+
+    if (!allowedCategories) {
+      // SAKIT: tidak punya kategori sama sekali.
+      if (data.reasonCategory !== undefined) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Sakit tidak memakai kategori alasan",
+          path: ["reasonCategory"],
+        });
+      }
+      return;
+    }
+
+    if (
+      data.reasonCategory === undefined ||
+      !allowedCategories.includes(data.reasonCategory)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Alasan wajib dipilih",
+        path: ["reasonCategory"],
+      });
+    }
   });
 
 /** Data siap simpan. */
@@ -26,7 +67,8 @@ export const CreateLeaveSchema = z.object({
   type: z.enum(LeaveType),
   startDate: z.date(),
   endDate: z.date(),
-  reason: z.string().min(1),
+  detail: z.string().min(1),
+  reasonCategory: z.enum(LeaveReasonCategory).nullable(),
   attachmentUrl: z.string().nullable(),
 });
 

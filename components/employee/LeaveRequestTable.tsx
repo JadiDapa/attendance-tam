@@ -19,8 +19,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import DataTable from "@/components/dashboard/DataTable";
-import { LeaveStatus } from "@/generated/prisma";
-import { LEAVE_STATUS_LABEL, LEAVE_STATUS_VARIANT } from "@/lib/leave";
+import { LeaveReasonCategory, LeaveStatus } from "@/generated/prisma";
+import {
+  LEAVE_REASON_CATEGORY_LABEL,
+  LEAVE_STATUS_LABEL,
+  LEAVE_STATUS_VARIANT,
+} from "@/lib/leave";
 import { cancelLeaveRequest } from "@/app/action/leave.action";
 
 export type LeaveRow = {
@@ -28,7 +32,8 @@ export type LeaveRow = {
   typeLabel: string;
   dateRange: string;
   days: number;
-  reason: string;
+  detail: string;
+  reasonCategory: LeaveReasonCategory | null;
   status: LeaveStatus;
   reviewNote: string | null;
   reviewedBy: string | null;
@@ -79,11 +84,19 @@ export default function LeaveRequestTable({ rows }: { rows: LeaveRow[] }) {
       ),
     },
     {
-      accessorKey: "reason",
+      accessorKey: "reasonCategory",
       header: "Alasan",
+      cell: ({ row }) =>
+        row.original.reasonCategory
+          ? LEAVE_REASON_CATEGORY_LABEL[row.original.reasonCategory]
+          : "—",
+    },
+    {
+      accessorKey: "detail",
+      header: "Detail",
       cell: ({ row }) => (
-        <p className="max-w-xs truncate" title={row.original.reason}>
-          {row.original.reason}
+        <p className="max-w-xs truncate" title={row.original.detail}>
+          {row.original.detail}
         </p>
       ),
     },

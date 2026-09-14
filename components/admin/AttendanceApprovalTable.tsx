@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { BadgeIcon as ShieldCheck } from "@radix-ui/react-icons";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -42,8 +41,6 @@ export type AttendanceApprovalRow = {
   officeRadiusLabel: string;
   photoUrl: string | null;
   mapUrl: string | null;
-  /** Mode yang diklaim karyawan sendiri. */
-  claimedMode: WorkModeValue;
   /** Penjelasan yang ditulis karyawan saat absen. */
   detail: string | null;
   isLate: boolean;
@@ -56,7 +53,7 @@ export default function AttendanceApprovalTable({
 }) {
   const router = useRouter();
   const [target, setTarget] = useState<AttendanceApprovalRow | null>(null);
-  const [mode, setMode] = useState<WorkModeValue>("WFH");
+  const [mode, setMode] = useState<WorkModeValue>("DINAS_LUAR");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState<"approve" | "reject" | null>(
     null,
@@ -64,8 +61,9 @@ export default function AttendanceApprovalTable({
 
   const openDialog = (row: AttendanceApprovalRow) => {
     setTarget(row);
-    // Default ke klaim karyawan — admin tinggal menyetujui kalau setuju.
-    setMode(row.claimedMode);
+    // Default masuk akal: absen di luar radius biasanya berarti sedang
+    // bertugas di lokasi lain — admin tinggal mengubah kalau perlu.
+    setMode("DINAS_LUAR");
     setNote("");
   };
 
@@ -134,14 +132,7 @@ export default function AttendanceApprovalTable({
       header: "Alasan",
       cell: ({ row }) => (
         <div className="max-w-xs space-y-1">
-          <Badge variant="default">
-            {WORK_MODE_LABEL[row.original.claimedMode]}
-          </Badge>
-          {row.original.detail && (
-            <p className="text-muted-foreground text-xs">
-              {row.original.detail}
-            </p>
-          )}
+          <p className="text-sm">{row.original.detail}</p>
         </div>
       ),
     },
@@ -240,7 +231,7 @@ export default function AttendanceApprovalTable({
           {target?.detail && (
             <div className="bg-muted/50 rounded-lg p-3">
               <p className="text-muted-foreground text-xs font-medium">
-                Penjelasan karyawan · {WORK_MODE_LABEL[target.claimedMode]}
+                Penjelasan karyawan
               </p>
               <p className="mt-1 text-sm">{target.detail}</p>
             </div>
@@ -261,13 +252,8 @@ export default function AttendanceApprovalTable({
                       : "border-border hover:bg-muted",
                   )}
                 >
-                  <p className="flex items-center gap-2 text-sm font-medium">
+                  <p className="text-sm font-medium">
                     {WORK_MODE_LABEL[option]}
-                    {target?.claimedMode === option && (
-                      <span className="text-muted-foreground text-xs font-normal">
-                        (klaim karyawan)
-                      </span>
-                    )}
                   </p>
                   <p className="text-muted-foreground text-xs">
                     {WORK_MODE_HINT[option]}

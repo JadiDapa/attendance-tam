@@ -13,6 +13,8 @@ export type FaceStatus = {
   enrolled: boolean;
   totalPhotos: number;
   minRequired: number;
+  recommendedPhotos: number;
+  maxPhotos: number;
 };
 
 /** Status enrollment wajah user yang sedang login — dipakai untuk menggerbang tombol absen. */
@@ -24,6 +26,8 @@ export async function getFaceEnrollmentStatus(): Promise<FaceStatus> {
     enrolled: totalPhotos >= FaceService.minEnrollmentPhotos,
     totalPhotos,
     minRequired: FaceService.minEnrollmentPhotos,
+    recommendedPhotos: FaceService.recommendedEnrollmentPhotos,
+    maxPhotos: FaceService.maxEnrollmentPhotos,
   };
 }
 
@@ -68,9 +72,11 @@ export async function enrollFace(formData: FormData): Promise<FaceResult> {
   return {
     ok: true,
     message:
-      totalPhotos >= FaceService.minEnrollmentPhotos
-        ? "Pendaftaran wajah selesai, kamu sudah bisa absen"
-        : `Foto tersimpan (${totalPhotos}/${FaceService.minEnrollmentPhotos})`,
+      totalPhotos < FaceService.minEnrollmentPhotos
+        ? `Foto tersimpan (${totalPhotos}/${FaceService.minEnrollmentPhotos})`
+        : totalPhotos < FaceService.recommendedEnrollmentPhotos
+          ? `Pendaftaran wajah selesai, kamu sudah bisa absen. Disarankan menambah hingga ${FaceService.recommendedEnrollmentPhotos} foto untuk akurasi lebih baik.`
+          : "Pendaftaran wajah selesai, kamu sudah bisa absen",
     totalPhotos,
   };
 }

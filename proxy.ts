@@ -1,24 +1,24 @@
-import NextAuth from "next-auth";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { authConfig, defaultRouteForRole } from "./auth.config";
 
-// Hanya membaca session dari cookie (tanpa database) — pengecekan sebenarnya
-// tetap dilakukan di layout/server action lewat lib/session.ts.
-const { auth } = NextAuth(authConfig);
+// Hanya menjamin user sudah login (tanpa database) — pengecekan role & status
+// aktif tetap dilakukan di layout/server action lewat lib/session.ts.
+const isPublicRoute = createRouteMatcher(["/login(.*)"]);
 
-const PUBLIC_ROUTES = ["/login"];
-const EMPLOYEE_ROUTES = ["/dashboard", "/riwayat", "/izin"];
-
-export default auth((req) => {
+export default clerkMiddleware(async (authFn, req) => {
   const { pathname } = req.nextUrl;
-  const user = req.auth?.user;
 
-  const isPublicRoute = PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
-  );
+  // Route handler API sudah mengecek auth sendiri lewat lib/session.ts
+  // (mis. app/api/images, app/api/laporan) — middleware di sini cuma perlu
+  // jalan supaya Clerk auth() punya context, bukan ikut menegakkan redirect.
+  // Clerk mewajibkan middleware jalan di semua request (termasuk API) supaya
+  // auth() di server punya context — beda dari NextAuth yang baca cookie langsung.
+  if (pathname.startsWith("/api")) return NextResponse.next();
 
-  if (!user) {
-    if (isPublicRoute) return NextResponse.next();
+  const { userId } = await authFn();
+
+  if (!userId) {
+    if (isPublicRoute(req)) return NextResponse.next();
 
     const loginUrl = new URL("/login", req.nextUrl);
 
@@ -27,24 +27,9 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  const homeRoute = defaultRouteForRole(user.role);
-
-  // Sudah login: halaman login dan root tidak relevan lagi.
-  if (isPublicRoute || pathname === "/") {
-    return NextResponse.redirect(new URL(homeRoute, req.nextUrl));
-  }
-
-  const isAdminRoute = pathname.startsWith("/admin");
-  const isEmployeeRoute = EMPLOYEE_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
-  );
-
-  if (user.role === "ADMIN" && isEmployeeRoute) {
-    return NextResponse.redirect(new URL(homeRoute, req.nextUrl));
-  }
-
-  if (user.role === "EMPLOYEE" && isAdminRoute) {
-    return NextResponse.redirect(new URL(homeRoute, req.nextUrl));
+  // Sudah login: halaman login diarahkan ke dashboard oleh app/page.tsx.
+  if (isPublicRoute(req)) {
+    return NextResponse.redirect(new URL("/", req.nextUrl));
   }
 
   return NextResponse.next();
@@ -52,7 +37,9 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    // Semua route kecuali internal Next.js, API, dan file statis.
-    "/((?!api|_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    // Semua route kecuali internal Next.js dan file statis — API route TETAP
+    // ikut matcher ini (Clerk butuh middleware jalan di sana), tapi
+    // di-skip lebih awal di dalam handler.
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
   ],
 };

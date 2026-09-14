@@ -7,7 +7,7 @@ import {
   PersonIcon as User,
 } from "@radix-ui/react-icons";
 import Link from "next/link";
-import { signOut } from "next-auth/react";
+import { useClerk } from "@clerk/nextjs";
 import { SidebarTrigger } from "../ui/sidebar";
 import { usePathname } from "next/navigation";
 import { Role, User as UserType } from "@/generated/prisma";
@@ -38,6 +38,7 @@ export default function Navbar({
   badges: Record<string, number>;
 }) {
   const pathname = usePathname();
+  const { signOut } = useClerk();
   const isEmployee = user.role === Role.EMPLOYEE;
   const title = getPageTitle(pathname, user.role);
 
@@ -59,7 +60,7 @@ export default function Navbar({
   );
 
   const handleSignOut = () => {
-    void signOut({ redirectTo: "/login" });
+    void signOut({ redirectUrl: "/login" });
   };
 
   return (

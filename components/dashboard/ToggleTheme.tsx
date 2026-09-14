@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   MoonIcon as Moon,
   SunIcon as Sun,
@@ -17,9 +18,14 @@ const CYCLE = [
 
 export function ToggleTheme() {
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const index = CYCLE.findIndex((mode) => mode.value === theme);
-  const current = CYCLE[index] ?? CYCLE[2];
+  const current = mounted ? (CYCLE[index] ?? CYCLE[2]) : CYCLE[2];
   const next = CYCLE[(index + 1) % CYCLE.length] ?? CYCLE[0];
 
   return (

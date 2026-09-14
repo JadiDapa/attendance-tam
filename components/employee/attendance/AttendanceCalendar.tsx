@@ -23,7 +23,6 @@ const CELL_TONE: Partial<Record<CalendarStatus, string>> = {
 /** Warna chip jam/status di dalam kotak — meniru "event chip" kalender asli. */
 const CHIP_TONE: Record<CalendarStatus, string> = {
   HADIR_DIKANTOR: "bg-chart-hadir/15 text-chart-hadir",
-  WFH: "bg-chart-1/15 text-chart-1",
   DINAS_LUAR: "bg-chart-3/15 text-chart-3",
   SAKIT: "bg-chart-5/15 text-chart-5",
   IZIN: "bg-muted-foreground/15 text-muted-foreground",
@@ -168,7 +167,6 @@ export default function AttendanceCalendar({
         {(
           [
             "HADIR_DIKANTOR",
-            "WFH",
             "DINAS_LUAR",
             "SAKIT",
             "IZIN",

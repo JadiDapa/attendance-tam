@@ -112,7 +112,6 @@ export default async function RiwayatPage({
 
   const statusCount: Record<DayStatus, number> = {
     HADIR_DIKANTOR: summary.hadirDikantor,
-    WFH: summary.wfh,
     DINAS_LUAR: summary.dinasLuar,
     SAKIT: summary.sakit,
     IZIN: summary.izin,
@@ -177,7 +176,7 @@ export default async function RiwayatPage({
           label="Total Hadir"
           icon={CheckCircle2}
           value={String(summary.totalHadir)}
-          footerLabel={`${summary.hadirDikantor} kantor · ${summary.wfh} WFH · ${summary.dinasLuar} dinas luar`}
+          footerLabel={`${summary.hadirDikantor} kantor · ${summary.dinasLuar} dinas luar`}
         />
         <StatTile
           label="Menunggu Approval"
@@ -223,7 +222,6 @@ export default async function RiwayatPage({
                 label: "Hadir di Kantor",
                 value: summary.hadirDikantor,
               },
-              { key: "WFH", label: "WFH", value: summary.wfh },
               {
                 key: "DINAS_LUAR",
                 label: "Dinas Luar",

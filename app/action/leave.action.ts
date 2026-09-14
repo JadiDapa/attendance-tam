@@ -1,8 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { Role } from "@/generated/prisma";
-import { requireRole } from "@/lib/session";
+import { ApprovalLogType, Role } from "@/generated/prisma";
+import { requireAnyRole, requireUser } from "@/lib/session";
+import { defaultRouteForRole } from "@/lib/role";
+import {
+  LEAVE_REVIEWER_STAGE,
+  LEAVE_TYPE_LABEL,
+  LEAVE_TYPES_REQUIRING_ATTACHMENT,
+} from "@/lib/leave";
+import { redirect } from "next/navigation";
 import { saveAttachment, deleteUpload } from "@/lib/storage";
 import { formatWorkDate, fromDateInputValue } from "@/lib/date";
 import {
@@ -10,6 +17,7 @@ import {
   ReviewLeaveSchema,
 } from "@/servers/validators/leave.validator";
 import { LeaveService } from "@/servers/services/leave.service";
+import { ApprovalLogService } from "@/servers/services/approval-log.service";
 import { LeaveStatus } from "@/generated/prisma";
 import { z } from "zod";
 
@@ -17,22 +25,58 @@ export type LeaveResult =
   | { ok: true; message: string }
   | { ok: false; error: string };
 
+/**
+ * Role yang boleh mengajukan/membatalkan izin untuk diri sendiri. Selain
+ * karyawan, admin/supervisor/manager juga boleh mengajukan izinnya sendiri
+ * lewat menu "Izin Saya" masing-masing — sama seperti `SELF_ATTENDANCE_ROLES`
+ * di attendance.action.ts.
+ */
+const SELF_LEAVE_ROLES = [
+  Role.EMPLOYEE,
+  Role.ADMIN,
+  Role.SUPERVISOR,
+  Role.MANAGER,
+];
+
 export async function createLeaveRequest(
   formData: FormData,
 ): Promise<LeaveResult> {
-  const user = await requireRole(Role.EMPLOYEE);
+  const user = await requireAnyRole(SELF_LEAVE_ROLES);
+
+  const reasonCategoryField = formData.get("reasonCategory");
 
   const parsed = LeaveFormSchema.safeParse({
     type: formData.get("type"),
     startDate: formData.get("startDate"),
     endDate: formData.get("endDate"),
-    reason: formData.get("reason"),
+    detail: formData.get("detail"),
+    reasonCategory:
+      typeof reasonCategoryField === "string" && reasonCategoryField
+        ? reasonCategoryField
+        : undefined,
   });
 
   if (!parsed.success) {
     return {
       ok: false,
       error: parsed.error.issues[0]?.message ?? "Data pengajuan tidak valid",
+    };
+  }
+
+  const attachmentField = formData.get("attachment");
+  const attachment =
+    attachmentField instanceof File && attachmentField.size > 0
+      ? attachmentField
+      : null;
+
+  if (
+    LEAVE_TYPES_REQUIRING_ATTACHMENT.includes(parsed.data.type) &&
+    !attachment
+  ) {
+    return {
+      ok: false,
+      error:
+        "Lampiran wajib untuk pengajuan sakit — surat keterangan dokter atau keterangan lainnya",
     };
   }
 
@@ -56,12 +100,11 @@ export async function createLeaveRequest(
     };
   }
 
-  const attachment = formData.get("attachment");
   let attachmentUrl: string | null = null;
 
-  if (attachment instanceof File && attachment.size > 0) {
+  if (attachment) {
     try {
-      attachmentUrl = await saveAttachment(attachment);
+      attachmentUrl = await saveAttachment(attachment, { compress: true });
     } catch (error) {
       return {
         ok: false,
@@ -76,7 +119,8 @@ export async function createLeaveRequest(
     type: parsed.data.type,
     startDate,
     endDate,
-    reason: parsed.data.reason,
+    detail: parsed.data.detail,
+    reasonCategory: parsed.data.reasonCategory ?? null,
     attachmentUrl,
   });
 
@@ -104,7 +148,7 @@ export async function createLeaveRequest(
 export async function cancelLeaveRequest(
   leaveId: string,
 ): Promise<LeaveResult> {
-  const user = await requireRole(Role.EMPLOYEE);
+  const user = await requireAnyRole(SELF_LEAVE_ROLES);
 
   const cancelled = await LeaveService.cancelOwn(leaveId, user.id);
 
@@ -122,11 +166,19 @@ export async function cancelLeaveRequest(
   return { ok: true, message: "Pengajuan izin dibatalkan" };
 }
 
+/**
+ * Setujui/tolak pengajuan pada giliran approval reviewer yang sedang login
+ * (ADMIN, SUPERVISOR, atau MANAGER — lihat REVIEWER_STAGE dan
+ * `LEAVE_APPROVAL_CHAIN` di lib/leave.ts untuk urutan tiap jenis izin).
+ */
 export async function reviewLeaveRequest(
   leaveId: string,
   input: z.input<typeof ReviewLeaveSchema>,
 ): Promise<LeaveResult> {
-  const admin = await requireRole(Role.ADMIN);
+  const reviewer = await requireUser();
+  const stage = LEAVE_REVIEWER_STAGE[reviewer.role];
+
+  if (!stage) redirect(defaultRouteForRole(reviewer.role));
 
   const parsed = ReviewLeaveSchema.safeParse(input);
 
@@ -137,22 +189,41 @@ export async function reviewLeaveRequest(
     };
   }
 
+  const leave = await LeaveService.getById(leaveId);
+
   const updated = await LeaveService.review(leaveId, {
+    stage,
     status: parsed.data.status,
-    reviewedById: admin.id,
+    reviewedById: reviewer.id,
     reviewNote: parsed.data.reviewNote?.trim() || null,
   });
 
   if (!updated) {
     return {
       ok: false,
-      error: "Pengajuan tidak ditemukan atau sudah diproses admin lain",
+      error: "Pengajuan tidak ditemukan atau sudah diproses lebih dulu",
     };
+  }
+
+  if (leave) {
+    await ApprovalLogService.record({
+      type: ApprovalLogType.LEAVE,
+      requestId: leaveId,
+      reviewerId: reviewer.id,
+      stage: reviewer.role,
+      status: parsed.data.status,
+      note: parsed.data.reviewNote?.trim() || null,
+      requesterId: leave.userId,
+      requesterName: leave.user.name,
+      summary: `${LEAVE_TYPE_LABEL[leave.type]} · ${formatWorkDate(leave.startDate)} — ${formatWorkDate(leave.endDate)}`,
+    });
   }
 
   revalidatePath("/admin/izin");
   revalidatePath("/admin/dashboard");
   revalidatePath("/admin/kehadiran");
+  revalidatePath("/supervisor/izin");
+  revalidatePath("/manager/izin");
   revalidatePath("/izin");
 
   return {

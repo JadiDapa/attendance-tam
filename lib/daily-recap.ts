@@ -114,7 +114,7 @@ export function countRecapStatus(rows: RecapRow[]): RecapCounts {
   return counts;
 }
 
-/** Hari yang dihitung hadir bekerja: di kantor, WFH, atau dinas luar. */
+/** Hari yang dihitung hadir bekerja: di kantor atau dinas luar. */
 export function countPresent(counts: RecapCounts): number {
-  return counts.HADIR_DIKANTOR + counts.WFH + counts.DINAS_LUAR;
+  return counts.HADIR_DIKANTOR + counts.DINAS_LUAR;
 }

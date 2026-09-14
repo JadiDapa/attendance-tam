@@ -20,7 +20,6 @@ const chartConfig = {
     label: "Hadir di Kantor",
     color: "var(--color-chart-hadir)",
   },
-  WFH: { label: "WFH", color: "var(--color-chart-1)" },
   DINAS_LUAR: { label: "Dinas Luar", color: "var(--color-chart-3)" },
   SAKIT: { label: "Sakit", color: "var(--color-chart-5)" },
   IZIN: { label: "Izin", color: "var(--color-chart-2)" },

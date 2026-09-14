@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -15,13 +16,14 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { useClerk } from "@clerk/nextjs";
 import Link from "next/link";
 import { User } from "@/generated/prisma";
 import {
   filterMenuByRole,
   overviewItems,
   settingsItems,
+  splitMenuByGroup,
   type MenuItem,
 } from "@/lib/sidebar-menu";
 import { ExitIcon as LogOut } from "@radix-ui/react-icons";
@@ -126,12 +128,22 @@ export default function DashboardSidebar({
   badges: Record<string, number>;
 }) {
   const pathname = usePathname();
+  const { signOut } = useClerk();
 
-  const mainItems = filterMenuByRole(overviewItems, user.role);
+  const roleItems = filterMenuByRole(overviewItems, user.role);
+  const { menu: mainItems, manajemen: manajemenItems, general: generalItems } =
+    splitMenuByGroup(roleItems);
   const otherItems = filterMenuByRole(settingsItems, user.role);
 
+  const groups = [
+    { key: "menu", label: "Menu", items: mainItems },
+    { key: "manajemen", label: "Manajemen", items: manajemenItems },
+    { key: "general", label: "General", items: generalItems },
+    { key: "lainnya", label: "Lainnya", items: otherItems },
+  ].filter((group) => group.items.length > 0);
+
   const handleSignOut = async () => {
-    await signOut({ redirectTo: "/login" });
+    await signOut({ redirectUrl: "/login" });
   };
 
   return (
@@ -155,21 +167,17 @@ export default function DashboardSidebar({
       </SidebarHeader>
 
       <SidebarContent className="gap-4 py-4 group-data-[collapsible=icon]:px-1.5">
-        <NavGroup
-          label="Menu"
-          items={mainItems}
-          pathname={pathname}
-          badges={badges}
-        />
-
-        {otherItems.length > 0 && <SidebarSeparator className="mx-6 w-full" />}
-
-        <NavGroup
-          label="Lainnya"
-          items={otherItems}
-          pathname={pathname}
-          badges={badges}
-        />
+        {groups.map((group, index) => (
+          <Fragment key={group.key}>
+            {index > 0 && <SidebarSeparator className="mx-6 w-full" />}
+            <NavGroup
+              label={group.label}
+              items={group.items}
+              pathname={pathname}
+              badges={badges}
+            />
+          </Fragment>
+        ))}
       </SidebarContent>
 
       <SidebarFooter className="border-t p-3 group-data-[collapsible=icon]:px-1.5">

@@ -1,6 +1,5 @@
 import { HolidayType, PrismaClient, Role } from "../generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import bcrypt from "bcryptjs";
 import "dotenv/config";
 
 const adapter = new PrismaPg({
@@ -9,38 +8,94 @@ const adapter = new PrismaPg({
 
 const prisma = new PrismaClient({ adapter });
 
-const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@tam.test";
-const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "admin123";
-const EMPLOYEE_EMAIL = process.env.SEED_EMPLOYEE_EMAIL ?? "karyawan@tam.test";
-const EMPLOYEE_PASSWORD = process.env.SEED_EMPLOYEE_PASSWORD ?? "karyawan123";
+const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@tarunagroup.co.id";
+const EMPLOYEE_EMAIL =
+  process.env.SEED_EMPLOYEE_EMAIL ?? "admin@tarunagroup.co.id";
+const SUPERVISOR_EMAIL =
+  process.env.SEED_SUPERVISOR_EMAIL ?? "infodwiky@tarunagroup.co.id";
+const MANAGER_EMAIL =
+  process.env.SEED_MANAGER_EMAIL ?? "reza@tarunagroup.co.id";
 
-/**
- * Libur nasional 2026 sebagai titik awal — BUKAN sumber resmi.
- *
- * Tanggal yang mengikuti kalender Hijriah, Imlek, Saka, dan Paskah bergeser
- * tiap tahun dan baru pasti setelah SKB 3 Menteri terbit, begitu juga cuti
- * bersama yang sengaja tidak diisi di sini. Cocokkan dengan SKB yang berlaku
- * lalu perbaiki lewat menu Admin > Hari Libur.
- *
- * Seed ini tidak pernah menimpa data yang sudah ada (upsert `update: {}`),
- * jadi koreksi admin aman walau seed dijalankan ulang.
- */
+const ADMIN_CLERK_ID =
+  process.env.SEED_ADMIN_CLERK_ID ?? "user_3J8CoeZudtngPZFNVmeCG1nnZmt";
+const EMPLOYEE_CLERK_ID =
+  process.env.SEED_EMPLOYEE_CLERK_ID ?? "user_3J8Cu3tAD8Wpy5Lv0ng9SvrtuCq";
+// Placeholder — belum ada akun Clerk sungguhan di baliknya. Buat user di
+// Clerk Dashboard dengan email yang sama lalu isi SEED_SUPERVISOR_CLERK_ID /
+// SEED_MANAGER_CLERK_ID di .env supaya akunnya benar-benar bisa login.
+const SUPERVISOR_CLERK_ID =
+  process.env.SEED_SUPERVISOR_CLERK_ID ?? "user_3JJJjTC0aHAswmaItOGNuBOBzGo";
+const MANAGER_CLERK_ID =
+  process.env.SEED_MANAGER_CLERK_ID ?? "user_3JJJgxQDWIgiG5VUEjSI8cnchUZ";
+
 const HOLIDAYS_2026: { date: string; name: string; type: HolidayType }[] = [
   { date: "2026-01-01", name: "Tahun Baru Masehi", type: HolidayType.NASIONAL },
-  { date: "2026-01-16", name: "Isra Mikraj Nabi Muhammad SAW", type: HolidayType.NASIONAL },
-  { date: "2026-02-17", name: "Tahun Baru Imlek 2577", type: HolidayType.NASIONAL },
-  { date: "2026-03-19", name: "Hari Suci Nyepi (Tahun Baru Saka 1948)", type: HolidayType.NASIONAL },
-  { date: "2026-03-20", name: "Hari Raya Idul Fitri 1447 H", type: HolidayType.NASIONAL },
-  { date: "2026-03-21", name: "Hari Raya Idul Fitri 1447 H", type: HolidayType.NASIONAL },
+  {
+    date: "2026-01-16",
+    name: "Isra Mikraj Nabi Muhammad SAW",
+    type: HolidayType.NASIONAL,
+  },
+  {
+    date: "2026-02-17",
+    name: "Tahun Baru Imlek 2577",
+    type: HolidayType.NASIONAL,
+  },
+  {
+    date: "2026-03-19",
+    name: "Hari Suci Nyepi (Tahun Baru Saka 1948)",
+    type: HolidayType.NASIONAL,
+  },
+  {
+    date: "2026-03-20",
+    name: "Hari Raya Idul Fitri 1447 H",
+    type: HolidayType.NASIONAL,
+  },
+  {
+    date: "2026-03-21",
+    name: "Hari Raya Idul Fitri 1447 H",
+    type: HolidayType.NASIONAL,
+  },
   { date: "2026-04-03", name: "Wafat Isa Almasih", type: HolidayType.NASIONAL },
-  { date: "2026-05-01", name: "Hari Buruh Internasional", type: HolidayType.NASIONAL },
-  { date: "2026-05-14", name: "Kenaikan Isa Almasih", type: HolidayType.NASIONAL },
-  { date: "2026-05-27", name: "Hari Raya Idul Adha 1447 H", type: HolidayType.NASIONAL },
-  { date: "2026-05-31", name: "Hari Raya Waisak 2570", type: HolidayType.NASIONAL },
-  { date: "2026-06-01", name: "Hari Lahir Pancasila", type: HolidayType.NASIONAL },
-  { date: "2026-06-16", name: "Tahun Baru Islam 1448 H", type: HolidayType.NASIONAL },
-  { date: "2026-08-17", name: "Hari Kemerdekaan Republik Indonesia", type: HolidayType.NASIONAL },
-  { date: "2026-08-25", name: "Maulid Nabi Muhammad SAW", type: HolidayType.NASIONAL },
+  {
+    date: "2026-05-01",
+    name: "Hari Buruh Internasional",
+    type: HolidayType.NASIONAL,
+  },
+  {
+    date: "2026-05-14",
+    name: "Kenaikan Isa Almasih",
+    type: HolidayType.NASIONAL,
+  },
+  {
+    date: "2026-05-27",
+    name: "Hari Raya Idul Adha 1447 H",
+    type: HolidayType.NASIONAL,
+  },
+  {
+    date: "2026-05-31",
+    name: "Hari Raya Waisak 2570",
+    type: HolidayType.NASIONAL,
+  },
+  {
+    date: "2026-06-01",
+    name: "Hari Lahir Pancasila",
+    type: HolidayType.NASIONAL,
+  },
+  {
+    date: "2026-06-16",
+    name: "Tahun Baru Islam 1448 H",
+    type: HolidayType.NASIONAL,
+  },
+  {
+    date: "2026-08-17",
+    name: "Hari Kemerdekaan Republik Indonesia",
+    type: HolidayType.NASIONAL,
+  },
+  {
+    date: "2026-08-25",
+    name: "Maulid Nabi Muhammad SAW",
+    type: HolidayType.NASIONAL,
+  },
   { date: "2026-12-25", name: "Hari Raya Natal", type: HolidayType.NASIONAL },
 ];
 
@@ -51,9 +106,9 @@ export async function main() {
     where: { email: ADMIN_EMAIL },
     update: {},
     create: {
+      clerkId: ADMIN_CLERK_ID,
       name: "Administrator",
       email: ADMIN_EMAIL,
-      passwordHash: await bcrypt.hash(ADMIN_PASSWORD, 10),
       role: Role.ADMIN,
       phone: "081200000000",
       position: "HR Admin",
@@ -64,12 +119,38 @@ export async function main() {
     where: { email: EMPLOYEE_EMAIL },
     update: {},
     create: {
+      clerkId: EMPLOYEE_CLERK_ID,
       name: "Karyawan Contoh",
       email: EMPLOYEE_EMAIL,
-      passwordHash: await bcrypt.hash(EMPLOYEE_PASSWORD, 10),
       role: Role.EMPLOYEE,
       phone: "081211112222",
       position: "Staff",
+    },
+  });
+
+  const supervisor = await prisma.user.upsert({
+    where: { email: SUPERVISOR_EMAIL },
+    update: {},
+    create: {
+      clerkId: SUPERVISOR_CLERK_ID,
+      name: "Dwiky Wahyudi",
+      email: SUPERVISOR_EMAIL,
+      role: Role.SUPERVISOR,
+      phone: "081233334444",
+      position: "Supervisor",
+    },
+  });
+
+  const manager = await prisma.user.upsert({
+    where: { email: MANAGER_EMAIL },
+    update: {},
+    create: {
+      clerkId: MANAGER_CLERK_ID,
+      name: "Reza Maulana",
+      email: MANAGER_EMAIL,
+      role: Role.MANAGER,
+      phone: "081255556666",
+      position: "Manager",
     },
   });
 
@@ -132,8 +213,17 @@ export async function main() {
   }
 
   console.log("Database seeded successfully.");
-  console.log(`  admin    : ${admin.email} / ${ADMIN_PASSWORD}`);
-  console.log(`  employee : ${employee.email} / ${EMPLOYEE_PASSWORD}`);
+  console.log(`  admin      : ${admin.email} (clerkId: ${admin.clerkId})`);
+  console.log(
+    `  employee   : ${employee.email} (clerkId: ${employee.clerkId})`,
+  );
+  console.log(
+    `  supervisor : ${supervisor.email} (clerkId: ${supervisor.clerkId})`,
+  );
+  console.log(`  manager    : ${manager.email} (clerkId: ${manager.clerkId})`);
+  console.log(
+    "  -> supervisor/manager clerkId di atas masih placeholder kalau SEED_SUPERVISOR_CLERK_ID / SEED_MANAGER_CLERK_ID belum diisi — buat akunnya di Clerk dulu supaya bisa login.",
+  );
   console.log(
     `  libur    : ${HOLIDAYS_2026.length} tanggal 2026 — cocokkan dengan SKB 3 Menteri lewat menu Hari Libur`,
   );

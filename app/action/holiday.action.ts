@@ -19,7 +19,7 @@ const HOLIDAY_PATHS = [
   "/admin/hari-libur",
   "/admin/dashboard",
   "/admin/kehadiran",
-  "/admin/rekapan-karyawan",
+  "/admin/rekapan-kehadiran",
   "/admin/laporan",
   "/dashboard",
   "/riwayat",

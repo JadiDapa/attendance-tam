@@ -1,7 +1,12 @@
 import prisma from "@/lib/prisma";
 
 const MIN_ENROLLMENT_PHOTOS = Number(
-  process.env.FACE_ENROLLMENT_MIN_PHOTOS ?? 3,
+  process.env.FACE_ENROLLMENT_MIN_PHOTOS ?? 1,
+);
+
+/** Jumlah foto yang disarankan ke karyawan (ditawarkan di UI, bukan batas keras). */
+const RECOMMENDED_ENROLLMENT_PHOTOS = Number(
+  process.env.FACE_ENROLLMENT_RECOMMENDED_PHOTOS ?? 3,
 );
 
 /**
@@ -11,7 +16,7 @@ const MIN_ENROLLMENT_PHOTOS = Number(
  * setelah variasi sudut/pencahayaan sudah cukup terekam.
  */
 const MAX_ENROLLMENT_PHOTOS = Number(
-  process.env.FACE_ENROLLMENT_MAX_PHOTOS ?? 10,
+  process.env.FACE_ENROLLMENT_MAX_PHOTOS ?? 5,
 );
 
 export const FaceService = {
@@ -49,5 +54,6 @@ export const FaceService = {
   },
 
   minEnrollmentPhotos: MIN_ENROLLMENT_PHOTOS,
+  recommendedEnrollmentPhotos: RECOMMENDED_ENROLLMENT_PHOTOS,
   maxEnrollmentPhotos: MAX_ENROLLMENT_PHOTOS,
 };

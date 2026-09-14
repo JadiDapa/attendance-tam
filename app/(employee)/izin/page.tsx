@@ -31,7 +31,8 @@ export default async function IzinPage() {
         ? formatWorkDate(request.startDate)
         : `${formatWorkDate(request.startDate)} — ${formatWorkDate(request.endDate)}`,
     days: countLeaveDays(request.startDate, request.endDate),
-    reason: request.reason,
+    detail: request.detail,
+    reasonCategory: request.reasonCategory,
     status: request.status,
     reviewNote: request.reviewNote,
     reviewedBy: request.reviewedBy?.name ?? null,

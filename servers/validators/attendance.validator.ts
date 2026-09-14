@@ -7,9 +7,11 @@ const DETAIL_MAX = 300;
  * Payload dari form absensi (FormData → semua nilai berupa string, dan field
  * yang tidak dikirim jadi `null`).
  *
- * `workMode` + `workModeDetail` hanya relevan kalau absennya di luar radius,
- * dan itu baru diketahui setelah jarak dihitung di server — jadi di sini
- * keduanya opsional, dan `submitAttendance` yang mewajibkannya.
+ * `workModeDetail` hanya relevan kalau absennya di luar radius, dan itu baru
+ * diketahui setelah jarak dihitung di server — jadi di sini opsional, dan
+ * `submitAttendance` yang mewajibkannya. Tidak ada pilihan mode di sini:
+ * absen di luar radius otomatis dicatat `DINAS_LUAR`, karyawan tinggal
+ * menuliskan alasannya.
  */
 export const SubmitAttendanceSchema = z.object({
   type: z.enum(AttendanceType),
@@ -20,8 +22,6 @@ export const SubmitAttendanceSchema = z.object({
     .number()
     .min(0, "Akurasi lokasi tidak valid")
     .max(100_000, "Akurasi lokasi tidak valid"),
-  /** Karyawan hanya boleh mengklaim WFH atau Dinas Luar. */
-  workMode: z.enum([WorkMode.WFH, WorkMode.DINAS_LUAR]).nullish(),
   workModeDetail: z
     .string()
     .trim()
@@ -32,7 +32,6 @@ export const SubmitAttendanceSchema = z.object({
 /** Data siap simpan setelah dihitung di server. */
 export const CreateAttendanceSchema = SubmitAttendanceSchema.omit({
   accuracy: true,
-  workMode: true,
   workModeDetail: true,
 }).extend({
   userId: z.string().min(1),
@@ -90,7 +89,22 @@ export const ManualAttendanceSchema = z.object({
     .max(DETAIL_MAX, `Alasan maksimal ${DETAIL_MAX} karakter`),
 });
 
+/** Konfirmasi karyawan sendiri atas absen pulang yang terlewat. */
+export const ConfirmMissedCheckoutSchema = z.object({
+  /** "YYYY-MM-DD" */
+  workDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid"),
+  /** "HH:mm" — kosong berarti default 17:00. */
+  time: z
+    .string()
+    .regex(/^\d{1,2}:\d{2}$/, "Format jam harus HH:mm")
+    .optional()
+    .or(z.literal("")),
+});
+
 export type SubmitAttendanceDTO = z.infer<typeof SubmitAttendanceSchema>;
 export type CreateAttendanceDTO = z.infer<typeof CreateAttendanceSchema>;
 export type ReviewAttendanceDTO = z.output<typeof ReviewAttendanceSchema>;
 export type ManualAttendanceDTO = z.output<typeof ManualAttendanceSchema>;
+export type ConfirmMissedCheckoutDTO = z.infer<
+  typeof ConfirmMissedCheckoutSchema
+>;

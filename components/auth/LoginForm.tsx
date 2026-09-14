@@ -9,6 +9,8 @@ import {
   LockClosedIcon as Lock,
   PersonIcon as User,
 } from "@radix-ui/react-icons";
+import { useSignIn } from "@clerk/nextjs/legacy";
+import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -16,15 +18,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
 import { LoginDTO, LoginSchema } from "@/servers/validators/auth.validator";
-import { login } from "@/app/action/auth.action";
 import { Spinner } from "../ui/spinner";
 
 type Props = {
   callbackUrl?: string;
 };
 
+const GENERIC_ERROR = "Email atau password salah";
+
 export default function LoginForm({ callbackUrl }: Props) {
   const router = useRouter();
+  const { isLoaded, signIn, setActive } = useSignIn();
 
   const [isVisible, setIsVisible] = useState(false);
 
@@ -37,21 +41,35 @@ export default function LoginForm({ callbackUrl }: Props) {
   });
 
   const onSubmit = async (values: LoginDTO) => {
-    const result = await login(values);
+    if (!isLoaded) return;
 
-    if (!result.ok) {
-      form.setError("password", {
-        message: result.error,
+    try {
+      const result = await signIn.create({
+        identifier: values.email,
+        password: values.password,
       });
 
-      toast.error(result.error);
-      return;
+      if (result.status !== "complete") {
+        // MVP: hanya strategi email+password, tidak ada faktor tambahan.
+        form.setError("password", { message: GENERIC_ERROR });
+        toast.error(GENERIC_ERROR);
+        return;
+      }
+
+      await setActive({ session: result.createdSessionId });
+
+      toast.success("Berhasil masuk");
+
+      router.replace(callbackUrl ?? "/");
+      router.refresh();
+    } catch (error) {
+      const message = isClerkAPIResponseError(error)
+        ? (error.errors[0]?.longMessage ?? GENERIC_ERROR)
+        : GENERIC_ERROR;
+
+      form.setError("password", { message });
+      toast.error(message);
     }
-
-    toast.success("Berhasil masuk");
-
-    router.replace(callbackUrl ?? result.redirectTo);
-    router.refresh();
   };
 
   return (

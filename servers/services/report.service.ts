@@ -1,12 +1,13 @@
 import {
   Attendance,
   AttendanceType,
+  FieldAssignment,
   LeaveRequest,
   LeaveType,
   Role,
   User,
 } from "@/generated/prisma";
-import { eachDate, getWorkDate } from "@/lib/date";
+import { eachDate, getWorkDate, rangeCoversDate } from "@/lib/date";
 import {
   isMissingCheckOut,
   isPendingApproval,
@@ -19,6 +20,7 @@ import { isNonWorkingDate } from "@/lib/work-schedule";
 import { UserService } from "./user.service";
 import { AttendanceService } from "./attendance.service";
 import { LeaveService } from "./leave.service";
+import { FieldAssignmentService } from "./field-assignment.service";
 import { HolidayService } from "./holiday.service";
 import { WorkDayService } from "./setting.service";
 
@@ -53,11 +55,8 @@ export type ReportOptions = {
   mode?: "all" | "activity";
 };
 
-function coversDate(leave: LeaveRequest, date: Date) {
-  return (
-    leave.startDate.getTime() <= date.getTime() &&
-    leave.endDate.getTime() >= date.getTime()
-  );
+function coversDate(entity: LeaveRequest | FieldAssignment, date: Date) {
+  return rangeCoversDate(entity.startDate, entity.endDate, date);
 }
 
 /** Kunci index absensi per karyawan per tanggal. */
@@ -70,7 +69,7 @@ export const ReportService = {
   async buildRecap(options: ReportOptions): Promise<ReportRow[]> {
     const { startDate, endDate, userId, mode = "all" } = options;
 
-    const [employees, attendances, leaves, holidays, workDays] =
+    const [employees, attendances, leaves, fieldAssignments, holidays, workDays] =
       await Promise.all([
         // Karyawan nonaktif tidak ikut direkap — kalau ikut, mereka muncul
         // sebagai tidak absen setiap hari selamanya setelah berhenti.
@@ -81,6 +80,11 @@ export const ReportService = {
         }),
         AttendanceService.listByRange({ startDate, endDate, userId }),
         LeaveService.listApprovedInRange({ startDate, endDate, userId }),
+        FieldAssignmentService.listApprovedInRange({
+          startDate,
+          endDate,
+          userId,
+        }),
         HolidayService.listInRange({ startDate, endDate }),
         WorkDayService.list(),
       ]);
@@ -103,6 +107,20 @@ export const ReportService = {
 
       if (own) own.push(leave);
       else leavesByUser.set(leave.userId, [leave]);
+    }
+
+    const fieldAssignmentsByUser = new Map<
+      string,
+      (FieldAssignment & { employees: { id: string }[] })[]
+    >();
+
+    for (const assignment of fieldAssignments) {
+      for (const { id: employeeId } of assignment.employees) {
+        const own = fieldAssignmentsByUser.get(employeeId);
+
+        if (own) own.push(assignment);
+        else fieldAssignmentsByUser.set(employeeId, [assignment]);
+      }
     }
 
     // Karyawan tidak bisa dianggap bolos sebelum akunnya ada.
@@ -133,8 +151,19 @@ export const ReportService = {
           leavesByUser
             .get(employee.id)
             ?.find((item) => coversDate(item, date)) ?? null;
+        const fieldAssignment =
+          fieldAssignmentsByUser
+            .get(employee.id)
+            ?.find((item) => coversDate(item, date)) ?? null;
 
-        if (mode === "activity" && !checkIn && !checkOut && !leave) continue;
+        if (
+          mode === "activity" &&
+          !checkIn &&
+          !checkOut &&
+          !leave &&
+          !fieldAssignment
+        )
+          continue;
 
         // Absensi yang dianulir admin diperlakukan seolah tidak pernah ada.
         const effectiveCheckIn = isVoidedAttendance(checkIn) ? null : checkIn;
@@ -142,14 +171,19 @@ export const ReportService = {
           ? null
           : checkOut;
 
-        // Urutan sengaja: absen menang atas izin (kalau karyawan tetap datang
-        // dia dihitung hadir), dan izin menang atas libur supaya jatah izin
-        // yang sudah disetujui tetap terlihat. `LeaveType` sengaja sama persis
-        // dengan tiga status izin, jadi jenisnya terbawa apa adanya.
+        // Urutan sengaja: absen menang atas izin/dinas luar (kalau karyawan
+        // tetap datang dia dihitung hadir), izin menang atas dinas luar dan
+        // keduanya menang atas libur supaya jatah yang sudah disetujui tetap
+        // terlihat. `LeaveType` sengaja sama persis dengan tiga status izin,
+        // jadi jenisnya terbawa apa adanya. Dinas luar yang disetujui tidak
+        // menuntut absen sama sekali — bukan klaim mandiri saat check-in
+        // seperti `WorkMode.DINAS_LUAR` biasa, tapi penugasan yang sudah
+        // direncanakan lewat `FieldAssignment`.
         let status: ReportStatus = "ALFA";
 
         if (effectiveCheckIn) status = statusFromCheckIn(effectiveCheckIn);
         else if (leave) status = leave.type;
+        else if (fieldAssignment) status = "DINAS_LUAR";
         else if (isDayOff) status = "LIBUR";
 
         rows.push({

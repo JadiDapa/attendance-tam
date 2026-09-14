@@ -40,7 +40,7 @@ export async function saveOfficeLocation(
 /** Halaman yang menampilkan hari kerja / status libur & telat. */
 const SCHEDULE_PATHS = [
   "/admin/waktu-kerja",
-  "/admin/rekapan-karyawan",
+  "/admin/rekapan-kehadiran",
   "/dashboard",
   "/riwayat",
 ];

@@ -9,7 +9,7 @@ import {
   Role,
   WorkMode,
 } from "@/generated/prisma";
-import { requireRole } from "@/lib/session";
+import { requireAnyRole, requireRole } from "@/lib/session";
 import { saveImage, deleteUpload } from "@/lib/storage";
 import { haversineDistance, formatDistance } from "@/lib/geo";
 import {
@@ -21,6 +21,7 @@ import {
   workDateTimeToUtc,
 } from "@/lib/date";
 import {
+  ConfirmMissedCheckoutSchema,
   ManualAttendanceSchema,
   ReviewAttendanceSchema,
   SubmitAttendanceSchema,
@@ -39,6 +40,7 @@ import { UserService } from "@/servers/services/user.service";
 import { verifyFace, FaceApiError } from "@/lib/face-recognition";
 import {
   getWorkDayFor,
+  isCheckInClosed,
   isLateAt,
   type WorkDayConfig,
 } from "@/lib/work-schedule";
@@ -54,15 +56,32 @@ export type ReviewAttendanceResult =
 /** Penjelasan absen luar radius yang terlalu pendek tidak bisa dinilai admin. */
 const MIN_DETAIL_LENGTH = 5;
 
+/**
+ * Role yang boleh absen untuk diri sendiri lewat `submitAttendance`/
+ * `confirmMissedCheckout`. Selain karyawan, admin/supervisor/manager juga
+ * boleh mencatat kehadirannya sendiri lewat menu "Absensi Saya" masing-masing —
+ * beda dari `requireRole(Role.ADMIN)` di bawah yang khusus untuk absensi
+ * *karyawan lain* (verifikasi, pencatatan manual).
+ */
+const SELF_ATTENDANCE_ROLES = [
+  Role.EMPLOYEE,
+  Role.ADMIN,
+  Role.SUPERVISOR,
+  Role.MANAGER,
+];
+
 /** Halaman yang ikut berubah kalau data absensi berubah. */
 const ATTENDANCE_PATHS = [
   "/dashboard",
   "/riwayat",
-  "/admin/verifikasi",
   "/admin/dashboard",
+  "/admin/absensi",
+  "/admin/verifikasi",
   "/admin/kehadiran",
-  "/admin/rekapan-karyawan",
+  "/admin/rekapan-kehadiran",
   "/admin/laporan",
+  "/supervisor/absensi",
+  "/manager/absensi",
 ];
 
 function revalidateAttendancePages() {
@@ -71,7 +90,7 @@ function revalidateAttendancePages() {
 
 /**
  * Terlambat hanya berlaku untuk absen masuk yang benar-benar dikerjakan di
- * kantor pada hari kerja. WFH, dinas luar, sakit/izin/cuti, dan hari libur
+ * kantor pada hari kerja. Dinas luar, sakit/izin/cuti, dan hari libur
  * (mingguan maupun tanggal merah) tidak pernah dihitung terlambat.
  *
  * Sengaja murni (tanpa query) supaya pemanggil yang sudah punya datanya tidak
@@ -100,7 +119,7 @@ function resolveIsLate(input: {
 export async function submitAttendance(
   formData: FormData,
 ): Promise<AttendanceResult> {
-  const user = await requireRole(Role.EMPLOYEE);
+  const user = await requireAnyRole(SELF_ATTENDANCE_ROLES);
 
   const parsed = SubmitAttendanceSchema.safeParse({
     type: formData.get("type"),
@@ -155,6 +174,29 @@ export async function submitAttendance(
     return { ok: false, error: "Kamu sudah absen masuk hari ini" };
   }
 
+  if (
+    type === AttendanceType.CHECK_IN &&
+    isCheckInClosed(getMinutesOfDay(now), getWorkDayFor(workDate, workDays))
+  ) {
+    return { ok: false, error: "Absen masuk sudah ditutup untuk hari ini" };
+  }
+
+  if (type === AttendanceType.CHECK_IN) {
+    const unresolved = await AttendanceService.listUnresolvedCheckouts(
+      user.id,
+      workDate,
+    );
+
+    if (unresolved.length > 0) {
+      return {
+        ok: false,
+        error: `Konfirmasi dulu absen pulang yang terlewat pada ${unresolved
+          .map((row) => formatWorkDate(row.workDate))
+          .join(", ")} sebelum absen masuk hari ini`,
+      };
+    }
+  }
+
   if (type === AttendanceType.CHECK_OUT) {
     if (!status.checkIn) {
       return { ok: false, error: "Absen masuk dulu sebelum absen pulang" };
@@ -191,29 +233,23 @@ export async function submitAttendance(
   );
   const isWithinRadius = distanceMeters <= office.radiusMeters;
 
-  // Di luar radius, karyawan wajib menyatakan sedang WFH atau dinas luar dan
-  // menjelaskannya — tanpa itu absensinya tidak bisa dinilai admin. Klaimnya
-  // divalidasi di sini, bukan di client, supaya tidak bisa dilewati.
+  // Di luar radius, karyawan wajib menjelaskan alasannya — tanpa itu
+  // absensinya tidak bisa dinilai admin. Absen di luar radius otomatis
+  // dicatat DINAS_LUAR (tidak ada pilihan mode, dan tidak ada WFH). Divalidasi
+  // di sini, bukan di client, supaya tidak bisa dilewati.
   const detail = parsed.data.workModeDetail?.trim() ?? "";
   let workMode: WorkMode = WorkMode.HADIR_DIKANTOR;
   let workModeDetail: string | null = null;
 
   if (!isWithinRadius) {
-    if (!parsed.data.workMode) {
-      return {
-        ok: false,
-        error: `Kamu berada ${formatDistance(distanceMeters)} dari ${office.name}. Pilih alasannya (WFH atau Dinas Luar) sebelum mengirim.`,
-      };
-    }
-
     if (detail.length < MIN_DETAIL_LENGTH) {
       return {
         ok: false,
-        error: "Tulis penjelasan singkat untuk absensi di luar kantor",
+        error: `Kamu berada ${formatDistance(distanceMeters)} dari ${office.name}. Tulis penjelasan singkat sebelum mengirim.`,
       };
     }
 
-    workMode = parsed.data.workMode;
+    workMode = WorkMode.DINAS_LUAR;
     workModeDetail = detail;
   }
 
@@ -498,5 +534,91 @@ export async function createManualAttendance(
   return {
     ok: true,
     message: `${ATTENDANCE_TYPE_LABEL[parsed.data.type]} ${employee.name} pada ${formatWorkDate(workDate)} dicatat`,
+  };
+}
+
+/** Absen pulang default kalau karyawan tidak memilih jam sendiri. */
+const DEFAULT_MISSED_CHECKOUT_TIME = "17:00";
+
+/**
+ * Karyawan mengonfirmasi sendiri absen pulang yang terlewat pada hari
+ * sebelumnya — dipicu dari modal yang memblokir absen masuk baru selama masih
+ * ada hari yang belum diselesaikan (lihat `listUnresolvedCheckouts` di
+ * `submitAttendance`).
+ */
+export async function confirmMissedCheckout(
+  input: z.input<typeof ConfirmMissedCheckoutSchema>,
+): Promise<AttendanceResult> {
+  const user = await requireAnyRole(SELF_ATTENDANCE_ROLES);
+
+  const parsed = ConfirmMissedCheckoutSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Data tidak valid",
+    };
+  }
+
+  const workDate = fromDateInputValue(parsed.data.workDate);
+
+  if (!workDate) return { ok: false, error: "Tanggal tidak valid" };
+
+  if (workDate.getTime() >= getWorkDate().getTime()) {
+    return {
+      ok: false,
+      error: "Tanggal ini belum lewat, tidak perlu dikonfirmasi",
+    };
+  }
+
+  const [checkIn, checkOut] = await Promise.all([
+    AttendanceService.findByUserDateType(
+      user.id,
+      workDate,
+      AttendanceType.CHECK_IN,
+    ),
+    AttendanceService.findByUserDateType(
+      user.id,
+      workDate,
+      AttendanceType.CHECK_OUT,
+    ),
+  ]);
+
+  if (!checkIn) {
+    return { ok: false, error: "Tidak ada absen masuk pada tanggal itu" };
+  }
+
+  if (checkOut) {
+    return { ok: false, error: "Absen pulang tanggal itu sudah tercatat" };
+  }
+
+  const time = parsed.data.time?.trim() || DEFAULT_MISSED_CHECKOUT_TIME;
+  const timestamp = workDateTimeToUtc(workDate, time);
+
+  if (!timestamp) {
+    return { ok: false, error: "Jam tidak valid" };
+  }
+
+  try {
+    await AttendanceService.selfConfirmCheckout({
+      userId: user.id,
+      workDate,
+      timestamp,
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return { ok: false, error: "Absen pulang tanggal itu sudah tercatat" };
+    }
+    throw error;
+  }
+
+  revalidateAttendancePages();
+
+  return {
+    ok: true,
+    message: `Absen pulang ${formatWorkDate(workDate)} dikonfirmasi pukul ${time}`,
   };
 }

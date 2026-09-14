@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
+import { ClerkProvider } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import Providers from "@/providers/Providers";
 import { Toaster } from "sonner";
@@ -22,17 +23,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html className={cn(montserrat.variable)} suppressHydrationWarning lang="en">
-      <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-      </head>
+    <ClerkProvider>
+      <html className={cn(montserrat.variable)} suppressHydrationWarning lang="en">
+        <head>
+          <link rel="icon" href="/favicon.ico" sizes="any" />
+        </head>
 
-      <body>
-        <Providers>
-          <Toaster richColors position="top-right" />
-          <main>{children}</main>
-        </Providers>
-      </body>
-    </html>
+        <body>
+          <Providers>
+            <Toaster richColors position="top-right" />
+            <main>{children}</main>
+          </Providers>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

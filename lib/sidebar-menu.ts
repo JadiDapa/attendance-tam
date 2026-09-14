@@ -6,6 +6,7 @@ import {
   CalendarIcon as CalendarOff,
   FileTextIcon as FileText,
   AvatarIcon as Users,
+  BarChartIcon as BarChart,
   SewingPinIcon as MapPin,
   ClipboardIcon as ClipboardCheck,
   ClockIcon as Clock,
@@ -22,6 +23,13 @@ export type MenuItem = {
   icon: Icon;
   roles?: string[];
   submenu?: { title: string; url: string }[];
+  /**
+   * Sub-grup di dalam grup "Menu" utama. Cuma dipakai ADMIN/SUPERVISOR/MANAGER
+   * supaya menu kerja mereka (menilai/mengelola karyawan lain) tidak
+   * bercampur dengan menu pribadi mereka sendiri (absen, lembur). Employee
+   * tidak butuh ini — semua menunya memang untuk dirinya sendiri.
+   */
+  group?: "manajemen" | "general";
 };
 
 export const overviewItems: MenuItem[] = [
@@ -48,36 +56,133 @@ export const overviewItems: MenuItem[] = [
     url: "/admin/dashboard",
     icon: LayoutDashboard,
     roles: ["ADMIN"],
+    group: "manajemen",
   },
   {
     title: "Kehadiran",
     url: "/admin/kehadiran",
     icon: CalendarCheck,
     roles: ["ADMIN"],
+    group: "manajemen",
   },
   {
-    title: "Rekapan Karyawan",
-    url: "/admin/rekapan-karyawan",
+    title: "Daftar Pekerja",
+    url: "/admin/daftar-pekerja",
     icon: Users,
     roles: ["ADMIN"],
+    group: "manajemen",
+  },
+  {
+    title: "Rekapan Kehadiran",
+    url: "/admin/rekapan-kehadiran",
+    icon: BarChart,
+    roles: ["ADMIN"],
+    group: "manajemen",
   },
   {
     title: "Pengajuan Izin",
     url: "/admin/izin",
     icon: ClipboardCheck,
     roles: ["ADMIN"],
+    group: "manajemen",
+  },
+  {
+    title: "Pengajuan Lembur",
+    url: "/admin/lembur",
+    icon: Clock,
+    roles: ["ADMIN"],
+    group: "manajemen",
   },
   {
     title: "Approval Absensi",
     url: "/admin/verifikasi",
     icon: ShieldCheck,
     roles: ["ADMIN"],
+    group: "manajemen",
+  },
+  {
+    title: "Pengajuan Dinas Luar",
+    url: "/admin/dinas-luar",
+    icon: MapPin,
+    roles: ["ADMIN"],
+    group: "manajemen",
   },
   {
     title: "Laporan",
     url: "/admin/laporan",
     icon: Download,
     roles: ["ADMIN"],
+    group: "manajemen",
+  },
+  {
+    title: "Absensi Saya",
+    url: "/admin/absensi",
+    icon: Clock,
+    roles: ["ADMIN"],
+    group: "general",
+  },
+  {
+    title: "Lembur Saya",
+    url: "/admin/lembur-saya",
+    icon: CalendarClock,
+    roles: ["ADMIN"],
+    group: "general",
+  },
+  {
+    title: "Pengajuan Izin",
+    url: "/supervisor/izin",
+    icon: ClipboardCheck,
+    roles: ["SUPERVISOR"],
+    group: "manajemen",
+  },
+  {
+    title: "Pengajuan Lembur",
+    url: "/supervisor/lembur",
+    icon: Clock,
+    roles: ["SUPERVISOR"],
+    group: "manajemen",
+  },
+  {
+    title: "Dinas Luar",
+    url: "/supervisor/dinas-luar",
+    icon: MapPin,
+    roles: ["SUPERVISOR"],
+    group: "manajemen",
+  },
+  {
+    title: "Absensi Saya",
+    url: "/supervisor/absensi",
+    icon: Clock,
+    roles: ["SUPERVISOR"],
+    group: "general",
+  },
+  {
+    title: "Lembur Saya",
+    url: "/supervisor/lembur-saya",
+    icon: CalendarClock,
+    roles: ["SUPERVISOR"],
+    group: "general",
+  },
+  {
+    title: "Pengajuan Izin",
+    url: "/manager/izin",
+    icon: ClipboardCheck,
+    roles: ["MANAGER"],
+    group: "manajemen",
+  },
+  {
+    title: "Lembur",
+    url: "/manager/lembur",
+    icon: Clock,
+    roles: ["MANAGER"],
+    group: "manajemen",
+  },
+  {
+    title: "Absensi Saya",
+    url: "/manager/absensi",
+    icon: Clock,
+    roles: ["MANAGER"],
+    group: "general",
   },
 ];
 
@@ -110,6 +215,23 @@ export const settingsItems: MenuItem[] = [
 
 export function filterMenuByRole(items: MenuItem[], role: string): MenuItem[] {
   return items.filter((item) => !item.roles || item.roles.includes(role));
+}
+
+/** Pisahkan item "Menu" jadi tiga grup tampilan berdasarkan `group`:
+ * item tanpa `group` (mis. semua menu karyawan) tetap satu grup "Menu"
+ * seperti sebelumnya, sementara ADMIN/SUPERVISOR/MANAGER kebagian dua grup
+ * terpisah — "Manajemen" (menilai/mengelola karyawan lain) dan "General"
+ * (absen & lembur untuk diri sendiri) — supaya tidak bercampur. */
+export function splitMenuByGroup(items: MenuItem[]): {
+  menu: MenuItem[];
+  manajemen: MenuItem[];
+  general: MenuItem[];
+} {
+  return {
+    menu: items.filter((item) => !item.group),
+    manajemen: items.filter((item) => item.group === "manajemen"),
+    general: items.filter((item) => item.group === "general"),
+  };
 }
 
 /** Judul halaman untuk navbar, diturunkan dari menu item yang paling cocok

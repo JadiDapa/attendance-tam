@@ -185,6 +185,70 @@ export const AttendanceService = {
     });
   },
 
+  /**
+   * Absen masuk milik user yang belum pernah diikuti absen pulang, untuk
+   * hari-hari sebelum `today`. Dipakai untuk memblokir absen masuk baru
+   * sampai karyawan mengonfirmasi absen pulang yang terlewat.
+   */
+  async listUnresolvedCheckouts(userId: string, today: Date) {
+    const checkIns = await prisma.attendance.findMany({
+      where: {
+        userId,
+        type: AttendanceType.CHECK_IN,
+        workDate: { lt: today },
+      },
+      orderBy: { workDate: "asc" },
+    });
+
+    if (checkIns.length === 0) return [];
+
+    const checkOuts = await prisma.attendance.findMany({
+      where: {
+        userId,
+        type: AttendanceType.CHECK_OUT,
+        workDate: { in: checkIns.map((row) => row.workDate) },
+      },
+      select: { workDate: true },
+    });
+
+    const resolvedDates = new Set(
+      checkOuts.map((row) => row.workDate.getTime()),
+    );
+
+    return checkIns.filter((row) => !resolvedDates.has(row.workDate.getTime()));
+  },
+
+  /**
+   * Karyawan mengonfirmasi sendiri absen pulang yang terlewat (beda dari
+   * `upsertManual`, yang dicatat admin dan mewajibkan reviewer). Baris yang
+   * sudah ada tidak boleh ditimpa — hari itu seharusnya sudah tidak muncul di
+   * `listUnresolvedCheckouts` lagi begitu ada baris CHECK_OUT.
+   */
+  async selfConfirmCheckout(data: {
+    userId: string;
+    workDate: Date;
+    timestamp: Date;
+  }) {
+    return prisma.attendance.create({
+      data: {
+        userId: data.userId,
+        type: AttendanceType.CHECK_OUT,
+        workDate: data.workDate,
+        timestamp: data.timestamp,
+        isManual: true,
+        latitude: null,
+        longitude: null,
+        distanceMeters: null,
+        accuracyMeters: null,
+        photoUrl: null,
+        isWithinRadius: null,
+        workModeDetail: null,
+        approvalStatus: null,
+        approvedMode: null,
+      },
+    });
+  },
+
   async getTodayStatus(userId: string, workDate: Date) {
     const items = await this.listByUserAndDate(userId, workDate);
 

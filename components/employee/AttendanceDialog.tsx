@@ -31,17 +31,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { AttendanceType } from "@/generated/prisma";
 import { submitAttendance } from "@/app/action/attendance.action";
 import { formatDistance, haversineDistance } from "@/lib/geo";
-import {
-  OUTSIDE_RADIUS_HINT,
-  OUTSIDE_RADIUS_MODES,
-  WORK_MODE_LABEL,
-} from "@/lib/work-mode";
 import { cn } from "@/lib/utils";
 
 type Coords = { latitude: number; longitude: number; accuracy: number };
-
-/** Alasan yang boleh diklaim karyawan sendiri saat absen di luar radius. */
-type OutsideMode = "WFH" | "DINAS_LUAR";
 
 /** Penjelasan sependek ini tidak bisa dinilai admin — samakan dengan server. */
 const MIN_DETAIL_LENGTH = 5;
@@ -159,7 +151,6 @@ export default function AttendanceDialog({
   const [photo, setPhoto] = useState<{ file: File; preview: string } | null>(
     null,
   );
-  const [mode, setMode] = useState<OutsideMode | null>(null);
   const [detail, setDetail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   // Auto-kirim cuma boleh coba sekali per foto — kalau gagal (mis. jaringan
@@ -270,7 +261,6 @@ export default function AttendanceDialog({
     setCoords(null);
     setLocating(true);
     setLocationError(null);
-    setMode(null);
     setDetail("");
     setPhoto((current) => {
       if (current) URL.revokeObjectURL(current.preview);
@@ -349,13 +339,13 @@ export default function AttendanceDialog({
       )
     : null;
 
-  // Di luar radius kantor absensi tidak langsung sah: karyawan harus menyatakan
-  // sedang WFH atau dinas luar, lalu admin yang menyetujuinya.
+  // Di luar radius kantor absensi tidak langsung sah: karyawan harus menulis
+  // alasannya, lalu admin yang menyetujuinya.
   const isOutside =
     distanceMeters !== null && distanceMeters > office.radiusMeters;
   const trimmedDetail = detail.trim();
   const isReasonComplete =
-    !isOutside || (mode !== null && trimmedDetail.length >= MIN_DETAIL_LENGTH);
+    !isOutside || trimmedDetail.length >= MIN_DETAIL_LENGTH;
 
   // Pembacaan lama sengaja dibiarkan tampil selama membaca ulang — mengosongkan
   // coords bikin kotak peringatan (berikut tombol ini) hilang saat diklik.
@@ -388,8 +378,7 @@ export default function AttendanceDialog({
     formData.set("accuracy", String(coords.accuracy));
     formData.set("photo", photo.file);
 
-    if (isOutside && mode) {
-      formData.set("workMode", mode);
+    if (isOutside) {
       formData.set("workModeDetail", trimmedDetail);
     }
 
@@ -411,7 +400,7 @@ export default function AttendanceDialog({
 
     handleOpenChange(false);
     router.refresh();
-  }, [photo, coords, type, isOutside, mode, trimmedDetail, router]);
+  }, [photo, coords, type, isOutside, trimmedDetail, router]);
 
   // Karyawan tidak perlu menekan tombol kirim lagi setelah foto berhasil
   // diambil — begitu lokasi cukup akurat, absensi langsung terkirim sendiri.
@@ -627,35 +616,10 @@ export default function AttendanceDialog({
                 Kamu {formatDistance(distanceMeters!)} dari kantor
               </p>
               <p className="text-muted-foreground text-xs">
-                Pilih alasannya dan tulis penjelasan singkat. Absensi ini
-                menunggu persetujuan admin, dan tidak dihitung terlambat.
+                Tulis penjelasan singkat kenapa kamu absen di luar kantor.
+                Absensi ini menunggu persetujuan admin, dan tidak dihitung
+                terlambat.
               </p>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label>Alasan</Label>
-              <div className="grid gap-2">
-                {OUTSIDE_RADIUS_MODES.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => setMode(option as OutsideMode)}
-                    className={cn(
-                      "rounded-xl border p-3 text-left transition-colors",
-                      mode === option
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:bg-muted",
-                    )}
-                  >
-                    <p className="text-sm font-medium">
-                      {WORK_MODE_LABEL[option]}
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      {OUTSIDE_RADIUS_HINT[option as OutsideMode]}
-                    </p>
-                  </button>
-                ))}
-              </div>
             </div>
 
             <div className="flex flex-col gap-2">
@@ -668,7 +632,7 @@ export default function AttendanceDialog({
                 maxLength={300}
                 placeholder="Contoh: kunjungan klien di Bekasi bersama Pak Adi"
               />
-              {mode !== null && trimmedDetail.length < MIN_DETAIL_LENGTH && (
+              {trimmedDetail.length < MIN_DETAIL_LENGTH && (
                 <p className="text-muted-foreground text-xs">
                   Tulis minimal {MIN_DETAIL_LENGTH} karakter supaya admin bisa
                   menilainya.

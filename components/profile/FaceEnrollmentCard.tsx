@@ -27,12 +27,14 @@ import { enrollFace, resetFaceEnrollment } from "@/app/action/face.action";
 type Props = {
   totalPhotos: number;
   minRequired: number;
+  recommendedPhotos: number;
   maxPhotos: number;
 };
 
 export default function FaceEnrollmentCard({
   totalPhotos: initialTotal,
   minRequired,
+  recommendedPhotos,
   maxPhotos,
 }: Props) {
   const router = useRouter();
@@ -47,6 +49,7 @@ export default function FaceEnrollmentCard({
   const [totalPhotos, setTotalPhotos] = useState(initialTotal);
 
   const enrolled = totalPhotos >= minRequired;
+  const atRecommended = totalPhotos >= recommendedPhotos;
   const atMax = totalPhotos >= maxPhotos;
 
   const stopCamera = useCallback(() => {
@@ -130,7 +133,7 @@ export default function FaceEnrollmentCard({
         setTotalPhotos(result.totalPhotos);
         router.refresh();
 
-        if (result.totalPhotos >= minRequired) {
+        if (result.totalPhotos >= recommendedPhotos) {
           stopCamera();
         }
       },
@@ -179,9 +182,11 @@ export default function FaceEnrollmentCard({
           <p className="text-muted-foreground text-xs">
             {atMax
               ? `${totalPhotos} foto tersimpan (batas maksimal). Data ini dipakai untuk memverifikasi kamu saat absen.`
-              : enrolled
+              : atRecommended
                 ? `${totalPhotos} foto tersimpan. Data ini dipakai untuk memverifikasi kamu saat absen.`
-                : `Ambil ${minRequired} foto wajah dari sudut/pencahayaan berbeda (${totalPhotos}/${minRequired} tersimpan) sebelum bisa absen.`}
+                : enrolled
+                  ? `${totalPhotos} foto tersimpan, kamu sudah bisa absen. Disarankan menambah hingga ${recommendedPhotos} foto dari sudut/pencahayaan berbeda untuk akurasi lebih baik.`
+                  : `Ambil minimal ${minRequired} foto wajah (disarankan ${recommendedPhotos}) dari sudut/pencahayaan berbeda (${totalPhotos}/${minRequired} tersimpan) sebelum bisa absen.`}
           </p>
         </div>
       </div>

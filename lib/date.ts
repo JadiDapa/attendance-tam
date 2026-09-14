@@ -189,6 +189,12 @@ export function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
+/** Apakah `date` jatuh di antara `start` dan `end` (inklusif) — dipakai untuk
+ * cek rentang izin/lembur/dinas luar mencakup satu tanggal tertentu. */
+export function rangeCoversDate(start: Date, end: Date, date: Date): boolean {
+  return start.getTime() <= date.getTime() && end.getTime() >= date.getTime();
+}
+
 /** Semua tanggal kerja dari start sampai end, inklusif. */
 export function eachDate(startDate: Date, endDate: Date): Date[] {
   const dates: Date[] = [];

@@ -99,6 +99,22 @@ export function isLateAt(
   return start !== null && minutesOfDay > start + toleranceMinutes;
 }
 
+/**
+ * Absen masuk ditutup begitu lewat jam pulang terjadwal hari itu — dari titik
+ * ini karyawan cuma bisa mengajukan lembur, bukan absen masuk biasa. Tidak
+ * ada toleransi seperti `isLateAt()`, karena ini bukan soal terlambat.
+ */
+export function isCheckInClosed(
+  minutesOfDay: number,
+  day: WorkDayConfig,
+): boolean {
+  if (!day.isWorkingDay) return false;
+
+  const end = parseTimeToMinutes(day.checkOutTime);
+
+  return end !== null && minutesOfDay >= end;
+}
+
 /** "08:00 – 17:00" atau "Libur". */
 export function formatDayHours(day: WorkDayConfig): string {
   return day.isWorkingDay

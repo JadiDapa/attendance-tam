@@ -12,8 +12,8 @@ import LeaveTypeChart from "@/components/dashboard/LeaveTypeChart";
 import LeaveStatusChart from "@/components/dashboard/LeaveStatusChart";
 import LeaveApprovalTable, {
   type LeaveApprovalRow,
-} from "@/components/admin/LeaveApprovalTable";
-import { LeaveStatus, LeaveType, Role } from "@/generated/prisma";
+} from "@/components/leave/LeaveApprovalTable";
+import { LeaveStage, LeaveStatus, LeaveType, Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import { formatWorkDate, getWorkDate } from "@/lib/date";
 import {
@@ -60,8 +60,10 @@ export default async function AdminIzinPage({
           ? formatWorkDate(request.startDate)
           : `${formatWorkDate(request.startDate)} — ${formatWorkDate(request.endDate)}`,
       days: countLeaveDays(request.startDate, request.endDate),
-      reason: request.reason,
+      detail: request.detail,
+      reasonCategory: request.reasonCategory,
       status: request.status,
+      stage: request.stage,
       reviewNote: request.reviewNote,
       reviewedBy: request.reviewedBy?.name ?? null,
       attachmentUrl: request.attachmentUrl,
@@ -150,7 +152,11 @@ export default async function AdminIzinPage({
         </Panel>
       </div>
 
-      <LeaveApprovalTable rows={rows} />
+      <LeaveApprovalTable
+        rows={rows}
+        viewerStage={LeaveStage.ADMIN}
+        detailBasePath="/admin/izin"
+      />
     </div>
   );
 }

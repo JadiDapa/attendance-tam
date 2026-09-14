@@ -19,7 +19,7 @@ import Panel from "@/components/dashboard/Panel";
 import StatTile from "@/components/dashboard/StatTile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { LeaveStatus, Role } from "@/generated/prisma";
+import { LeaveStage, LeaveStatus, Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import {
   DAY_STATUS_LABEL,
@@ -83,7 +83,7 @@ export default async function AdminDashboardPage({
     UserService.list({ role: Role.EMPLOYEE, isActive: true }),
     AttendanceService.listByDate(workDate),
     LeaveService.listApprovedOnDate(workDate),
-    LeaveService.list({ status: LeaveStatus.PENDING }),
+    LeaveService.list({ status: LeaveStatus.PENDING, stage: LeaveStage.ADMIN }),
     LeaveService.listApprovedInRange({
       startDate: weekStart,
       endDate: addDays(weekStart, 6),
@@ -222,7 +222,7 @@ export default async function AdminDashboardPage({
               label="Hadir Hari Ini"
               icon={CheckCircle2}
               value={`${presentToday}/${total}`}
-              footerLabel={`${counts.HADIR_DIKANTOR} kantor · ${counts.WFH} WFH · ${counts.DINAS_LUAR} dinas luar`}
+              footerLabel={`${counts.HADIR_DIKANTOR} kantor · ${counts.DINAS_LUAR} dinas luar`}
             />
           </div>
 
@@ -258,7 +258,6 @@ export default async function AdminDashboardPage({
                     label: "Hadir di Kantor",
                     value: counts.HADIR_DIKANTOR,
                   },
-                  { key: "WFH", label: "WFH", value: counts.WFH },
                   {
                     key: "DINAS_LUAR",
                     label: "Dinas Luar",
@@ -339,7 +338,7 @@ export default async function AdminDashboardPage({
                       {countLeaveDays(leave.startDate, leave.endDate)} hari
                     </p>
                     <p className="text-muted-foreground mt-1 line-clamp-2 text-xs">
-                      {leave.reason}
+                      {leave.detail}
                     </p>
                   </div>
                 ))}

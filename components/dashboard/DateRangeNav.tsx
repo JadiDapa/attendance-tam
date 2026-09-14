@@ -23,7 +23,7 @@ type Props = {
   /** Hari ini menurut timezone aplikasi — preset dihitung dari sini, bukan dari jam perangkat. */
   today: string;
   label: string;
-  /** Halaman yang dituju, mis. "/dashboard" atau "/admin/rekapan-karyawan". */
+  /** Halaman yang dituju, mis. "/dashboard" atau "/admin/rekapan-kehadiran". */
   basePath: string;
   /** Query lain yang harus ikut terbawa, mis. tampilan aktif. */
   keepParams?: Record<string, string>;

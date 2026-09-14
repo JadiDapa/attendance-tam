@@ -23,13 +23,12 @@ export const ATTENDANCE_TYPE_LABEL: Record<AttendanceTypeValue, string> = {
 };
 
 /**
- * Tujuh klasifikasi kehadiran. `HADIR_DIKANTOR` mencakup yang tepat waktu
+ * Enam klasifikasi kehadiran. `HADIR_DIKANTOR` mencakup yang tepat waktu
  * maupun yang terlambat — keterlambatan tetap dicatat, tapi sebagai atribut
  * (`Attendance.isLate`), bukan status tersendiri.
  */
 export type RecapStatus =
   | "HADIR_DIKANTOR"
-  | "WFH"
   | "DINAS_LUAR"
   | "SAKIT"
   | "IZIN"
@@ -37,7 +36,7 @@ export type RecapStatus =
   | "CUTI";
 
 /**
- * Status satu hari di rekap: tujuh klasifikasi di atas + hari yang memang tidak
+ * Status satu hari di rekap: enam klasifikasi di atas + hari yang memang tidak
  * menuntut kehadiran. `LIBUR` bukan klasifikasi kehadiran — tanpa dia, setiap
  * akhir pekan dan tanggal merah akan terbaca `ALFA`.
  */
@@ -48,7 +47,6 @@ export type CalendarStatus = DayStatus | "KOSONG";
 
 export const RECAP_STATUS_OPTIONS: RecapStatus[] = [
   "HADIR_DIKANTOR",
-  "WFH",
   "DINAS_LUAR",
   "SAKIT",
   "IZIN",
@@ -56,7 +54,7 @@ export const RECAP_STATUS_OPTIONS: RecapStatus[] = [
   "CUTI",
 ];
 
-/** Pilihan filter di tabel rekap — tujuh klasifikasi + hari libur. */
+/** Pilihan filter di tabel rekap — enam klasifikasi + hari libur. */
 export const DAY_STATUS_OPTIONS: DayStatus[] = [
   ...RECAP_STATUS_OPTIONS,
   "LIBUR",
@@ -64,7 +62,6 @@ export const DAY_STATUS_OPTIONS: DayStatus[] = [
 
 export const DAY_STATUS_LABEL: Record<DayStatus, string> = {
   HADIR_DIKANTOR: WORK_MODE_LABEL.HADIR_DIKANTOR,
-  WFH: WORK_MODE_LABEL.WFH,
   DINAS_LUAR: WORK_MODE_LABEL.DINAS_LUAR,
   SAKIT: WORK_MODE_LABEL.SAKIT,
   IZIN: WORK_MODE_LABEL.IZIN,
@@ -78,7 +75,6 @@ export const DAY_STATUS_VARIANT: Record<
   "default" | "secondary" | "destructive" | "outline"
 > = {
   HADIR_DIKANTOR: "secondary",
-  WFH: "default",
   DINAS_LUAR: "default",
   SAKIT: "outline",
   IZIN: "outline",
@@ -90,7 +86,6 @@ export const DAY_STATUS_VARIANT: Record<
 /** Warna titik status — dipakai di ringkasan dashboard, bukan satu-satunya penanda. */
 export const DAY_STATUS_DOT: Record<DayStatus, string> = {
   HADIR_DIKANTOR: "bg-chart-hadir",
-  WFH: "bg-chart-1",
   DINAS_LUAR: "bg-chart-3",
   SAKIT: "bg-chart-5",
   IZIN: "bg-muted-foreground/60",
@@ -287,7 +282,6 @@ export type AttendanceMonth = {
 
 export type AttendanceSummary = {
   hadirDikantor: number;
-  wfh: number;
   dinasLuar: number;
   sakit: number;
   izin: number;
@@ -304,7 +298,7 @@ export type AttendanceSummary = {
   outsideRadius: number;
   /** Hari yang absen masuknya ada tapi absen pulangnya tidak pernah tercatat. */
   missingCheckOut: number;
-  /** Total hari yang dihitung hadir bekerja: di kantor + WFH + dinas luar. */
+  /** Total hari yang dihitung hadir bekerja: di kantor + dinas luar. */
   totalHadir: number;
   /** Rata-rata jam absen masuk, mis. "08:12". Null kalau belum ada absensi. */
   averageCheckIn: string | null;

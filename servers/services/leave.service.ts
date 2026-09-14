@@ -1,10 +1,12 @@
 import prisma from "@/lib/prisma";
-import { LeaveStatus, Prisma } from "@/generated/prisma";
+import { LeaveStage, LeaveStatus, Prisma } from "@/generated/prisma";
+import { nextLeaveStage } from "@/lib/leave";
 import { CreateLeaveDTO } from "../validators/leave.validator";
 
 export type LeaveListOptions = {
   userId?: string;
   status?: LeaveStatus;
+  stage?: LeaveStage;
 };
 
 function leaveWhere(opts: LeaveListOptions): Prisma.LeaveRequestWhereInput {
@@ -12,6 +14,7 @@ function leaveWhere(opts: LeaveListOptions): Prisma.LeaveRequestWhereInput {
 
   if (opts.userId) and.push({ userId: opts.userId });
   if (opts.status) and.push({ status: opts.status });
+  if (opts.stage) and.push({ stage: opts.stage });
 
   return and.length ? { AND: and } : {};
 }
@@ -40,9 +43,10 @@ export const LeaveService = {
     });
   },
 
-  async countPending() {
+  /** Jumlah pengajuan yang menunggu giliran `stage` tertentu (default: semua). */
+  async countPending(stage?: LeaveStage) {
     return prisma.leaveRequest.count({
-      where: { status: LeaveStatus.PENDING },
+      where: { status: LeaveStatus.PENDING, ...(stage ? { stage } : {}) },
     });
   },
 
@@ -88,20 +92,53 @@ export const LeaveService = {
   },
 
   /**
-   * Setujui/tolak pengajuan. Hanya berlaku kalau statusnya masih PENDING,
-   * sehingga dua admin tidak bisa memproses pengajuan yang sama dua kali.
+   * Setujui/tolak pengajuan pada giliran `stage` milik reviewer yang sedang
+   * login. Menolak selalu mengakhiri pengajuan (REJECTED, stage DONE).
+   * Menyetujui memindahkan giliran ke `nextLeaveStage` — untuk SAKIT itu
+   * langsung DONE (APPROVED), untuk IZIN/CUTI berlanjut ke
+   * SUPERVISOR lalu MANAGER sebelum akhirnya APPROVED.
+   *
+   * `updateMany` di-guard dengan `status: PENDING, stage` supaya dua reviewer
+   * (atau reviewer yang sama di dua tab) tidak bisa memproses giliran yang
+   * sama dua kali, dan supaya reviewer tidak bisa memutuskan giliran yang
+   * bukan miliknya (mis. supervisor memutuskan sebelum admin).
    */
   async review(
     id: string,
     data: {
-      status: LeaveStatus;
+      stage: LeaveStage;
+      status: typeof LeaveStatus.APPROVED | typeof LeaveStatus.REJECTED;
       reviewedById: string;
       reviewNote: string | null;
     },
   ) {
+    const leave = await prisma.leaveRequest.findUnique({
+      where: { id },
+      select: { type: true },
+    });
+
+    if (!leave) return 0;
+
+    const nextStage =
+      data.status === LeaveStatus.REJECTED
+        ? LeaveStage.DONE
+        : nextLeaveStage(leave.type, data.stage);
+    const finalStatus =
+      data.status === LeaveStatus.REJECTED
+        ? LeaveStatus.REJECTED
+        : nextStage === LeaveStage.DONE
+          ? LeaveStatus.APPROVED
+          : LeaveStatus.PENDING;
+
     const { count } = await prisma.leaveRequest.updateMany({
-      where: { id, status: LeaveStatus.PENDING },
-      data: { ...data, reviewedAt: new Date() },
+      where: { id, status: LeaveStatus.PENDING, stage: data.stage },
+      data: {
+        status: finalStatus,
+        stage: nextStage,
+        reviewedById: data.reviewedById,
+        reviewNote: data.reviewNote,
+        reviewedAt: new Date(),
+      },
     });
 
     return count;

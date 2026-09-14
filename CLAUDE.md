@@ -21,22 +21,25 @@ npx prisma migrate deploy    # apply migrations in prod
 ## Architecture
 
 Sistem absensi karyawan (MVP, ~30 karyawan): absen masuk/pulang dengan foto +
-verifikasi wajah + GPS, klaim WFH/dinas luar yang butuh approval admin,
-pengajuan izin/cuti, dan rekap untuk admin.
+verifikasi wajah + GPS, absen luar kantor (Approval Absensi) yang butuh
+approval admin, penugasan dinas luar (`FieldAssignment`) yang direncanakan
+supervisor & disetujui admin, pengajuan izin/cuti, dan rekap untuk admin.
+Tidak ada WFH — tidak diperbolehkan di sistem ini.
 Stack: Next.js 16 App Router, React 19, TypeScript, Tailwind v4, Prisma 7 + PostgreSQL,
-Auth.js v5 (credentials), TanStack Query + Table, shadcn/ui.
+Clerk (email+password), TanStack Query + Table, shadcn/ui.
 
 ### Route groups
 
 - `app/(auth)/` — `/login` (redirect ke dashboard sesuai role kalau sudah login)
 - `app/(employee)/` — `/dashboard`, `/riwayat`, `/izin` — butuh session role `EMPLOYEE`
-- `app/(admin)/` — `/admin/dashboard`, `/admin/kehadiran`, `/admin/rekapan-karyawan`, `/admin/izin`, `/admin/verifikasi`, `/admin/laporan`, `/admin/lokasi`, `/admin/waktu-kerja`, `/admin/hari-libur` — butuh session role `ADMIN`
+- `app/(admin)/` — `/admin/dashboard`, `/admin/kehadiran`, `/admin/daftar-pekerja` (data master pekerja + buat akun), `/admin/rekapan-kehadiran` (rekap kehadiran, dulu bernama `/admin/rekapan-karyawan`), `/admin/izin`, `/admin/verifikasi`, `/admin/laporan`, `/admin/lokasi`, `/admin/waktu-kerja`, `/admin/hari-libur` — butuh session role `ADMIN`
 - `app/(account)/` — `/profil` — cukup `requireUser()`, dipakai kedua role
 - `app/action/` — Next.js Server Actions (semua file `"use server"`)
 - `app/api/images/[filename]/` — serve foto absensi dari `uploads/images/` di disk
 - `app/api/laporan/` — download rekap absensi CSV (cek role ADMIN sendiri, balas 403 bukan redirect)
 
-`proxy.ts` (Next 16 menggantikan `middleware.ts`) menjaga route berdasarkan role.
+`proxy.ts` (Next 16 menggantikan `middleware.ts`) hanya memastikan sudah login
+(Clerk); redirect berdasarkan role dilakukan `requireRole()` di tiap layout.
 
 ### Server-side layers
 
@@ -63,8 +66,8 @@ Helper domain (dipakai action, bukan service):
 - `lib/holiday.ts` — hari libur tanggalan: `findHoliday()`, `indexHolidays()`, label & varian badge.
   Bebas Prisma, seperti `work-schedule.ts`.
 - `lib/work-mode.ts` — label, varian badge, dan penjelasan untuk `WorkMode` + `AttendanceApproval`,
-  `OUTSIDE_RADIUS_MODES` (yang boleh dipilih karyawan), `APPROVAL_MODES` (yang boleh dipilih admin),
-  dan `isLateEligible()`. Bebas Prisma seperti `work-schedule.ts`.
+  `APPROVAL_MODES` (mode final yang boleh dipilih admin saat menyetujui — karyawan sendiri
+  tidak memilih mode apa pun), dan `isLateEligible()`. Bebas Prisma seperti `work-schedule.ts`.
 - `lib/storage.ts` — `saveImage()` (foto absensi, gambar saja) dan `saveAttachment()`
   (lampiran izin, gambar + PDF). `MAX_SIZE` di sini harus selaras dengan
   `experimental.serverActions.bodySizeLimit` di `next.config.ts`.
@@ -78,9 +81,9 @@ halaman karyawan supaya angka di layar dan di file selalu sama. `buildRecap()`
 sendiri yang menentukan status `LIBUR` (pola mingguan `WorkDay` + tabel `Holiday`)
 dan `missingCheckOut` — konsumennya tinggal memakai hasilnya.
 
-**Klasifikasi kehadiran.** `RecapStatus` di `lib/attendance.ts` punya tujuh nilai:
-`HADIR_DIKANTOR` | `WFH` | `DINAS_LUAR` | `SAKIT` | `IZIN` | `ALFA` | `CUTI`.
-`DayStatus` = tujuh itu + `LIBUR` (hari yang tidak menuntut kehadiran, bukan
+**Klasifikasi kehadiran.** `RecapStatus` di `lib/attendance.ts` punya enam nilai:
+`HADIR_DIKANTOR` | `DINAS_LUAR` | `SAKIT` | `IZIN` | `ALFA` | `CUTI`.
+`DayStatus` = enam itu + `LIBUR` (hari yang tidak menuntut kehadiran, bukan
 klasifikasi kehadiran — tanpa dia setiap akhir pekan terbaca `ALFA`).
 `CalendarStatus` = `DayStatus` + `KOSONG`.
 
@@ -100,11 +103,20 @@ absen selamanya dan karyawan baru terlihat bolos sebelum tanggal masuknya.
 Konsekuensinya: menonaktifkan karyawan juga menghapus dia dari laporan bulan-bulan
 sebelumnya.
 
-**Absen di luar radius + approval.** Absen di dalam radius selalu
-`HADIR_DIKANTOR`, langsung sah. Absen di **luar** radius mewajibkan karyawan
-memilih `WFH` atau `DINAS_LUAR` (`OUTSIDE_RADIUS_MODES`) **beserta penjelasannya**
-(`workModeDetail`, minimal 5 karakter), lalu disimpan dengan
+**Absen di luar radius + approval (Approval Absensi).** Absen di dalam radius
+selalu `HADIR_DIKANTOR`, langsung sah. Absen di **luar** radius (karyawan
+langsung ke lokasi kerja tanpa lewat kantor) otomatis dicatat `DINAS_LUAR` dan
+mewajibkan karyawan menulis **penjelasannya** (`workModeDetail`, minimal 5
+karakter — tidak ada pilihan mode, tidak ada WFH), lalu disimpan dengan
 `approvalStatus = PENDING`. Klaim itu **tidak pernah** dihitung terlambat.
+
+Ini beda kasus dari `FieldAssignment` ("Dinas Luar" di menu supervisor/admin):
+`FieldAssignment` adalah penugasan dinas luar yang **direncanakan duluan**
+(tanggal, tujuan, biaya, dst.) oleh supervisor dan disetujui admin — begitu
+disetujui, karyawan yang ditugaskan tidak perlu absen sama sekali sepanjang
+rentang tanggalnya. Approval Absensi di `/admin/verifikasi` adalah untuk kasus
+dadakan/tidak direncanakan: karyawan tetap absen (foto + GPS) dari luar radius
+dan admin menilai per kejadian.
 
 Sakit/izin/cuti tidak bisa diklaim dari form absensi — jalurnya tetap pengajuan
 `LeaveRequest` di `/izin`. Admin masih bisa menimpanya jadi salah satu itu saat
@@ -160,7 +172,7 @@ Run `npm run db:generate` after any schema change. Migrations live in `prisma/mi
 
 ### Domain models
 
-- **User** — akun karyawan/admin; login pakai `email` + `passwordHash` (bcrypt); role `EMPLOYEE` / `ADMIN`; `isActive` untuk nonaktifkan karyawan
+- **User** — profil/role aplikasi (`email`, `role` `EMPLOYEE`/`ADMIN`, `isActive`); identitas & password sepenuhnya di Clerk, dihubungkan lewat `clerkId` (unik)
 - **OfficeLocation** — titik kantor (lat/long) + `radiusMeters`; dipakai untuk validasi jarak (haversine)
 - **WorkSchedule** — kebijakan global: `lateToleranceMinutes` (satu baris aktif)
 - **WorkDay** — selalu 7 baris, `dayOfWeek` unik (0 = Minggu … 6 = Sabtu, sama dengan `Date#getUTCDay()`) + `isWorkingDay` + jam masuk/pulang (`"HH:mm"`). Menentukan `isLate` dan hari libur — tidak ada lagi asumsi Sabtu/Minggu di kode
@@ -180,20 +192,34 @@ memakai timezone `APP_TIMEZONE` (default `Asia/Jakarta`).
 
 ### Auth
 
-Auth.js v5 (`next-auth`) dengan credentials provider (email + password, bcrypt) dan session JWT
-— tidak ada tabel session di DB.
+Clerk (email + password only — sign-up dimatikan di Clerk Dashboard, akun karyawan
+cuma bisa dibuat admin lewat `/admin/daftar-pekerja/baru`). Prisma `User` tidak
+menyimpan password sama sekali; identitas & kredensial sepenuhnya di Clerk,
+dihubungkan lewat `User.clerkId`.
 
 ```
-auth.config.ts   ← config tanpa DB (pages, session, callback jwt/session) + defaultRouteForRole()
-auth.ts          ← NextAuth lengkap: Credentials provider, cek bcrypt + isActive
-proxy.ts         ← optimistic check: baca role dari cookie JWT, redirect sesuai role
-lib/session.ts   ← DAL: getCurrentUser / requireUser / requireRole (cek ulang ke DB, di-cache per request)
-types/next-auth.d.ts ← augmentasi Session/User/JWT dengan `id` + `role`
+proxy.ts         ← clerkMiddleware: cuma jamin sudah login, redirect ke /login kalau belum
+lib/session.ts   ← DAL: getCurrentUser / requireUser / requireRole — auth() dari Clerk untuk
+                   identitas, lalu role & isActive tetap dicek ulang ke Prisma tiap request
+lib/role.ts      ← defaultRouteForRole()
+app/(auth)/account-disabled/page.tsx ← sesi Clerk valid tapi user tidak ada/nonaktif di DB:
+                   cabut sesi Clerk (client) lalu lempar ke /login, supaya tidak loop redirect
+components/auth/LoginForm.tsx        ← useSignIn() dari @clerk/nextjs/legacy (custom UI, bukan <SignIn/> bawaan)
+app/action/user.action.ts            ← createEmployee/updateEmployee/setEmployeeActive
+                                        juga memanggil Clerk Backend API (clerkClient().users)
+                                        supaya akun Clerk & baris Prisma selalu sinkron
 ```
 
 Layout `(employee)` dan `(admin)` memanggil `requireRole()`, jadi user yang dinonaktifkan
-langsung kehilangan akses walau token-nya masih valid. Error login dibedakan lewat `code`
-pada subclass `CredentialsSignin` (`invalid_credentials`, `inactive_account`).
+(di-ban di Clerk **dan** `isActive=false` di Prisma) langsung kehilangan akses walau
+sesi Clerk-nya masih valid. Ganti password dilakukan client-side lewat
+`user.updatePassword()` (Clerk memverifikasi password lama sendiri) — tidak ada
+server action untuk itu.
+
+**Migrasi dari NextAuth (2026-09-10):** baris `User` lama diberi `clerkId` placeholder
+(`user_placeholder_<id>`) oleh migration `clerk_auth` — harus diganti manual dengan
+Clerk user id asli (buat akunnya dulu di Clerk dengan email yang sama) sebelum user
+itu bisa login.
 
 ### Components
 

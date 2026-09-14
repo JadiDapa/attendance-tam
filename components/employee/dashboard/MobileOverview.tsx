@@ -31,6 +31,8 @@ type Props = {
   office: OfficeLocation | null;
   maxAccuracyMeters: number;
   faceEnrolled: boolean;
+  /** True kalau sudah lewat jam pulang terjadwal hari ini — absen masuk ditutup. */
+  checkInClosed: boolean;
 };
 
 function initials(name: string) {
@@ -146,9 +148,10 @@ export default function MobileOverview({
   office,
   maxAccuracyMeters,
   faceEnrolled,
+  checkInClosed,
 }: Props) {
   const canAttend = office !== null && faceEnrolled;
-  const checkInDisabled = !canAttend || !!checkIn;
+  const checkInDisabled = !canAttend || !!checkIn || checkInClosed;
   const checkOutDisabled = !canAttend || !checkIn || !!checkOut;
 
   return (
@@ -201,7 +204,9 @@ export default function MobileOverview({
                 ? "Daftarkan wajah di Profil dulu"
                 : checkIn
                   ? "Sudah absen masuk hari ini"
-                  : undefined
+                  : checkInClosed
+                    ? "Absen masuk sudah ditutup untuk hari ini"
+                    : undefined
             }
             type={AttendanceType.CHECK_IN}
             office={office}

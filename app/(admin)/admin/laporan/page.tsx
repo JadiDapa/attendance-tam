@@ -90,7 +90,7 @@ export default async function LaporanPage({
   const missingCheckOut = rows.filter((row) => row.missingCheckOut).length;
   const pendingApproval = rows.filter((row) => row.pendingApproval).length;
 
-  const totalHadir = counts.HADIR_DIKANTOR + counts.WFH + counts.DINAS_LUAR;
+  const totalHadir = counts.HADIR_DIKANTOR + counts.DINAS_LUAR;
 
   // Sama seperti summary.terlambat di dashboard karyawan: atribut dari
   // HADIR_DIKANTOR, bukan status tersendiri.
@@ -174,7 +174,7 @@ export default async function LaporanPage({
           label="Total Hadir"
           icon={CheckCircle2}
           value={String(totalHadir)}
-          footerLabel={`${counts.HADIR_DIKANTOR} kantor · ${counts.WFH} WFH · ${counts.DINAS_LUAR} dinas luar`}
+          footerLabel={`${counts.HADIR_DIKANTOR} kantor · ${counts.DINAS_LUAR} dinas luar`}
         />
         <StatTile
           label="Terlambat"
@@ -216,7 +216,6 @@ export default async function LaporanPage({
                 label: "Hadir di Kantor",
                 value: counts.HADIR_DIKANTOR,
               },
-              { key: "WFH", label: "WFH", value: counts.WFH },
               {
                 key: "DINAS_LUAR",
                 label: "Dinas Luar",

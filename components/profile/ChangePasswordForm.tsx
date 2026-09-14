@@ -3,17 +3,22 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { useUser } from "@clerk/nextjs";
+import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { changePassword } from "@/app/action/profile.action";
 import {
   ChangePasswordSchema,
   type ChangePasswordInput,
 } from "@/servers/validators/profile.validator";
 
+const GENERIC_ERROR = "Gagal mengganti password, silakan coba lagi";
+
 export default function ChangePasswordForm() {
+  const { user } = useUser();
+
   const {
     register,
     handleSubmit,
@@ -29,15 +34,26 @@ export default function ChangePasswordForm() {
   });
 
   const onSubmit = handleSubmit(async (values) => {
-    const result = await changePassword(values);
+    if (!user) return;
 
-    if (!result.ok) {
-      toast.error(result.error);
-      return;
+    try {
+      // Password saat ini diverifikasi Clerk sendiri — kalau salah, akan
+      // muncul sebagai ClerkAPIResponseError di bawah.
+      await user.updatePassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+        signOutOfOtherSessions: true,
+      });
+
+      toast.success("Password berhasil diganti");
+      reset();
+    } catch (error) {
+      const message = isClerkAPIResponseError(error)
+        ? (error.errors[0]?.longMessage ?? GENERIC_ERROR)
+        : GENERIC_ERROR;
+
+      toast.error(message);
     }
-
-    toast.success(result.message);
-    reset();
   });
 
   return (

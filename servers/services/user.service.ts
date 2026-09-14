@@ -43,6 +43,10 @@ export const UserService = {
     return prisma.user.findUnique({ where: { email } });
   },
 
+  async getByClerkId(clerkId: string) {
+    return prisma.user.findUnique({ where: { clerkId } });
+  },
+
   async create(data: Prisma.UserCreateInput) {
     return prisma.user.create({ data });
   },

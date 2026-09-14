@@ -23,6 +23,8 @@ type Props = {
   maxAccuracyMeters: number;
   /** False kalau karyawan belum menyelesaikan pendaftaran wajah di Profil. */
   faceEnrolled: boolean;
+  /** True kalau sudah lewat jam pulang terjadwal hari ini — absen masuk ditutup. */
+  checkInClosed: boolean;
 };
 
 function Slot({
@@ -90,6 +92,7 @@ export default function TodayAttendance({
   office,
   maxAccuracyMeters,
   faceEnrolled,
+  checkInClosed,
 }: Props) {
   const canAttend = office !== null && faceEnrolled;
 
@@ -142,13 +145,15 @@ export default function TodayAttendance({
           <AttendanceDialog
             type={AttendanceType.CHECK_IN}
             label="Absen Masuk"
-            disabled={!canAttend || !!checkIn}
+            disabled={!canAttend || !!checkIn || checkInClosed}
             disabledReason={
               !faceEnrolled
                 ? "Daftarkan wajah di Profil dulu"
                 : checkIn
                   ? "Sudah absen masuk hari ini"
-                  : undefined
+                  : checkInClosed
+                    ? "Absen masuk sudah ditutup untuk hari ini"
+                    : undefined
             }
             maxAccuracyMeters={maxAccuracyMeters}
             office={office}
