@@ -7,13 +7,28 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import DataTable from "@/components/dashboard/DataTable";
 import SearchDataTable from "@/components/dashboard/SearchDataTable";
-import { LeaveReasonCategory, LeaveStage, LeaveStatus } from "@/generated/prisma";
+import SelectDataTable from "@/components/dashboard/SelectDataTable";
+import {
+  LeaveReasonCategory,
+  LeaveStage,
+  LeaveStatus,
+  LeaveType,
+} from "@/generated/prisma";
 import {
   LEAVE_REASON_CATEGORY_LABEL,
   LEAVE_STAGE_LABEL,
   LEAVE_STATUS_LABEL,
   LEAVE_STATUS_VARIANT,
+  LEAVE_TYPE_LABEL,
 } from "@/lib/leave";
+
+// `LeaveApprovalRow` cuma menyimpan `typeLabel` (string), bukan `LeaveType`
+// mentah, jadi filternya cocok-cocokan lewat label ini — labelnya sendiri
+// sudah unik per jenis izin.
+const TYPE_OPTIONS = Object.values(LeaveType).map((value) => ({
+  value: LEAVE_TYPE_LABEL[value],
+  label: LEAVE_TYPE_LABEL[value],
+}));
 
 export type LeaveApprovalRow = {
   id: string;
@@ -62,6 +77,7 @@ export default function LeaveApprovalTable({
     {
       accessorKey: "typeLabel",
       header: "Jenis",
+      filterFn: "equalsString",
     },
     {
       accessorKey: "dateRange",
@@ -159,11 +175,22 @@ export default function LeaveApprovalTable({
       title="Cari"
       emptyMessage="Tidak ada pengajuan untuk filter ini."
       filters={(instance) => (
-        <SearchDataTable
-          table={instance}
-          column="employeeName"
-          placeholder="Cari nama karyawan..."
-        />
+        <div className="flex w-full flex-wrap items-center justify-end gap-3">
+          <div className="w-full sm:w-64">
+            <SearchDataTable
+              table={instance}
+              column="employeeName"
+              placeholder="Cari nama karyawan..."
+            />
+          </div>
+          <SelectDataTable
+            table={instance}
+            column="typeLabel"
+            options={TYPE_OPTIONS}
+            placeholder="Jenis"
+            allLabel="Semua Jenis"
+          />
+        </div>
       )}
     />
   );

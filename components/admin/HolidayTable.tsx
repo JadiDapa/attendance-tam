@@ -23,9 +23,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import DataTable from "@/components/dashboard/DataTable";
 import SearchDataTable from "@/components/dashboard/SearchDataTable";
+import SelectDataTable from "@/components/dashboard/SelectDataTable";
 import { HolidayType } from "@/generated/prisma";
 import { HOLIDAY_TYPE_LABEL, HOLIDAY_TYPE_VARIANT } from "@/lib/holiday";
 import { deleteHoliday } from "@/app/action/holiday.action";
+
+const TYPE_OPTIONS = Object.values(HolidayType).map((value) => ({
+  value,
+  label: HOLIDAY_TYPE_LABEL[value],
+}));
 
 export type HolidayRow = {
   id: string;
@@ -81,6 +87,7 @@ export default function HolidayTable({ rows }: { rows: HolidayRow[] }) {
     {
       accessorKey: "type",
       header: "Jenis",
+      filterFn: "equalsString",
       cell: ({ row }) => (
         <Badge variant={HOLIDAY_TYPE_VARIANT[row.original.type]}>
           {HOLIDAY_TYPE_LABEL[row.original.type]}
@@ -118,11 +125,22 @@ export default function HolidayTable({ rows }: { rows: HolidayRow[] }) {
         title="Cari"
         emptyMessage="Belum ada hari libur yang terdaftar."
         filters={(instance) => (
-          <SearchDataTable
-            table={instance}
-            column="name"
-            placeholder="Cari nama libur..."
-          />
+          <div className="flex w-full flex-wrap items-center justify-end gap-3">
+            <div className="w-full sm:w-64">
+              <SearchDataTable
+                table={instance}
+                column="name"
+                placeholder="Cari nama libur..."
+              />
+            </div>
+            <SelectDataTable
+              table={instance}
+              column="type"
+              options={TYPE_OPTIONS}
+              placeholder="Jenis"
+              allLabel="Semua Jenis"
+            />
+          </div>
         )}
       />
 

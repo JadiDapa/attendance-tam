@@ -6,9 +6,20 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import DataTable from "@/components/dashboard/DataTable";
 import SearchDataTable from "@/components/dashboard/SearchDataTable";
+import SelectDataTable from "@/components/dashboard/SelectDataTable";
 import TableSorter from "@/components/dashboard/TableSorter";
 import { Role } from "@/generated/prisma";
 import { ROLE_LABEL } from "@/lib/role";
+
+const ROLE_OPTIONS = Object.values(Role).map((value) => ({
+  value,
+  label: ROLE_LABEL[value],
+}));
+
+const STATUS_OPTIONS = [
+  { value: "true", label: "Aktif" },
+  { value: "false", label: "Nonaktif" },
+];
 
 /** Rekap satu pekerja terhitung sepanjang rentang tanggal yang dipilih. */
 export type AttendanceSummaryRow = {
@@ -141,6 +152,7 @@ const columns: ColumnDef<AttendanceSummaryRow>[] = [
   {
     accessorKey: "role",
     header: "Role",
+    filterFn: "equalsString",
     cell: ({ row }) => (
       <Badge
         variant={row.original.role === Role.EMPLOYEE ? "secondary" : "default"}
@@ -152,6 +164,7 @@ const columns: ColumnDef<AttendanceSummaryRow>[] = [
   {
     accessorKey: "isActive",
     header: "Status",
+    filterFn: "equalsString",
     cell: ({ row }) =>
       row.original.isActive ? (
         <Badge variant="secondary">Aktif</Badge>
@@ -173,11 +186,29 @@ export default function AttendanceSummaryTable({
       title="Cari"
       emptyMessage="Belum ada pekerja."
       filters={(instance) => (
-        <SearchDataTable
-          table={instance}
-          column="name"
-          placeholder="Cari nama pekerja..."
-        />
+        <div className="flex w-full flex-wrap items-center justify-end gap-3">
+          <div className="w-full sm:w-64">
+            <SearchDataTable
+              table={instance}
+              column="name"
+              placeholder="Cari nama pekerja..."
+            />
+          </div>
+          <SelectDataTable
+            table={instance}
+            column="role"
+            options={ROLE_OPTIONS}
+            placeholder="Role"
+            allLabel="Semua Role"
+          />
+          <SelectDataTable
+            table={instance}
+            column="isActive"
+            options={STATUS_OPTIONS}
+            placeholder="Status"
+            allLabel="Semua Status"
+          />
+        </div>
       )}
     />
   );

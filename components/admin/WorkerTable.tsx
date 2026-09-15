@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import DataTable from "@/components/dashboard/DataTable";
 import SearchDataTable from "@/components/dashboard/SearchDataTable";
+import SelectDataTable from "@/components/dashboard/SelectDataTable";
 import { Role } from "@/generated/prisma";
 import { ROLE_LABEL } from "@/lib/role";
 
@@ -21,9 +22,22 @@ export type WorkerRow = {
   joinedAt: string;
 };
 
+const ROLE_OPTIONS = Object.values(Role).map((value) => ({
+  value,
+  label: ROLE_LABEL[value],
+}));
+
+const STATUS_OPTIONS = [
+  { value: "true", label: "Aktif" },
+  { value: "false", label: "Nonaktif" },
+];
+
 const columns: ColumnDef<WorkerRow>[] = [
   {
-    accessorKey: "name",
+    id: "search",
+    // Gabungan nama + nomor HP + email supaya satu kotak cari bisa dipakai
+    // untuk ketiganya — sortir tetap memakai "name" lewat kolom terpisah.
+    accessorFn: (row) => `${row.name} ${row.phone} ${row.email}`,
     header: "Nama",
     cell: ({ row }) => (
       <div className="min-w-40">
@@ -55,6 +69,7 @@ const columns: ColumnDef<WorkerRow>[] = [
   {
     accessorKey: "role",
     header: "Role",
+    filterFn: "equalsString",
     cell: ({ row }) => (
       <Badge
         variant={row.original.role === Role.EMPLOYEE ? "secondary" : "default"}
@@ -66,6 +81,7 @@ const columns: ColumnDef<WorkerRow>[] = [
   {
     accessorKey: "isActive",
     header: "Status",
+    filterFn: "equalsString",
     cell: ({ row }) =>
       row.original.isActive ? (
         <Badge variant="secondary">Aktif</Badge>
@@ -95,11 +111,29 @@ export default function WorkerTable({ rows }: { rows: WorkerRow[] }) {
       title="Cari"
       emptyMessage="Belum ada pekerja."
       filters={(instance) => (
-        <SearchDataTable
-          table={instance}
-          column="name"
-          placeholder="Cari nama pekerja..."
-        />
+        <div className="flex w-full flex-wrap items-center justify-end gap-3">
+          <div className="w-full sm:w-64">
+            <SearchDataTable
+              table={instance}
+              column="search"
+              placeholder="Cari nama, HP, atau email..."
+            />
+          </div>
+          <SelectDataTable
+            table={instance}
+            column="role"
+            options={ROLE_OPTIONS}
+            placeholder="Role"
+            allLabel="Semua Role"
+          />
+          <SelectDataTable
+            table={instance}
+            column="isActive"
+            options={STATUS_OPTIONS}
+            placeholder="Status"
+            allLabel="Semua Status"
+          />
+        </div>
       )}
     />
   );

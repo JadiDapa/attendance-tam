@@ -7,9 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import DataTable from "@/components/dashboard/DataTable";
 import SearchDataTable from "@/components/dashboard/SearchDataTable";
+import SelectDataTable from "@/components/dashboard/SelectDataTable";
 import { AttendanceApproval, OvertimeStage } from "@/generated/prisma";
 import { APPROVAL_STATUS_LABEL, APPROVAL_STATUS_VARIANT } from "@/lib/approval";
 import { OVERTIME_STAGE_LABEL } from "@/lib/overtime";
+
+const STATUS_OPTIONS = Object.values(AttendanceApproval).map((value) => ({
+  value,
+  label: APPROVAL_STATUS_LABEL[value],
+}));
 
 export type OvertimeApprovalRow = {
   id: string;
@@ -85,6 +91,7 @@ export default function OvertimeApprovalTable({
     {
       accessorKey: "status",
       header: "Status",
+      filterFn: "equalsString",
       cell: ({ row }) => (
         <div className="space-y-1">
           <Badge variant={APPROVAL_STATUS_VARIANT[row.original.status]}>
@@ -135,11 +142,22 @@ export default function OvertimeApprovalTable({
       title="Cari"
       emptyMessage="Tidak ada pengajuan lembur untuk filter ini."
       filters={(instance) => (
-        <SearchDataTable
-          table={instance}
-          column="employeeName"
-          placeholder="Cari nama karyawan..."
-        />
+        <div className="flex w-full flex-wrap items-center justify-end gap-3">
+          <div className="w-full sm:w-64">
+            <SearchDataTable
+              table={instance}
+              column="employeeName"
+              placeholder="Cari nama karyawan..."
+            />
+          </div>
+          <SelectDataTable
+            table={instance}
+            column="status"
+            options={STATUS_OPTIONS}
+            placeholder="Status"
+            allLabel="Semua Status"
+          />
+        </div>
       )}
     />
   );
