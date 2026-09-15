@@ -75,7 +75,13 @@ export const MonthlyReportService = {
         counts.hadir += 1;
         if (row.checkIn?.isLate) counts.telat += 1;
       }
-      if (row.status === "DINAS_LUAR") counts.dinasLuar += 1;
+      // Kolom Excel "Dinas Luar" ikut template lama yang tidak membedakan
+      // klaim luar radius (`WorkMode.LUAR_RADIUS`) dari penugasan dinas luar
+      // yang sudah direncanakan (`FieldAssignment` → `DINAS_LUAR`) — beda dari
+      // tampilan web yang sudah memisahkan keduanya (lihat `lib/attendance.ts`).
+      if (row.status === "LUAR_RADIUS" || row.status === "DINAS_LUAR") {
+        counts.dinasLuar += 1;
+      }
       if (row.status === "SAKIT") counts.sakit += 1;
       if (row.status === "IZIN") counts.izin += 1;
       if (row.status === "CUTI") counts.cuti += 1;

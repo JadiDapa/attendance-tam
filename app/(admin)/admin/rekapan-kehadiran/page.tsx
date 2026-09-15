@@ -25,6 +25,7 @@ type SearchParams = { start?: string; end?: string };
 
 type Recap = {
   hadirDikantor: number;
+  luarRadius: number;
   dinasLuar: number;
   terlambat: number;
   alfa: number;
@@ -36,6 +37,7 @@ type Recap = {
 function emptyRecap(): Recap {
   return {
     hadirDikantor: 0,
+    luarRadius: 0,
     dinasLuar: 0,
     terlambat: 0,
     alfa: 0,
@@ -69,6 +71,7 @@ export default async function RekapanKehadiranPage({
     const recap = recapByUser.get(row.user.id) ?? emptyRecap();
 
     if (row.status === "HADIR_DIKANTOR") recap.hadirDikantor += 1;
+    if (row.status === "LUAR_RADIUS") recap.luarRadius += 1;
     if (row.status === "DINAS_LUAR") recap.dinasLuar += 1;
 
     // Terlambat adalah atribut absen masuk, bukan status — sudah ikut terhitung
@@ -103,6 +106,7 @@ export default async function RekapanKehadiranPage({
       isActive: user.isActive,
       hasRecap: user.role === Role.EMPLOYEE,
       totalHadirDikantor: recap.hadirDikantor,
+      totalLuarRadius: recap.luarRadius,
       totalDinasLuar: recap.dinasLuar,
       totalTerlambat: recap.terlambat,
       totalAlfa: recap.alfa,
@@ -122,7 +126,8 @@ export default async function RekapanKehadiranPage({
   // Cuma karyawan (hasRecap) yang punya angka kehadiran — admin tidak absen.
   const recapEligible = rows.filter((row) => row.hasRecap);
   const totalHadir = recapEligible.reduce(
-    (sum, row) => sum + row.totalHadirDikantor + row.totalDinasLuar,
+    (sum, row) =>
+      sum + row.totalHadirDikantor + row.totalLuarRadius + row.totalDinasLuar,
     0,
   );
   const totalAlfa = recapEligible.reduce((sum, row) => sum + row.totalAlfa, 0);
@@ -135,6 +140,11 @@ export default async function RekapanKehadiranPage({
       key: "HADIR_DIKANTOR",
       label: "Hadir di Kantor",
       value: sumField("totalHadirDikantor"),
+    },
+    {
+      key: "LUAR_RADIUS",
+      label: "Luar Radius",
+      value: sumField("totalLuarRadius"),
     },
     {
       key: "DINAS_LUAR",

@@ -2,8 +2,10 @@ import { z } from "zod";
 import { LeaveReasonCategory, LeaveType, LeaveStatus } from "@/generated/prisma";
 import {
   CUTI_MIN_ADVANCE_DAYS,
+  IZIN_MIN_ADVANCE_DAYS,
   LEAVE_REASON_CATEGORIES_BY_TYPE,
   minCutiStartDateInputValue,
+  minIzinStartDateInputValue,
 } from "@/lib/leave";
 
 const DATE_INPUT = /^\d{4}-\d{2}-\d{2}$/;
@@ -31,6 +33,13 @@ export const LeaveFormSchema = z
     (data) => data.type !== LeaveType.CUTI || data.startDate >= minCutiStartDateInputValue(),
     {
       message: `Cuti wajib diajukan minimal ${CUTI_MIN_ADVANCE_DAYS} hari sebelum tanggal mulai`,
+      path: ["startDate"],
+    },
+  )
+  .refine(
+    (data) => data.type !== LeaveType.IZIN || data.startDate >= minIzinStartDateInputValue(),
+    {
+      message: `Izin wajib diajukan minimal ${IZIN_MIN_ADVANCE_DAYS} hari sebelum tanggal mulai`,
       path: ["startDate"],
     },
   )

@@ -72,9 +72,12 @@ export const ReportService = {
     const [employees, attendances, leaves, fieldAssignments, holidays, workDays] =
       await Promise.all([
         // Karyawan nonaktif tidak ikut direkap — kalau ikut, mereka muncul
-        // sebagai tidak absen setiap hari selamanya setelah berhenti.
+        // sebagai tidak absen setiap hari selamanya setelah berhenti. Filter
+        // role EMPLOYEE cuma berlaku untuk rekap seluruh karyawan (userId
+        // kosong) — kalau userId diisi (rekap satu orang, mis. "Absensi
+        // Saya" admin/supervisor/manager), role apa pun boleh direkap.
         UserService.list({
-          role: Role.EMPLOYEE,
+          role: userId ? undefined : Role.EMPLOYEE,
           isActive: true,
           id: userId,
         }),
@@ -177,8 +180,10 @@ export const ReportService = {
         // terlihat. `LeaveType` sengaja sama persis dengan tiga status izin,
         // jadi jenisnya terbawa apa adanya. Dinas luar yang disetujui tidak
         // menuntut absen sama sekali — bukan klaim mandiri saat check-in
-        // seperti `WorkMode.DINAS_LUAR` biasa, tapi penugasan yang sudah
-        // direncanakan lewat `FieldAssignment`.
+        // seperti `WorkMode.LUAR_RADIUS` biasa, tapi penugasan yang sudah
+        // direncanakan lewat `FieldAssignment`. Status "DINAS_LUAR" di sini
+        // hanya pernah muncul lewat jalur ini (tanpa check-in) — kalau ada
+        // check-in luar radius, statusnya "LUAR_RADIUS" lewat `statusFromCheckIn`.
         let status: ReportStatus = "ALFA";
 
         if (effectiveCheckIn) status = statusFromCheckIn(effectiveCheckIn);

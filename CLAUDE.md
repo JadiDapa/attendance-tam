@@ -81,11 +81,17 @@ halaman karyawan supaya angka di layar dan di file selalu sama. `buildRecap()`
 sendiri yang menentukan status `LIBUR` (pola mingguan `WorkDay` + tabel `Holiday`)
 dan `missingCheckOut` — konsumennya tinggal memakai hasilnya.
 
-**Klasifikasi kehadiran.** `RecapStatus` di `lib/attendance.ts` punya enam nilai:
-`HADIR_DIKANTOR` | `DINAS_LUAR` | `SAKIT` | `IZIN` | `ALFA` | `CUTI`.
-`DayStatus` = enam itu + `LIBUR` (hari yang tidak menuntut kehadiran, bukan
+**Klasifikasi kehadiran.** `RecapStatus` di `lib/attendance.ts` punya tujuh nilai:
+`HADIR_DIKANTOR` | `LUAR_RADIUS` | `DINAS_LUAR` | `SAKIT` | `IZIN` | `ALFA` | `CUTI`.
+`DayStatus` = tujuh itu + `LIBUR` (hari yang tidak menuntut kehadiran, bukan
 klasifikasi kehadiran — tanpa dia setiap akhir pekan terbaca `ALFA`).
 `CalendarStatus` = `DayStatus` + `KOSONG`.
+
+`LUAR_RADIUS` dan `DINAS_LUAR` sengaja dipisah meski sama-sama "hadir di luar
+kantor" — lihat bagian **Absen di luar radius + approval** di bawah untuk beda
+keduanya. Keduanya tidak pernah muncul bersamaan untuk hari yang sama:
+`LUAR_RADIUS` datang dari `statusFromCheckIn` (ada absen), `DINAS_LUAR` datang
+dari cabang `FieldAssignment` di `ReportService.buildRecap` (tidak ada absen).
 
 `HADIR_DIKANTOR` mencakup yang tepat waktu **maupun** yang terlambat.
 Keterlambatan tetap dicatat dan ditampilkan, tapi sebagai atribut
@@ -105,12 +111,12 @@ sebelumnya.
 
 **Absen di luar radius + approval (Approval Absensi).** Absen di dalam radius
 selalu `HADIR_DIKANTOR`, langsung sah. Absen di **luar** radius (karyawan
-langsung ke lokasi kerja tanpa lewat kantor) otomatis dicatat `DINAS_LUAR` dan
+langsung ke lokasi kerja tanpa lewat kantor) otomatis dicatat `LUAR_RADIUS` dan
 mewajibkan karyawan menulis **penjelasannya** (`workModeDetail`, minimal 5
 karakter — tidak ada pilihan mode, tidak ada WFH), lalu disimpan dengan
 `approvalStatus = PENDING`. Klaim itu **tidak pernah** dihitung terlambat.
 
-Ini beda kasus dari `FieldAssignment` ("Dinas Luar" di menu supervisor/admin):
+`LUAR_RADIUS` ini beda kasus dari `FieldAssignment` ("Dinas Luar" di menu supervisor/admin):
 `FieldAssignment` adalah penugasan dinas luar yang **direncanakan duluan**
 (tanggal, tujuan, biaya, dst.) oleh supervisor dan disetujui admin — begitu
 disetujui, karyawan yang ditugaskan tidak perlu absen sama sekali sepanjang

@@ -9,16 +9,21 @@
 
 export type WorkModeValue =
   | "HADIR_DIKANTOR"
-  | "DINAS_LUAR"
+  | "LUAR_RADIUS"
   | "SAKIT"
   | "IZIN"
   | "CUTI";
 
 export type AttendanceApprovalValue = "PENDING" | "APPROVED" | "REJECTED";
 
+/**
+ * `LUAR_RADIUS` BEDA dari "Dinas Luar" (`FieldAssignment`) — ini klaim
+ * sepihak karyawan saat GPS-nya di luar radius kantor pas absen, bukan
+ * penugasan dinas luar yang sudah direncanakan & disetujui duluan.
+ */
 export const WORK_MODE_LABEL: Record<WorkModeValue, string> = {
   HADIR_DIKANTOR: "Hadir di Kantor",
-  DINAS_LUAR: "Dinas Luar",
+  LUAR_RADIUS: "Luar Radius",
   SAKIT: "Sakit",
   IZIN: "Izin",
   CUTI: "Cuti",
@@ -31,7 +36,7 @@ export const WORK_MODE_LABEL: Record<WorkModeValue, string> = {
  */
 export const APPROVAL_MODES: WorkModeValue[] = [
   "HADIR_DIKANTOR",
-  "DINAS_LUAR",
+  "LUAR_RADIUS",
   "SAKIT",
   "IZIN",
   "CUTI",
@@ -41,8 +46,8 @@ export const APPROVAL_MODES: WorkModeValue[] = [
 export const WORK_MODE_HINT: Record<WorkModeValue, string> = {
   HADIR_DIKANTOR:
     "Dianggap absen biasa di kantor — pembacaan GPS-nya dinilai tidak akurat. Aturan terlambat ikut berlaku lagi.",
-  DINAS_LUAR:
-    "Dihitung hadir dengan tugas di luar kantor. Tidak pernah dihitung terlambat.",
+  LUAR_RADIUS:
+    "Dihitung hadir meski absen di luar radius kantor. Tidak pernah dihitung terlambat.",
   SAKIT: "Hari itu dihitung sakit, bukan kehadiran.",
   IZIN: "Hari itu dihitung izin, bukan kehadiran.",
   CUTI: "Hari itu dihitung cuti, bukan kehadiran.",

@@ -47,7 +47,7 @@ export default async function AdminDinasLuarPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Pengajuan Dinas Luar"
-        subtitle="Setujui atau tolak penugasan dinas luar yang diajukan supervisor."
+        subtitle="Pantau penugasan dinas luar yang diajukan supervisor — disetujui oleh manager."
       />
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -66,7 +66,11 @@ export default async function AdminDinasLuarPage() {
         />
       </div>
 
-      <FieldAssignmentApprovalTable rows={rows} detailBasePath="/admin/dinas-luar" />
+      <FieldAssignmentApprovalTable
+        rows={rows}
+        detailBasePath="/admin/dinas-luar"
+        readOnly
+      />
     </div>
   );
 }

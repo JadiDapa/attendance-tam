@@ -1,7 +1,15 @@
 import prisma from "@/lib/prisma";
 import { LeaveStage, LeaveStatus, Prisma } from "@/generated/prisma";
-import { nextLeaveStage } from "@/lib/leave";
 import { CreateLeaveDTO } from "../validators/leave.validator";
+
+/** `CreateLeaveDTO` plus giliran approval awal — lihat `resolveInitialLeaveStage`
+ * di `lib/leave.ts`, satu-satunya tempat yang tahu cara menghitungnya. */
+type CreateLeaveData = CreateLeaveDTO & {
+  stage: LeaveStage;
+  status: LeaveStatus;
+  reviewNote?: string | null;
+  reviewedAt?: Date | null;
+};
 
 export type LeaveListOptions = {
   userId?: string;
@@ -50,7 +58,7 @@ export const LeaveService = {
     });
   },
 
-  /** Batalkan pengajuan sendiri selama belum di-review admin. */
+  /** Batalkan pengajuan sendiri selama belum direview. */
   async cancelOwn(id: string, userId: string): Promise<boolean> {
     const { count } = await prisma.leaveRequest.deleteMany({
       where: { id, userId, status: LeaveStatus.PENDING },
@@ -59,7 +67,7 @@ export const LeaveService = {
     return count > 0;
   },
 
-  async create(data: CreateLeaveDTO) {
+  async create(data: CreateLeaveData) {
     return prisma.leaveRequest.create({ data });
   },
 
@@ -69,7 +77,7 @@ export const LeaveService = {
    * tidak bisa sama-sama lolos cek lalu membuat baris yang tumpang tindih —
    * beda dari `findOverlapping` + `create` terpisah yang punya celah race.
    */
-  async createIfNotOverlapping(data: CreateLeaveDTO) {
+  async createIfNotOverlapping(data: CreateLeaveData) {
     return prisma.$transaction(
       async (tx) => {
         const overlapping = await tx.leaveRequest.findFirst({
@@ -93,15 +101,13 @@ export const LeaveService = {
 
   /**
    * Setujui/tolak pengajuan pada giliran `stage` milik reviewer yang sedang
-   * login. Menolak selalu mengakhiri pengajuan (REJECTED, stage DONE).
-   * Menyetujui memindahkan giliran ke `nextLeaveStage` — untuk SAKIT itu
-   * langsung DONE (APPROVED), untuk IZIN/CUTI berlanjut ke
-   * SUPERVISOR lalu MANAGER sebelum akhirnya APPROVED.
+   * login. Satu langkah saja — menyetujui maupun menolak sama-sama langsung
+   * mengakhiri pengajuan (stage DONE).
    *
    * `updateMany` di-guard dengan `status: PENDING, stage` supaya dua reviewer
    * (atau reviewer yang sama di dua tab) tidak bisa memproses giliran yang
    * sama dua kali, dan supaya reviewer tidak bisa memutuskan giliran yang
-   * bukan miliknya (mis. supervisor memutuskan sebelum admin).
+   * bukan miliknya.
    */
   async review(
     id: string,
@@ -112,29 +118,11 @@ export const LeaveService = {
       reviewNote: string | null;
     },
   ) {
-    const leave = await prisma.leaveRequest.findUnique({
-      where: { id },
-      select: { type: true },
-    });
-
-    if (!leave) return 0;
-
-    const nextStage =
-      data.status === LeaveStatus.REJECTED
-        ? LeaveStage.DONE
-        : nextLeaveStage(leave.type, data.stage);
-    const finalStatus =
-      data.status === LeaveStatus.REJECTED
-        ? LeaveStatus.REJECTED
-        : nextStage === LeaveStage.DONE
-          ? LeaveStatus.APPROVED
-          : LeaveStatus.PENDING;
-
     const { count } = await prisma.leaveRequest.updateMany({
       where: { id, status: LeaveStatus.PENDING, stage: data.stage },
       data: {
-        status: finalStatus,
-        stage: nextStage,
+        status: data.status,
+        stage: LeaveStage.DONE,
         reviewedById: data.reviewedById,
         reviewNote: data.reviewNote,
         reviewedAt: new Date(),

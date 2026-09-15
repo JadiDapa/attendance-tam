@@ -35,10 +35,8 @@ export default async function AdminLemburPage() {
     reviewedBy: request.reviewedBy?.name ?? null,
   }));
 
-  const myTurn = requests.filter(
-    (request) =>
-      request.status === AttendanceApproval.PENDING &&
-      request.stage === OvertimeStage.ADMIN,
+  const pending = requests.filter(
+    (request) => request.status === AttendanceApproval.PENDING,
   ).length;
   const approved = requests.filter(
     (request) => request.status === AttendanceApproval.APPROVED,
@@ -51,22 +49,22 @@ export default async function AdminLemburPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Pengajuan Lembur"
-        subtitle="Setujui atau tolak pengajuan lembur karyawan sebelum diteruskan ke supervisor."
+        subtitle="Pantau pengajuan lembur karyawan — disetujui oleh supervisor atau manager."
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatTile
-          label="Giliran Saya"
+          label="Menunggu"
           icon={Clock4}
-          value={String(myTurn)}
-          footerLabel="Pengajuan menunggu keputusan Anda"
-          highlighted={myTurn > 0}
+          value={String(pending)}
+          footerLabel="Belum diputuskan supervisor/manager"
+          highlighted={pending > 0}
         />
         <StatTile
           label="Disetujui"
           icon={CheckCircle2}
           value={String(approved)}
-          footerLabel="Sudah disetujui admin & supervisor"
+          footerLabel="Sudah disetujui supervisor & manager"
         />
         <StatTile
           label="Ditolak"
@@ -76,9 +74,10 @@ export default async function AdminLemburPage() {
         />
       </div>
 
+      {/* Admin tidak lagi ikut approval — DONE membuat tabel ini selalu view-only. */}
       <OvertimeApprovalTable
         rows={rows}
-        viewerStage={OvertimeStage.ADMIN}
+        viewerStage={OvertimeStage.DONE}
         detailBasePath="/admin/lembur"
       />
     </div>

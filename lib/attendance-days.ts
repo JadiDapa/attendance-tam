@@ -140,6 +140,7 @@ export function summarizeDays(days: AttendanceDay[]): AttendanceSummary {
     days.filter((day) => day.status === status).length;
 
   const hadirDikantor = count("HADIR_DIKANTOR");
+  const luarRadius = count("LUAR_RADIUS");
   const dinasLuar = count("DINAS_LUAR");
 
   // `isWithinRadius === null` berarti absensi yang dicatat admin manual — tidak
@@ -154,6 +155,7 @@ export function summarizeDays(days: AttendanceDay[]): AttendanceSummary {
 
   return {
     hadirDikantor,
+    luarRadius,
     dinasLuar,
     sakit: count("SAKIT"),
     izin: count("IZIN"),
@@ -168,7 +170,7 @@ export function summarizeDays(days: AttendanceDay[]): AttendanceSummary {
     pendingApproval: days.filter((day) => day.pendingApproval).length,
     outsideRadius,
     missingCheckOut: days.filter((day) => day.missingCheckOut).length,
-    totalHadir: hadirDikantor + dinasLuar,
+    totalHadir: hadirDikantor + luarRadius + dinasLuar,
     averageCheckIn: checkInMinutes.length
       ? formatMinutesAsTime(
           Math.round(

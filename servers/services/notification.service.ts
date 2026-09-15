@@ -1,4 +1,5 @@
 import { LeaveStage, OvertimeStage, Role, type User } from "@/generated/prisma";
+import { ownerRolesForAttendanceReviewer } from "@/lib/attendance";
 import { AccountRequestService } from "./account-request.service";
 import { AttendanceService } from "./attendance.service";
 import { FieldAssignmentService } from "./field-assignment.service";
@@ -27,45 +28,53 @@ export const NotificationService = {
     }
   },
 
-  /** Antrean admin: pengajuan izin + persetujuan dinas luar di giliran admin + approval absensi + pengajuan lembur + pengajuan akun baru. */
+  /**
+   * Antrean admin: cuma pengajuan akun baru. Admin tidak lagi ikut approval
+   * apa pun (izin, lembur, dinas luar, verifikasi absensi) — giliran pertama
+   * sekarang selalu SUPERVISOR (atau MANAGER kalau pemohonnya supervisor).
+   */
   async forAdmin(): Promise<SidebarBadges> {
-    const [leaves, attendanceApprovals, overtimes, fieldAssignments, accountRequests] =
-      await Promise.all([
-        LeaveService.countPending(LeaveStage.ADMIN),
-        AttendanceService.countPendingApproval(),
-        OvertimeService.countPending(OvertimeStage.ADMIN),
-        FieldAssignmentService.countPending(),
-        AccountRequestService.countPending(),
-      ]);
+    const accountRequests = await AccountRequestService.countPending();
 
     return {
-      "/admin/izin": leaves,
-      "/admin/verifikasi": attendanceApprovals,
-      "/admin/lembur": overtimes,
-      "/admin/dinas-luar": fieldAssignments,
       "/admin/permintaan-akun": accountRequests,
     };
   },
 
-  /** Antrean supervisor: pengajuan izin + pengajuan lembur yang sudah sampai giliran supervisor. */
+  /** Antrean supervisor: izin + lembur + verifikasi absensi di giliran supervisor. */
   async forSupervisor(): Promise<SidebarBadges> {
-    const [leaves, overtimes] = await Promise.all([
+    const [leaves, overtimes, attendanceApprovals] = await Promise.all([
       LeaveService.countPending(LeaveStage.SUPERVISOR),
       OvertimeService.countPending(OvertimeStage.SUPERVISOR),
+      AttendanceService.countPendingApprovalForOwnerRoles(
+        ownerRolesForAttendanceReviewer(Role.SUPERVISOR),
+      ),
     ]);
 
     return {
       "/supervisor/izin": leaves,
       "/supervisor/lembur": overtimes,
+      "/supervisor/verifikasi": attendanceApprovals,
     };
   },
 
-  /** Antrean manager: pengajuan izin di giliran manager. */
+  /** Antrean manager: izin + lembur + dinas luar + verifikasi absensi milik supervisor. */
   async forManager(): Promise<SidebarBadges> {
-    const leaves = await LeaveService.countPending(LeaveStage.MANAGER);
+    const [leaves, overtimes, fieldAssignments, attendanceApprovals] =
+      await Promise.all([
+        LeaveService.countPending(LeaveStage.MANAGER),
+        OvertimeService.countPending(OvertimeStage.MANAGER),
+        FieldAssignmentService.countPending(),
+        AttendanceService.countPendingApprovalForOwnerRoles(
+          ownerRolesForAttendanceReviewer(Role.MANAGER),
+        ),
+      ]);
 
     return {
       "/manager/izin": leaves,
+      "/manager/lembur": overtimes,
+      "/manager/dinas-luar": fieldAssignments,
+      "/manager/verifikasi": attendanceApprovals,
     };
   },
 };

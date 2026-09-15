@@ -8,8 +8,17 @@ export async function GET() {
 
   if (!auth.user) return auth.response;
 
-  const { id, name, email, role, phone, position, isActive, createdAt } =
-    auth.user;
+  const {
+    id,
+    name,
+    email,
+    role,
+    phone,
+    position,
+    profileImageUrl,
+    isActive,
+    createdAt,
+  } = auth.user;
 
   return NextResponse.json({
     id,
@@ -18,6 +27,7 @@ export async function GET() {
     role,
     phone,
     position,
+    profileImageUrl,
     isActive,
     createdAt,
   });

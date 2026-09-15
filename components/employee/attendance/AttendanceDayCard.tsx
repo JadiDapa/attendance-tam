@@ -17,7 +17,8 @@ const WEEKDAY_SHORT = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 /** Catatan default kalau harinya tidak punya `statusDetail` sendiri. */
 const STATUS_FALLBACK_NOTE: Record<CalendarStatus, string> = {
   HADIR_DIKANTOR: "Hadir di kantor",
-  DINAS_LUAR: "Tugas di luar kantor",
+  LUAR_RADIUS: "Absen di luar radius kantor",
+  DINAS_LUAR: "Tugas dinas luar",
   SAKIT: "Pengajuan sakit disetujui",
   IZIN: "Pengajuan izin disetujui",
   CUTI: "Pengajuan cuti disetujui",

@@ -36,6 +36,7 @@ import {
   LEAVE_TYPES_REQUIRING_ATTACHMENT,
   defaultCutiStartDate,
   minCutiStartDateInputValue,
+  minIzinStartDateInputValue,
 } from "@/lib/leave";
 import { formatWorkDate, fromDateInputValue } from "@/lib/date";
 import { toDateInputValue } from "@/lib/date";
@@ -61,8 +62,8 @@ export default function LeaveRequestForm({ today }: { today: string }) {
     resolver: zodResolver(LeaveFormSchema),
     defaultValues: {
       type: LeaveType.IZIN,
-      startDate: today,
-      endDate: today,
+      startDate: minIzinStartDateInputValue(),
+      endDate: minIzinStartDateInputValue(),
       detail: "",
       reasonCategory: undefined,
     },
@@ -71,6 +72,7 @@ export default function LeaveRequestForm({ today }: { today: string }) {
   const type = useWatch({ control, name: "type" });
   const attachmentRequired = LEAVE_TYPES_REQUIRING_ATTACHMENT.includes(type);
   const cutiMinDate = minCutiStartDateInputValue();
+  const izinMinDate = minIzinStartDateInputValue();
   const reasonCategories = LEAVE_REASON_CATEGORIES_BY_TYPE[type];
   const submissionDateLabel = (() => {
     const parsed = fromDateInputValue(today);
@@ -165,6 +167,14 @@ export default function LeaveRequestForm({ today }: { today: string }) {
                       setValue("startDate", defaultStart);
                       setValue("endDate", defaultStart);
                     }
+
+                    // Izin minimal H-2 — hari ini dan besok tidak bisa
+                    // dipilih, jadi arahkan ke tanggal minimum yang valid.
+                    if (next === LeaveType.IZIN) {
+                      const minStart = minIzinStartDateInputValue();
+                      setValue("startDate", minStart);
+                      setValue("endDate", minStart);
+                    }
                   }}
                 >
                   <SelectTrigger id="type" className="w-full">
@@ -186,6 +196,13 @@ export default function LeaveRequestForm({ today }: { today: string }) {
             <p className="text-muted-foreground -mt-2 text-xs">
               Cuti wajib diajukan minimal 30 hari sebelum tanggal mulai — 30
               hari ke depan dari hari ini tidak bisa dipilih.
+            </p>
+          )}
+
+          {type === LeaveType.IZIN && (
+            <p className="text-muted-foreground -mt-2 text-xs">
+              Izin wajib diajukan minimal 2 hari sebelum tanggal mulai — hari
+              ini dan besok tidak bisa dipilih.
             </p>
           )}
 
@@ -234,7 +251,13 @@ export default function LeaveRequestForm({ today }: { today: string }) {
               <Input
                 id="startDate"
                 type="date"
-                min={type === LeaveType.CUTI ? cutiMinDate : undefined}
+                min={
+                  type === LeaveType.CUTI
+                    ? cutiMinDate
+                    : type === LeaveType.IZIN
+                      ? izinMinDate
+                      : undefined
+                }
                 {...register("startDate")}
               />
               {errors.startDate && (
@@ -248,7 +271,13 @@ export default function LeaveRequestForm({ today }: { today: string }) {
               <Input
                 id="endDate"
                 type="date"
-                min={type === LeaveType.CUTI ? cutiMinDate : undefined}
+                min={
+                  type === LeaveType.CUTI
+                    ? cutiMinDate
+                    : type === LeaveType.IZIN
+                      ? izinMinDate
+                      : undefined
+                }
                 {...register("endDate")}
               />
               {errors.endDate && (

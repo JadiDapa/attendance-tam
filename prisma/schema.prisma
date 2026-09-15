@@ -31,12 +31,12 @@ enum LeaveStatus {
   REJECTED
 }
 
-/// Giliran approval berjalan untuk satu pengajuan izin/cuti/sakit.
-/// `SAKIT` selesai satu langkah di `ADMIN`. `IZIN`/`CUTI` berjalan berurutan
-/// ADMIN -> SUPERVISOR -> MANAGER -> `DONE`. Penolakan di langkah manapun
+/// Giliran approval untuk satu pengajuan izin/cuti/sakit — satu langkah saja,
+/// ditentukan dari role pemohon (lihat `resolveInitialLeaveStage` di
+/// `lib/leave.ts`): karyawan/admin menunggu `SUPERVISOR`, supervisor menunggu
+/// `MANAGER`, manager disetujui otomatis (langsung `DONE`). Penolakan juga
 /// langsung melompat ke `DONE` (lihat `LeaveRequest.status`).
 enum LeaveStage {
-  ADMIN
   SUPERVISOR
   MANAGER
   DONE
@@ -78,13 +78,17 @@ enum TransportationType {
 /// Cara karyawan bekerja pada satu absensi — inti klasifikasi kehadiran.
 ///
 /// Absen di dalam radius kantor selalu `HADIR_DIKANTOR`. Absen di luar radius
-/// otomatis tercatat `DINAS_LUAR` beserta penjelasannya, dan menunggu
+/// otomatis tercatat `LUAR_RADIUS` beserta penjelasannya, dan menunggu
 /// persetujuan admin (tidak ada WFH — tidak diperbolehkan). `SAKIT` / `IZIN` /
 /// `CUTI` hanya bisa muncul di sini kalau admin menimpanya saat menyetujui
 /// (`Attendance.approvedMode`) — jalur normalnya adalah pengajuan `LeaveRequest`.
+///
+/// `LUAR_RADIUS` BEDA dari `FieldAssignment` ("Dinas Luar") di bawah — ini
+/// klaim sepihak karyawan saat GPS-nya di luar radius kantor pas absen,
+/// bukan penugasan dinas luar yang sudah direncanakan & disetujui duluan.
 enum WorkMode {
   HADIR_DIKANTOR
-  DINAS_LUAR
+  LUAR_RADIUS
   SAKIT
   IZIN
   CUTI
@@ -153,6 +157,9 @@ model User {
   role      Role     @default(EMPLOYEE)
   phone     String?
   position  String?
+  /// URL foto profil (`/api/images/<file>`), diisi otomatis dari pendaftaran
+  /// wajah terbaru — lihat app/action/face.action.ts.
+  profileImageUrl String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -398,7 +405,7 @@ model Attendance {
   isManual Boolean @default(false)
 
   /// Cara kerja absensi ini. Di dalam radius selalu `HADIR_DIKANTOR`; di luar
-  /// radius otomatis `DINAS_LUAR`.
+  /// radius otomatis `LUAR_RADIUS`.
   workMode       WorkMode @default(HADIR_DIKANTOR)
   /// Penjelasan yang wajib diisi karyawan saat absen di luar radius.
   /// Null untuk absensi di dalam radius.
@@ -423,11 +430,13 @@ model Attendance {
   @@index([approvalStatus, workDate])
 }
 
-/// Giliran approval lembur: ADMIN -> SUPERVISOR -> DONE. Penolakan di
-/// langkah manapun langsung melompat ke DONE (lihat `Overtime.status`).
+/// Giliran approval lembur — satu langkah saja, ditentukan dari role pemohon
+/// (lihat `resolveInitialOvertime` di `lib/overtime.ts`): karyawan/admin
+/// menunggu `SUPERVISOR`, supervisor menunggu `MANAGER`. Penolakan langsung
+/// melompat ke `DONE` (lihat `Overtime.status`).
 enum OvertimeStage {
-  ADMIN
   SUPERVISOR
+  MANAGER
   DONE
 }
 
@@ -448,7 +457,7 @@ model Overtime {
 
   /// Reuse `AttendanceApproval` (PENDING/APPROVED/REJECTED) — makna & nilainya sama.
   status AttendanceApproval @default(PENDING)
-  stage  OvertimeStage      @default(ADMIN)
+  stage  OvertimeStage      @default(SUPERVISOR)
 
   reviewedBy   User?     @relation("OvertimeReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   reviewedById String?
@@ -465,7 +474,7 @@ model Overtime {
 
 /// Penugasan dinas luar yang dibuat SUPERVISOR untuk satu/beberapa karyawan,
 /// disetujui MANAGER (satu langkah, beda dari LeaveRequest/Overtime yang
-/// berjenjang). Beda dari `WorkMode.DINAS_LUAR` pada `Attendance` — itu klaim
+/// berjenjang). Beda dari `WorkMode.LUAR_RADIUS` pada `Attendance` — itu klaim
 /// karyawan sendiri saat absen di luar radius, ini penugasan yang direncanakan
 /// duluan. Begitu disetujui, karyawan yang ditugaskan tidak perlu absen sama
 /// sekali pada rentang tanggalnya — lihat `ReportService.buildRecap`.
@@ -540,9 +549,9 @@ model LeaveRequest {
   reasonCategory LeaveReasonCategory?
   attachmentUrl  String?
   status         LeaveStatus          @default(PENDING)
-  /// Giliran approval saat ini. `SAKIT` langsung `DONE` setelah admin
-  /// memutuskan; `IZIN`/`CUTI` lanjut ke SUPERVISOR lalu MANAGER sebelum `DONE`.
-  stage          LeaveStage           @default(ADMIN)
+  /// Giliran approval saat ini — selalu diisi eksplisit saat dibuat lewat
+  /// `resolveInitialLeaveStage` (lib/leave.ts), tergantung role pemohon.
+  stage          LeaveStage           @default(SUPERVISOR)
 
   /// Reviewer & catatan dari keputusan TERAKHIR (admin, supervisor, atau
   /// manager, tergantung `stage` saat keputusan itu diambil) — bukan riwayat

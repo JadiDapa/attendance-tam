@@ -13,8 +13,11 @@ import { formatWorkDate, getWorkDate } from "@/lib/date";
 import { countLeaveDays, LEAVE_TYPE_LABEL } from "@/lib/leave";
 import { LeaveService } from "@/servers/services/leave.service";
 
-/** Sakit selesai di admin — supervisor cuma mereview izin & cuti. */
-const REVIEWABLE_TYPES: LeaveType[] = [LeaveType.IZIN, LeaveType.CUTI];
+const REVIEWABLE_TYPES: LeaveType[] = [
+  LeaveType.IZIN,
+  LeaveType.CUTI,
+  LeaveType.SAKIT,
+];
 
 export default async function SupervisorIzinPage() {
   await requireRole(Role.SUPERVISOR);
@@ -51,7 +54,7 @@ export default async function SupervisorIzinPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Pengajuan Izin"
-        subtitle="Setujui atau tolak pengajuan izin & cuti yang sudah disetujui admin."
+        subtitle="Setujui atau tolak pengajuan izin, cuti & sakit karyawan."
       />
 
       <div className="grid gap-4 sm:grid-cols-2">

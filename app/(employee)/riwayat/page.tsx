@@ -112,6 +112,7 @@ export default async function RiwayatPage({
 
   const statusCount: Record<DayStatus, number> = {
     HADIR_DIKANTOR: summary.hadirDikantor,
+    LUAR_RADIUS: summary.luarRadius,
     DINAS_LUAR: summary.dinasLuar,
     SAKIT: summary.sakit,
     IZIN: summary.izin,
@@ -176,7 +177,7 @@ export default async function RiwayatPage({
           label="Total Hadir"
           icon={CheckCircle2}
           value={String(summary.totalHadir)}
-          footerLabel={`${summary.hadirDikantor} kantor · ${summary.dinasLuar} dinas luar`}
+          footerLabel={`${summary.hadirDikantor} kantor · ${summary.luarRadius} luar radius · ${summary.dinasLuar} dinas luar`}
         />
         <StatTile
           label="Menunggu Approval"
@@ -221,6 +222,11 @@ export default async function RiwayatPage({
                 key: "HADIR_DIKANTOR",
                 label: "Hadir di Kantor",
                 value: summary.hadirDikantor,
+              },
+              {
+                key: "LUAR_RADIUS",
+                label: "Luar Radius",
+                value: summary.luarRadius,
               },
               {
                 key: "DINAS_LUAR",

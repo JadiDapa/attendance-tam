@@ -102,7 +102,7 @@ export const overviewItems: MenuItem[] = [
     group: "manajemen",
   },
   {
-    title: "Approval Absensi",
+    title: "Verifikasi Absensi",
     url: "/admin/verifikasi",
     icon: ShieldCheck,
     roles: ["ADMIN"],
@@ -158,6 +158,13 @@ export const overviewItems: MenuItem[] = [
     group: "manajemen",
   },
   {
+    title: "Verifikasi Absensi",
+    url: "/supervisor/verifikasi",
+    icon: ShieldCheck,
+    roles: ["SUPERVISOR"],
+    group: "manajemen",
+  },
+  {
     title: "Absensi Saya",
     url: "/supervisor/absensi",
     icon: Clock,
@@ -186,9 +193,30 @@ export const overviewItems: MenuItem[] = [
     group: "manajemen",
   },
   {
+    title: "Dinas Luar",
+    url: "/manager/dinas-luar",
+    icon: MapPin,
+    roles: ["MANAGER"],
+    group: "manajemen",
+  },
+  {
+    title: "Verifikasi Absensi",
+    url: "/manager/verifikasi",
+    icon: ShieldCheck,
+    roles: ["MANAGER"],
+    group: "manajemen",
+  },
+  {
     title: "Absensi Saya",
     url: "/manager/absensi",
     icon: Clock,
+    roles: ["MANAGER"],
+    group: "general",
+  },
+  {
+    title: "Lembur Saya",
+    url: "/manager/lembur-saya",
+    icon: CalendarClock,
     roles: ["MANAGER"],
     group: "general",
   },

@@ -29,25 +29,33 @@ export async function GET(
   // Admin boleh lihat semua foto absensi & lampiran izin/dinas luar. Manager
   // juga dibolehkan untuk lampiran dinas luar — dia satu-satunya reviewer
   // fitur itu dan perlu melihat surat tugasnya untuk memutuskan, sama seperti
-  // admin dibolehkan untuk lampiran sakit yang direview admin. Karyawan &
-  // supervisor lain hanya boleh lihat yang terkait mereka.
+  // admin dibolehkan untuk lampiran sakit yang direview admin. Supervisor &
+  // manager juga mereview lampiran izin/cuti (lihat LEAVE_REVIEWER_STAGE di
+  // lib/leave.ts) sehingga perlu bisa melihat lampiran siapa pun, bukan cuma
+  // punya sendiri. Karyawan hanya boleh lihat yang terkait mereka atau foto
+  // profil sendiri (diisi dari enrollment wajah — lihat face.action.ts).
   if (user.role !== Role.ADMIN) {
     const url = `/api/images/${filename}`;
-    const [attendance, leave, fieldAssignment] = await Promise.all([
-      AttendanceService.findByPhotoUrl(url),
-      LeaveService.findByAttachmentUrl(url),
-      FieldAssignmentService.findByAttachmentUrl(url),
-    ]);
-    const owns =
-      attendance?.userId === user.id ||
-      leave?.userId === user.id ||
-      (fieldAssignment !== null &&
-        (user.role === Role.MANAGER ||
-          fieldAssignment.createdById === user.id ||
-          fieldAssignment.employees.some((employee) => employee.id === user.id)));
 
-    if (!owns) {
-      return new NextResponse("Forbidden", { status: 403 });
+    if (user.profileImageUrl !== url) {
+      const [attendance, leave, fieldAssignment] = await Promise.all([
+        AttendanceService.findByPhotoUrl(url),
+        LeaveService.findByAttachmentUrl(url),
+        FieldAssignmentService.findByAttachmentUrl(url),
+      ]);
+      const owns =
+        attendance?.userId === user.id ||
+        leave?.userId === user.id ||
+        (leave !== null &&
+          (user.role === Role.SUPERVISOR || user.role === Role.MANAGER)) ||
+        (fieldAssignment !== null &&
+          (user.role === Role.MANAGER ||
+            fieldAssignment.createdById === user.id ||
+            fieldAssignment.employees.some((employee) => employee.id === user.id)));
+
+      if (!owns) {
+        return new NextResponse("Forbidden", { status: 403 });
+      }
     }
   }
 

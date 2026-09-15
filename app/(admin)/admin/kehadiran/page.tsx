@@ -171,7 +171,7 @@ export default async function KehadiranPage({
           label="Hadir Hari Ini"
           icon={UserCheck}
           value={`${presentToday}/${total}`}
-          footerLabel={`${counts.HADIR_DIKANTOR} kantor · ${counts.DINAS_LUAR} dinas luar`}
+          footerLabel={`${counts.HADIR_DIKANTOR} kantor · ${counts.LUAR_RADIUS} luar radius · ${counts.DINAS_LUAR} dinas luar`}
         />
         <StatTile
           label="Menunggu Approval"
@@ -206,6 +206,11 @@ export default async function KehadiranPage({
                 key: "HADIR_DIKANTOR",
                 label: "Hadir di Kantor",
                 value: counts.HADIR_DIKANTOR,
+              },
+              {
+                key: "LUAR_RADIUS",
+                label: "Luar Radius",
+                value: counts.LUAR_RADIUS,
               },
               {
                 key: "DINAS_LUAR",

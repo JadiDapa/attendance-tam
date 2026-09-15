@@ -50,20 +50,20 @@ export default async function ApprovalAbsensiPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Approval Absensi"
-        subtitle="Karyawan yang absen langsung ke lokasi kerja tanpa lewat kantor, di luar radius kantor. Tinjau alasannya, lalu setujui atau tolak — beda dari Dinas Luar yang diajukan supervisor di muka."
+        title="Verifikasi Absensi"
+        subtitle="Pantau absensi di luar radius kantor — disetujui oleh supervisor atau manager pemiliknya, admin tidak lagi ikut memutuskan."
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatTile
-          label="Menunggu Approval"
+          label="Menunggu Keputusan"
           icon={ShieldCheck}
           value={String(pending.length)}
           footerLabel={`Radius kantor ${radiusLabel}`}
         />
       </div>
 
-      <AttendanceApprovalTable rows={rows} />
+      <AttendanceApprovalTable rows={rows} readOnly />
     </div>
   );
 }

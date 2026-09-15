@@ -3,7 +3,11 @@ import { NextResponse } from "next/server";
 
 // Hanya menjamin user sudah login (tanpa database) — pengecekan role & status
 // aktif tetap dilakukan di layout/server action lewat lib/session.ts.
-const isPublicRoute = createRouteMatcher(["/login(.*)"]);
+const isPublicRoute = createRouteMatcher([
+  "/login(.*)",
+  "/forgot-password(.*)",
+  "/reset-password(.*)",
+]);
 
 export default clerkMiddleware(async (authFn, req) => {
   const { pathname } = req.nextUrl;
@@ -41,5 +45,9 @@ export const config = {
     // ikut matcher ini (Clerk butuh middleware jalan di sana), tapi
     // di-skip lebih awal di dalam handler.
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    // File-extension exclusion di atas ikut mengecualikan /api/images/*.jpg dkk
+    // (regex tidak peduli prefix path), padahal route itu butuh Clerk auth()
+    // context. Baris ini memaksa semua /api/* tetap match terlepas ekstensinya.
+    "/(api)(.*)",
   ],
 };

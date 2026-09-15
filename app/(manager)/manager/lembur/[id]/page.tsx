@@ -19,7 +19,7 @@ export default async function ManagerLemburDetailPage({
   return (
     <OvertimeDetailView
       overtime={overtime}
-      viewerStage={OvertimeStage.DONE}
+      viewerStage={OvertimeStage.MANAGER}
       backHref="/manager/lembur"
       redirectTo="/manager/lembur"
     />

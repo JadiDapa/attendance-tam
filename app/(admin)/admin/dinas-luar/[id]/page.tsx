@@ -17,9 +17,11 @@ export default async function AdminDinasLuarDetailPage({
   if (!assignment) notFound();
 
   return (
+    // Admin tidak lagi ikut approval dinas luar — selalu diajukan supervisor,
+    // jadi giliran approvalnya selalu manager.
     <FieldAssignmentDetailView
       assignment={assignment}
-      canReview
+      canReview={false}
       backHref="/admin/dinas-luar"
       redirectTo="/admin/dinas-luar"
     />

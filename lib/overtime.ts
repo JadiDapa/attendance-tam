@@ -1,8 +1,8 @@
 import { AttendanceApproval, OvertimeStage, Role } from "@/generated/prisma";
 
 export const OVERTIME_STAGE_LABEL: Record<OvertimeStage, string> = {
-  ADMIN: "Menunggu Admin",
   SUPERVISOR: "Menunggu Supervisor",
+  MANAGER: "Menunggu Manager",
   DONE: "Selesai",
 };
 
@@ -14,26 +14,18 @@ export function isOvertimeStartAllowed(minutesOfDay: number): boolean {
   return minutesOfDay >= MIN_OVERTIME_HOUR * 60;
 }
 
-/** Giliran approval: ADMIN -> SUPERVISOR -> DONE. Tidak ada percabangan per jenis, beda dari izin. */
-const OVERTIME_APPROVAL_CHAIN: OvertimeStage[] = [
-  OvertimeStage.ADMIN,
-  OvertimeStage.SUPERVISOR,
-  OvertimeStage.DONE,
-];
-
 /** Role reviewer -> giliran approval yang boleh mereka putuskan. */
 export const OVERTIME_REVIEWER_STAGE: Partial<Record<Role, OvertimeStage>> = {
-  [Role.ADMIN]: OvertimeStage.ADMIN,
   [Role.SUPERVISOR]: OvertimeStage.SUPERVISOR,
+  [Role.MANAGER]: OvertimeStage.MANAGER,
 };
 
-/** Giliran berikutnya setelah `stage` menyetujui pengajuan lembur. */
-export function nextOvertimeStage(stage: OvertimeStage): OvertimeStage {
-  const index = OVERTIME_APPROVAL_CHAIN.indexOf(stage);
-
-  return index === -1
-    ? OvertimeStage.DONE
-    : (OVERTIME_APPROVAL_CHAIN[index + 1] ?? OvertimeStage.DONE);
+/**
+ * Approval lembur selalu satu langkah saja (tidak berjenjang) — begitu
+ * reviewer di `stage` saat ini memutuskan, pengajuan langsung selesai.
+ */
+export function nextOvertimeStage(): OvertimeStage {
+  return OvertimeStage.DONE;
 }
 
 export type InitialOvertimeState = {
@@ -45,40 +37,39 @@ export type InitialOvertimeState = {
 };
 
 /**
- * Giliran approval awal pengajuan lembur, tergantung role pemohon:
- * - Karyawan: lewat ADMIN dulu, lalu SUPERVISOR (rantai normal).
- * - Admin: admin tidak bisa menyetujui pengajuannya sendiri, jadi langsung
- *   masuk giliran SUPERVISOR.
- * - Supervisor: tidak ada lagi yang perlu menyetujui (di atas rantai lembur
- *   cuma ada admin & supervisor), jadi langsung disetujui otomatis — tetap
- *   tercatat untuk terlihat oleh manager sebagai oversight.
+ * Giliran approval awal pengajuan lembur, tergantung role pemohon — satu
+ * langkah saja:
+ * - Karyawan & admin: menunggu SUPERVISOR.
+ * - Supervisor: tidak ada supervisor lain di atasnya, jadi menunggu MANAGER.
+ * - Manager: tidak ada lagi yang perlu menyetujui, jadi langsung disetujui
+ *   otomatis — tetap tercatat untuk oversight.
  */
 export function resolveInitialOvertime(role: Role): InitialOvertimeState {
-  if (role === Role.SUPERVISOR) {
+  if (role === Role.MANAGER) {
     return {
       stage: OvertimeStage.DONE,
       status: AttendanceApproval.APPROVED,
-      reviewNote: "Disetujui otomatis — pengajuan lembur supervisor",
+      reviewNote: "Disetujui otomatis — pengajuan lembur manager",
       reviewedAt: new Date(),
       message: "Lembur dimulai dan otomatis disetujui",
     };
   }
 
-  if (role === Role.ADMIN) {
+  if (role === Role.SUPERVISOR) {
     return {
-      stage: OvertimeStage.SUPERVISOR,
+      stage: OvertimeStage.MANAGER,
       status: AttendanceApproval.PENDING,
       reviewNote: null,
       reviewedAt: null,
-      message: "Lembur dimulai, menunggu persetujuan supervisor",
+      message: "Lembur dimulai, menunggu persetujuan manager",
     };
   }
 
   return {
-    stage: OvertimeStage.ADMIN,
+    stage: OvertimeStage.SUPERVISOR,
     status: AttendanceApproval.PENDING,
     reviewNote: null,
     reviewedAt: null,
-    message: "Lembur dimulai, menunggu persetujuan admin",
+    message: "Lembur dimulai, menunggu persetujuan supervisor",
   };
 }

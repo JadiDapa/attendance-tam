@@ -48,12 +48,15 @@ export type AttendanceApprovalRow = {
 
 export default function AttendanceApprovalTable({
   rows,
+  readOnly = false,
 }: {
   rows: AttendanceApprovalRow[];
+  /** True untuk halaman oversight admin — tidak ada aksi setujui/tolak. */
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [target, setTarget] = useState<AttendanceApprovalRow | null>(null);
-  const [mode, setMode] = useState<WorkModeValue>("DINAS_LUAR");
+  const [mode, setMode] = useState<WorkModeValue>("LUAR_RADIUS");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState<"approve" | "reject" | null>(
     null,
@@ -63,7 +66,7 @@ export default function AttendanceApprovalTable({
     setTarget(row);
     // Default masuk akal: absen di luar radius biasanya berarti sedang
     // bertugas di lokasi lain — admin tinggal mengubah kalau perlu.
-    setMode("DINAS_LUAR");
+    setMode("LUAR_RADIUS");
     setNote("");
   };
 
@@ -178,11 +181,11 @@ export default function AttendanceApprovalTable({
         <Button
           variant="ghost"
           size="sm"
-          title="Tinjau"
+          title={readOnly ? "Detail" : "Tinjau"}
           onClick={() => openDialog(row.original)}
         >
           <ShieldCheck className="size-4" />
-          Tinjau
+          {readOnly ? "Detail" : "Tinjau"}
         </Button>
       ),
     },
@@ -237,61 +240,65 @@ export default function AttendanceApprovalTable({
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
-            <Label>Setujui sebagai</Label>
-            <div className="grid gap-2">
-              {APPROVAL_MODES.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => setMode(option)}
-                  className={cn(
-                    "rounded-xl border p-3 text-left transition-colors",
-                    mode === option
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:bg-muted",
-                  )}
+          {!readOnly && (
+            <>
+              <div className="flex flex-col gap-2">
+                <Label>Setujui sebagai</Label>
+                <div className="grid gap-2">
+                  {APPROVAL_MODES.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setMode(option)}
+                      className={cn(
+                        "rounded-xl border p-3 text-left transition-colors",
+                        mode === option
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:bg-muted",
+                      )}
+                    >
+                      <p className="text-sm font-medium">
+                        {WORK_MODE_LABEL[option]}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {WORK_MODE_HINT[option]}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="reviewNote">Catatan (opsional)</Label>
+                <Textarea
+                  id="reviewNote"
+                  rows={2}
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  maxLength={300}
+                  placeholder="Contoh: sudah dikonfirmasi atasan"
+                />
+              </div>
+
+              <DialogFooter className="gap-2 sm:justify-between">
+                <Button
+                  variant="destructive"
+                  onClick={() => decide(AttendanceApproval.REJECTED)}
+                  disabled={submitting !== null}
                 >
-                  <p className="text-sm font-medium">
-                    {WORK_MODE_LABEL[option]}
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    {WORK_MODE_HINT[option]}
-                  </p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="reviewNote">Catatan (opsional)</Label>
-            <Textarea
-              id="reviewNote"
-              rows={2}
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              maxLength={300}
-              placeholder="Contoh: sudah dikonfirmasi atasan"
-            />
-          </div>
-
-          <DialogFooter className="gap-2 sm:justify-between">
-            <Button
-              variant="destructive"
-              onClick={() => decide(AttendanceApproval.REJECTED)}
-              disabled={submitting !== null}
-            >
-              {submitting === "reject" && <Spinner />}
-              Tolak → Alfa
-            </Button>
-            <Button
-              onClick={() => decide(AttendanceApproval.APPROVED)}
-              disabled={submitting !== null}
-            >
-              {submitting === "approve" && <Spinner />}
-              Setujui
-            </Button>
-          </DialogFooter>
+                  {submitting === "reject" && <Spinner />}
+                  Tolak → Alfa
+                </Button>
+                <Button
+                  onClick={() => decide(AttendanceApproval.APPROVED)}
+                  disabled={submitting !== null}
+                >
+                  {submitting === "approve" && <Spinner />}
+                  Setujui
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </>

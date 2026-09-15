@@ -11,6 +11,7 @@ import {
 } from "@radix-ui/react-icons";
 import { useSignIn } from "@clerk/nextjs/legacy";
 import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -141,6 +142,15 @@ export default function LoginForm({ callbackUrl }: Props) {
           )}
         />
       </FieldGroup>
+
+      <div className="mt-3 flex justify-end">
+        <Link
+          href="/forgot-password"
+          className="text-primary-subtle text-sm font-medium"
+        >
+          Lupa password?
+        </Link>
+      </div>
 
       <Button
         type="submit"

@@ -17,9 +17,11 @@ export default async function AdminLemburDetailPage({
   if (!overtime) notFound();
 
   return (
+    // Admin tidak lagi ikut approval lembur — DONE dipakai sebagai
+    // viewerStage supaya halaman ini selalu view-only.
     <OvertimeDetailView
       overtime={overtime}
-      viewerStage={OvertimeStage.ADMIN}
+      viewerStage={OvertimeStage.DONE}
       backHref="/admin/lembur"
       redirectTo="/admin/lembur"
     />

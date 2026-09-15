@@ -10,7 +10,7 @@ const DETAIL_MAX = 300;
  * `workModeDetail` hanya relevan kalau absennya di luar radius, dan itu baru
  * diketahui setelah jarak dihitung di server — jadi di sini opsional, dan
  * `submitAttendance` yang mewajibkannya. Tidak ada pilihan mode di sini:
- * absen di luar radius otomatis dicatat `DINAS_LUAR`, karyawan tinggal
+ * absen di luar radius otomatis dicatat `LUAR_RADIUS`, karyawan tinggal
  * menuliskan alasannya.
  */
 export const SubmitAttendanceSchema = z.object({

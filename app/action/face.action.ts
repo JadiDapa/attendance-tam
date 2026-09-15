@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/session";
 import { extractFaceEmbedding, FaceApiError } from "@/lib/face-recognition";
 import { FaceService } from "@/servers/services/face.service";
+import { UserService } from "@/servers/services/user.service";
+import { saveImage, deleteUpload } from "@/lib/storage";
 
 export type FaceResult =
   | { ok: true; message: string; totalPhotos: number }
@@ -64,6 +66,20 @@ export async function enrollFace(formData: FormData): Promise<FaceResult> {
     throw error;
   }
 
+  // Foto enrollment terbaru dipakai sebagai foto profil, menggantikan stub
+  // avatar — best-effort, kegagalan simpan gambar tidak boleh menggagalkan
+  // enrollment yang embedding-nya sudah tersimpan di atas.
+  try {
+    const previousImageUrl = user.profileImageUrl;
+    const profileImageUrl = await saveImage(photo);
+
+    await UserService.update(user.id, { profileImageUrl });
+
+    if (previousImageUrl) await deleteUpload(previousImageUrl);
+  } catch {
+    // Diamkan — enrollment tetap sukses walau foto profil gagal diperbarui.
+  }
+
   const totalPhotos = await FaceService.countByUser(user.id);
 
   revalidatePath("/profil");
@@ -86,6 +102,11 @@ export async function resetFaceEnrollment(): Promise<FaceResult> {
   const user = await requireUser();
 
   await FaceService.deleteAllForUser(user.id);
+
+  if (user.profileImageUrl) {
+    await UserService.update(user.id, { profileImageUrl: null });
+    await deleteUpload(user.profileImageUrl);
+  }
 
   revalidatePath("/profil");
   revalidatePath("/dashboard");

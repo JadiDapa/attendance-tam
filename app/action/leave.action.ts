@@ -8,6 +8,7 @@ import {
   LEAVE_REVIEWER_STAGE,
   LEAVE_TYPE_LABEL,
   LEAVE_TYPES_REQUIRING_ATTACHMENT,
+  resolveInitialLeaveStage,
 } from "@/lib/leave";
 import { redirect } from "next/navigation";
 import { saveAttachment, deleteUpload } from "@/lib/storage";
@@ -114,6 +115,8 @@ export async function createLeaveRequest(
     }
   }
 
+  const initial = resolveInitialLeaveStage(user.role);
+
   const result = await LeaveService.createIfNotOverlapping({
     userId: user.id,
     type: parsed.data.type,
@@ -122,6 +125,10 @@ export async function createLeaveRequest(
     detail: parsed.data.detail,
     reasonCategory: parsed.data.reasonCategory ?? null,
     attachmentUrl,
+    stage: initial.stage,
+    status: initial.status,
+    reviewNote: initial.reviewNote,
+    reviewedAt: initial.reviewedAt,
   });
 
   if (!result.ok) {
@@ -136,15 +143,19 @@ export async function createLeaveRequest(
   }
 
   revalidatePath("/izin");
-  revalidatePath("/admin/izin");
+  revalidatePath("/supervisor/izin");
+  revalidatePath("/manager/izin");
 
   return {
     ok: true,
-    message: "Pengajuan terkirim, menunggu persetujuan admin",
+    message:
+      initial.status === LeaveStatus.APPROVED
+        ? "Pengajuan terkirim dan otomatis disetujui"
+        : `Pengajuan terkirim, menunggu persetujuan ${initial.stage === "SUPERVISOR" ? "supervisor" : "manager"}`,
   };
 }
 
-/** Karyawan membatalkan pengajuannya sendiri selama belum di-review admin. */
+/** Karyawan membatalkan pengajuannya sendiri selama belum direview. */
 export async function cancelLeaveRequest(
   leaveId: string,
 ): Promise<LeaveResult> {
@@ -155,21 +166,21 @@ export async function cancelLeaveRequest(
   if (!cancelled) {
     return {
       ok: false,
-      error: "Pengajuan tidak ditemukan atau sudah diproses admin",
+      error: "Pengajuan tidak ditemukan atau sudah diproses",
     };
   }
 
   revalidatePath("/izin");
-  revalidatePath("/admin/izin");
-  revalidatePath("/admin/dashboard");
+  revalidatePath("/supervisor/izin");
+  revalidatePath("/manager/izin");
 
   return { ok: true, message: "Pengajuan izin dibatalkan" };
 }
 
 /**
  * Setujui/tolak pengajuan pada giliran approval reviewer yang sedang login
- * (ADMIN, SUPERVISOR, atau MANAGER — lihat REVIEWER_STAGE dan
- * `LEAVE_APPROVAL_CHAIN` di lib/leave.ts untuk urutan tiap jenis izin).
+ * (SUPERVISOR atau MANAGER — lihat `LEAVE_REVIEWER_STAGE` dan
+ * `resolveInitialLeaveStage` di lib/leave.ts). Satu langkah saja.
  */
 export async function reviewLeaveRequest(
   leaveId: string,

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { Role } from "@/generated/prisma";
-import { requireApiRole } from "@/lib/api-auth";
+import { requireApiAnyRole } from "@/lib/api-auth";
 import { reviewAttendance } from "@/app/action/attendance.action";
 
 /** Setujui/tolak absensi luar radius — JSON body: { status, mode?, reviewNote? }. */
@@ -8,7 +8,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireApiRole(Role.ADMIN);
+  const auth = await requireApiAnyRole([Role.SUPERVISOR, Role.MANAGER]);
 
   if (!auth.user) return auth.response;
 

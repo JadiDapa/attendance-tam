@@ -31,6 +31,9 @@ export type AttendanceSummaryRow = {
   /** Rekap pada rentang tanggal yang dipilih. Akun admin tidak punya rekap. */
   hasRecap: boolean;
   totalHadirDikantor: number;
+  /** Klaim `WorkMode.LUAR_RADIUS` — beda dari `totalDinasLuar` di bawah. */
+  totalLuarRadius: number;
+  /** Hari ditutupi `FieldAssignment` yang disetujui — beda dari `totalLuarRadius` di atas. */
   totalDinasLuar: number;
   totalTerlambat: number;
   totalAlfa: number;
@@ -96,6 +99,18 @@ const columns: ColumnDef<AttendanceSummaryRow>[] = [
             ? `${row.original.totalTerlambat} telat`
             : undefined
         }
+      />
+    ),
+  },
+  {
+    accessorKey: "totalLuarRadius",
+    header: ({ column }) => (
+      <TableSorter column={column} header="Luar Radius" />
+    ),
+    cell: ({ row }) => (
+      <RecapCell
+        value={row.original.totalLuarRadius}
+        hasRecap={row.original.hasRecap}
       />
     ),
   },

@@ -13,13 +13,10 @@ import { formatDuration, formatTime, formatWorkDate, getWorkDate } from "@/lib/d
 import { OvertimeService } from "@/servers/services/overtime.service";
 
 /**
- * Oversight lembur untuk manager — read-only. Manager tidak ikut rantai
- * approval lembur (cuma ADMIN -> SUPERVISOR -> DONE), jadi halaman ini murni
- * untuk memantau, termasuk pengajuan supervisor yang otomatis disetujui
- * tanpa direview siapa pun (lihat `resolveInitialOvertime()` di
- * `lib/overtime.ts`). `viewerStage: DONE` di tabel/detail membuat semuanya
- * tampil sebagai "Detail", bukan "Tinjau" — tidak ada aksi approve/reject di
- * sini.
+ * Manager mereview lembur milik supervisor (giliran MANAGER) — pengajuan
+ * karyawan/admin lain sudah diputuskan supervisornya masing-masing (lihat
+ * `resolveInitialOvertime()` di `lib/overtime.ts`), jadi baris itu cuma
+ * tampil sebagai "Detail" di sini, bukan "Tinjau".
  */
 export default async function ManagerLemburPage() {
   await requireRole(Role.MANAGER);
@@ -43,39 +40,38 @@ export default async function ManagerLemburPage() {
     reviewedBy: request.reviewedBy?.name ?? null,
   }));
 
-  const pending = requests.filter(
-    (request) => request.status === AttendanceApproval.PENDING,
-  ).length;
-  const approved = requests.filter(
-    (request) => request.status === AttendanceApproval.APPROVED,
+  const myTurn = requests.filter(
+    (request) =>
+      request.status === AttendanceApproval.PENDING &&
+      request.stage === OvertimeStage.MANAGER,
   ).length;
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Lembur"
-        subtitle="Pantau seluruh pengajuan lembur admin & supervisor."
+        title="Pengajuan Lembur"
+        subtitle="Setujui atau tolak pengajuan lembur milik supervisor — pengajuan karyawan lain sudah diputuskan supervisornya masing-masing."
       />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <StatTile
-          label="Menunggu"
+          label="Giliran Saya"
           icon={Clock4}
-          value={String(pending)}
-          footerLabel="Belum diputuskan admin/supervisor"
+          value={String(myTurn)}
+          footerLabel="Pengajuan menunggu keputusan Anda"
+          highlighted={myTurn > 0}
         />
         <StatTile
-          label="Disetujui"
+          label="Total Lembur"
           icon={CheckCircle2}
-          value={String(approved)}
-          footerLabel="Termasuk pengajuan supervisor yang otomatis disetujui"
-          highlighted
+          value={String(requests.length)}
+          footerLabel="Semua pengajuan lembur"
         />
       </div>
 
       <OvertimeApprovalTable
         rows={rows}
-        viewerStage={OvertimeStage.DONE}
+        viewerStage={OvertimeStage.MANAGER}
         detailBasePath="/manager/lembur"
       />
     </div>

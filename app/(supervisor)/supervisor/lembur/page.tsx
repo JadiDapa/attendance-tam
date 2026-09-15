@@ -44,7 +44,7 @@ export default async function SupervisorLemburPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Pengajuan Lembur"
-        subtitle="Setujui atau tolak pengajuan lembur yang sudah disetujui admin."
+        subtitle="Setujui atau tolak pengajuan lembur karyawan."
       />
 
       <div className="grid gap-4 sm:grid-cols-2">

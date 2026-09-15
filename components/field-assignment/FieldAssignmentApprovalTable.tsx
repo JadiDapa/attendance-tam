@@ -39,10 +39,13 @@ export type FieldAssignmentApprovalRow = {
 export default function FieldAssignmentApprovalTable({
   rows,
   detailBasePath,
+  readOnly = false,
 }: {
   rows: FieldAssignmentApprovalRow[];
   /** Prefix rute halaman detail milik role ini, mis. "/manager/dinas-luar". */
   detailBasePath: string;
+  /** True untuk halaman oversight admin — selalu tampil "Detail", tidak pernah "Tinjau". */
+  readOnly?: boolean;
 }) {
   const columns: ColumnDef<FieldAssignmentApprovalRow>[] = [
     {
@@ -139,7 +142,8 @@ export default function FieldAssignmentApprovalTable({
       id: "actions",
       header: "Aksi",
       cell: ({ row }) => {
-        const isMyTurn = row.original.status === AttendanceApproval.PENDING;
+        const isMyTurn =
+          !readOnly && row.original.status === AttendanceApproval.PENDING;
 
         return (
           <Button asChild variant={isMyTurn ? "default" : "ghost"} size="sm">

@@ -9,7 +9,6 @@ import { addDays, getWorkDate, toDateInputValue } from "./date";
 
 /** Role reviewer -> giliran approval yang boleh mereka putuskan. */
 export const LEAVE_REVIEWER_STAGE: Partial<Record<Role, LeaveStage>> = {
-  [Role.ADMIN]: LeaveStage.ADMIN,
   [Role.SUPERVISOR]: LeaveStage.SUPERVISOR,
   [Role.MANAGER]: LeaveStage.MANAGER,
 };
@@ -79,39 +78,59 @@ export const LEAVE_STATUS_VARIANT: Record<
 };
 
 export const LEAVE_STAGE_LABEL: Record<LeaveStage, string> = {
-  ADMIN: "Menunggu Admin",
   SUPERVISOR: "Menunggu Supervisor",
   MANAGER: "Menunggu Manager",
   DONE: "Selesai",
 };
 
-/**
- * Urutan approval per jenis izin. `SAKIT` selesai satu langkah di admin;
- * `IZIN`/`CUTI` berjalan ADMIN -> SUPERVISOR -> MANAGER -> DONE. Satu-satunya
- * tempat yang tahu urutan ini — jangan duplikasi di service/action lain.
- */
-export const LEAVE_APPROVAL_CHAIN: Record<LeaveType, LeaveStage[]> = {
-  SAKIT: [LeaveStage.ADMIN, LeaveStage.DONE],
-  IZIN: [
-    LeaveStage.ADMIN,
-    LeaveStage.SUPERVISOR,
-    LeaveStage.MANAGER,
-    LeaveStage.DONE,
-  ],
-  CUTI: [
-    LeaveStage.ADMIN,
-    LeaveStage.SUPERVISOR,
-    LeaveStage.MANAGER,
-    LeaveStage.DONE,
-  ],
+export type InitialLeaveStage = {
+  stage: LeaveStage;
+  status: LeaveStatus;
+  reviewNote: string | null;
+  reviewedAt: Date | null;
 };
 
-/** Giliran berikutnya setelah `stage` menyetujui pengajuan bertipe `type`. */
-export function nextLeaveStage(type: LeaveType, stage: LeaveStage): LeaveStage {
-  const chain = LEAVE_APPROVAL_CHAIN[type];
-  const index = chain.indexOf(stage);
+/**
+ * Giliran approval awal pengajuan izin/cuti/sakit, tergantung role pemohon —
+ * satu langkah saja untuk ketiga jenis, tidak lagi berjenjang:
+ * - Karyawan & admin: menunggu SUPERVISOR.
+ * - Supervisor: tidak ada supervisor lain di atasnya, jadi menunggu MANAGER.
+ * - Manager: tidak ada lagi yang perlu menyetujui, jadi langsung disetujui
+ *   otomatis — tetap tercatat untuk oversight.
+ */
+export function resolveInitialLeaveStage(role: Role): InitialLeaveStage {
+  if (role === Role.MANAGER) {
+    return {
+      stage: LeaveStage.DONE,
+      status: LeaveStatus.APPROVED,
+      reviewNote: "Disetujui otomatis — pengajuan manager",
+      reviewedAt: new Date(),
+    };
+  }
 
-  return index === -1 ? LeaveStage.DONE : (chain[index + 1] ?? LeaveStage.DONE);
+  if (role === Role.SUPERVISOR) {
+    return {
+      stage: LeaveStage.MANAGER,
+      status: LeaveStatus.PENDING,
+      reviewNote: null,
+      reviewedAt: null,
+    };
+  }
+
+  return {
+    stage: LeaveStage.SUPERVISOR,
+    status: LeaveStatus.PENDING,
+    reviewNote: null,
+    reviewedAt: null,
+  };
+}
+
+/**
+ * Approval izin/cuti/sakit selalu satu langkah saja (tidak berjenjang) —
+ * begitu reviewer di `stage` saat ini memutuskan, pengajuan langsung selesai.
+ */
+export function nextLeaveStage(): LeaveStage {
+  return LeaveStage.DONE;
 }
 
 /** Jumlah hari pengajuan (inklusif). Kedua tanggal adalah kolom `date` UTC. */
@@ -123,8 +142,7 @@ export function countLeaveDays(startDate: Date, endDate: Date) {
 
 /**
  * Cuti wajib diajukan jauh-jauh hari — 30 hari ke depan tidak bisa dipilih
- * sebagai tanggal mulai, supaya ada waktu approval berjenjang
- * (Admin -> Supervisor -> Manager) sebelum tanggalnya tiba.
+ * sebagai tanggal mulai, supaya ada waktu approval sebelum tanggalnya tiba.
  */
 export const CUTI_MIN_ADVANCE_DAYS = 30;
 
@@ -151,6 +169,22 @@ export function defaultCutiStartDate(today: Date = getWorkDate()): Date {
   const minStart = minCutiStartDate(today);
 
   return firstOfNextMonth < minStart ? minStart : firstOfNextMonth;
+}
+
+/**
+ * Izin wajib diajukan H-2 — hari ini dan besok tidak bisa dipilih sebagai
+ * tanggal mulai, supaya ada waktu approval sebelum tanggalnya tiba.
+ */
+export const IZIN_MIN_ADVANCE_DAYS = 2;
+
+/** Tanggal mulai Izin paling cepat yang boleh diajukan, dihitung dari `today`. */
+export function minIzinStartDate(today: Date = getWorkDate()): Date {
+  return addDays(today, IZIN_MIN_ADVANCE_DAYS);
+}
+
+/** Sama seperti `minIzinStartDate`, tapi sebagai string "YYYY-MM-DD" untuk input form. */
+export function minIzinStartDateInputValue(today: Date = getWorkDate()): string {
+  return toDateInputValue(minIzinStartDate(today));
 }
 
 /** Jenis izin yang wajib melampirkan bukti (surat keterangan). */

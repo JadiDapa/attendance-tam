@@ -3,12 +3,12 @@ import { Role } from "@/generated/prisma";
 import { requireApiRole } from "@/lib/api-auth";
 import { reviewFieldAssignment } from "@/app/action/field-assignment.action";
 
-/** Setujui/tolak penugasan dinas luar — admin saja, JSON body: { status, reviewNote? }. */
+/** Setujui/tolak penugasan dinas luar — manager saja, JSON body: { status, reviewNote? }. */
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireApiRole(Role.ADMIN);
+  const auth = await requireApiRole(Role.MANAGER);
 
   if (!auth.user) return auth.response;
 

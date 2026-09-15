@@ -92,7 +92,7 @@ export default async function AdminIzinPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Pengajuan Izin"
-        subtitle="Setujui atau tolak pengajuan izin, sakit, dan cuti karyawan."
+        subtitle="Pantau pengajuan izin, sakit, dan cuti karyawan — disetujui oleh supervisor atau manager."
         actions={
           <div className="bg-muted flex w-fit max-w-full flex-wrap gap-1 rounded-full p-1">
             <Link
@@ -152,9 +152,10 @@ export default async function AdminIzinPage({
         </Panel>
       </div>
 
+      {/* Admin tidak lagi ikut approval — DONE membuat tabel ini selalu view-only. */}
       <LeaveApprovalTable
         rows={rows}
-        viewerStage={LeaveStage.ADMIN}
+        viewerStage={LeaveStage.DONE}
         detailBasePath="/admin/izin"
       />
     </div>

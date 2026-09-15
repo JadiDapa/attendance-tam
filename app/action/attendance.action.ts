@@ -9,7 +9,7 @@ import {
   Role,
   WorkMode,
 } from "@/generated/prisma";
-import { requireAnyRole, requireRole } from "@/lib/session";
+import { requireAnyRole, requireRole, requireUser } from "@/lib/session";
 import { saveImage, deleteUpload } from "@/lib/storage";
 import { haversineDistance, formatDistance } from "@/lib/geo";
 import {
@@ -27,7 +27,7 @@ import {
   SubmitAttendanceSchema,
 } from "@/servers/validators/attendance.validator";
 import { WORK_MODE_LABEL, isLateEligible } from "@/lib/work-mode";
-import { ATTENDANCE_TYPE_LABEL } from "@/lib/attendance";
+import { ATTENDANCE_TYPE_LABEL, resolveAttendanceReviewerRole } from "@/lib/attendance";
 import { AttendanceService } from "@/servers/services/attendance.service";
 import {
   OfficeLocationService,
@@ -81,7 +81,9 @@ const ATTENDANCE_PATHS = [
   "/admin/rekapan-kehadiran",
   "/admin/laporan",
   "/supervisor/absensi",
+  "/supervisor/verifikasi",
   "/manager/absensi",
+  "/manager/verifikasi",
 ];
 
 function revalidateAttendancePages() {
@@ -90,7 +92,7 @@ function revalidateAttendancePages() {
 
 /**
  * Terlambat hanya berlaku untuk absen masuk yang benar-benar dikerjakan di
- * kantor pada hari kerja. Dinas luar, sakit/izin/cuti, dan hari libur
+ * kantor pada hari kerja. Luar radius, sakit/izin/cuti, dan hari libur
  * (mingguan maupun tanggal merah) tidak pernah dihitung terlambat.
  *
  * Sengaja murni (tanpa query) supaya pemanggil yang sudah punya datanya tidak
@@ -235,8 +237,9 @@ export async function submitAttendance(
 
   // Di luar radius, karyawan wajib menjelaskan alasannya — tanpa itu
   // absensinya tidak bisa dinilai admin. Absen di luar radius otomatis
-  // dicatat DINAS_LUAR (tidak ada pilihan mode, dan tidak ada WFH). Divalidasi
-  // di sini, bukan di client, supaya tidak bisa dilewati.
+  // dicatat LUAR_RADIUS (tidak ada pilihan mode, dan tidak ada WFH) — beda
+  // dari "Dinas Luar" (`FieldAssignment`), yang direncanakan duluan.
+  // Divalidasi di sini, bukan di client, supaya tidak bisa dilewati.
   const detail = parsed.data.workModeDetail?.trim() ?? "";
   let workMode: WorkMode = WorkMode.HADIR_DIKANTOR;
   let workModeDetail: string | null = null;
@@ -249,7 +252,7 @@ export async function submitAttendance(
       };
     }
 
-    workMode = WorkMode.DINAS_LUAR;
+    workMode = WorkMode.LUAR_RADIUS;
     workModeDetail = detail;
   }
 
@@ -305,6 +308,15 @@ export async function submitAttendance(
     };
   }
 
+  // Di luar radius, gilirannya ditentukan dari role pemohon (lihat
+  // `resolveAttendanceReviewerRole`) — manager tidak punya siapa pun di
+  // atasnya, jadi absensinya otomatis disetujui, tetap tercatat untuk
+  // oversight.
+  const reviewerRole = isWithinRadius
+    ? null
+    : resolveAttendanceReviewerRole(user.role);
+  const autoApproved = !isWithinRadius && reviewerRole === null;
+
   try {
     await AttendanceService.create({
       userId: user.id,
@@ -319,8 +331,14 @@ export async function submitAttendance(
       isLate,
       workMode,
       workModeDetail,
-      // Absen di luar radius baru sah setelah admin menyetujuinya.
-      approvalStatus: isWithinRadius ? null : AttendanceApproval.PENDING,
+      approvalStatus: isWithinRadius
+        ? null
+        : autoApproved
+          ? AttendanceApproval.APPROVED
+          : AttendanceApproval.PENDING,
+      approvedMode: autoApproved ? workMode : null,
+      reviewedAt: autoApproved ? new Date() : null,
+      reviewNote: autoApproved ? "Disetujui otomatis — absensi manager" : null,
     });
   } catch (error) {
     // Baris DB gagal dibuat — foto yang sudah ditulis ke disk jadi yatim,
@@ -343,7 +361,9 @@ export async function submitAttendance(
 
   if (!isWithinRadius) {
     warnings.push(
-      `Tercatat sebagai ${WORK_MODE_LABEL[workMode]} — ${formatDistance(distanceMeters)} dari ${office.name}. Menunggu persetujuan admin.`,
+      autoApproved
+        ? `Tercatat sebagai ${WORK_MODE_LABEL[workMode]} — ${formatDistance(distanceMeters)} dari ${office.name}. Otomatis disetujui.`
+        : `Tercatat sebagai ${WORK_MODE_LABEL[workMode]} — ${formatDistance(distanceMeters)} dari ${office.name}. Menunggu persetujuan ${reviewerRole === Role.MANAGER ? "manager" : "supervisor"}.`,
     );
   }
 
@@ -366,15 +386,19 @@ export async function submitAttendance(
 }
 
 /**
- * Keputusan admin atas absensi luar radius: setujui (boleh menimpa mode yang
- * diklaim karyawan) atau tolak. Absensi yang ditolak dianulir — hari itu
+ * Keputusan reviewer atas absensi luar radius: setujui (boleh menimpa mode
+ * yang diklaim karyawan) atau tolak. Absensi yang ditolak dianulir — hari itu
  * dihitung Alfa, tapi barisnya tetap tersimpan sebagai jejak.
+ *
+ * Reviewer yang berhak ditentukan dari role pemilik absensi (lihat
+ * `resolveAttendanceReviewerRole` di lib/attendance.ts) — karyawan/admin
+ * direview SUPERVISOR, supervisor direview MANAGER.
  */
 export async function reviewAttendance(
   attendanceId: string,
   input: z.input<typeof ReviewAttendanceSchema>,
 ): Promise<ReviewAttendanceResult> {
-  const admin = await requireRole(Role.ADMIN);
+  const reviewer = await requireUser();
 
   const parsed = ReviewAttendanceSchema.safeParse(input);
 
@@ -389,6 +413,14 @@ export async function reviewAttendance(
 
   if (!attendance) {
     return { ok: false, error: "Absensi tidak ditemukan" };
+  }
+
+  const requiredReviewerRole = resolveAttendanceReviewerRole(
+    attendance.user.role,
+  );
+
+  if (requiredReviewerRole === null || reviewer.role !== requiredReviewerRole) {
+    return { ok: false, error: "Kamu tidak berhak memutuskan absensi ini" };
   }
 
   const isApproved = parsed.data.status === AttendanceApproval.APPROVED;
@@ -421,14 +453,14 @@ export async function reviewAttendance(
     status: parsed.data.status,
     approvedMode,
     isLate,
-    reviewedById: admin.id,
+    reviewedById: reviewer.id,
     reviewNote: parsed.data.reviewNote?.trim() || null,
   });
 
   if (!applied) {
     return {
       ok: false,
-      error: "Absensi tidak ditemukan atau sudah diputuskan admin lain",
+      error: "Absensi tidak ditemukan atau sudah diputuskan reviewer lain",
     };
   }
 

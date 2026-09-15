@@ -22,7 +22,6 @@ import {
 } from "@/lib/date";
 import {
   isOvertimeStartAllowed,
-  nextOvertimeStage,
   OVERTIME_REVIEWER_STAGE,
   resolveInitialOvertime,
 } from "@/lib/overtime";
@@ -48,14 +47,16 @@ const OVERTIME_PATHS = [
   "/supervisor/lembur",
   "/supervisor/lembur-saya",
   "/manager/lembur",
+  "/manager/lembur-saya",
 ];
 
-/**
- * Role yang boleh mengajukan lembur untuk diri sendiri. Manager sengaja tidak
- * termasuk — dia hanya melihat lembur admin/supervisor sebagai oversight
- * (lihat `/manager/lembur`), bukan mengajukan lemburnya sendiri.
- */
-const SELF_OVERTIME_ROLES = [Role.EMPLOYEE, Role.ADMIN, Role.SUPERVISOR];
+/** Role yang boleh mengajukan lembur untuk diri sendiri. */
+const SELF_OVERTIME_ROLES = [
+  Role.EMPLOYEE,
+  Role.ADMIN,
+  Role.SUPERVISOR,
+  Role.MANAGER,
+];
 
 function revalidateOvertimePages() {
   for (const path of OVERTIME_PATHS) revalidatePath(path);
@@ -216,8 +217,9 @@ export async function endOvertime(
 
 /**
  * Setujui/tolak pengajuan lembur pada giliran approval reviewer yang sedang
- * login (ADMIN lalu SUPERVISOR — lihat REVIEWER_STAGE dan `nextOvertimeStage`
- * di lib/overtime.ts untuk urutannya).
+ * login (SUPERVISOR atau MANAGER — lihat `OVERTIME_REVIEWER_STAGE` dan
+ * `resolveInitialOvertime` di lib/overtime.ts). Satu langkah saja: begitu
+ * reviewer di giliran itu memutuskan, pengajuan langsung selesai (DONE).
  */
 export async function reviewOvertime(
   overtimeId: string,
@@ -237,16 +239,7 @@ export async function reviewOvertime(
     };
   }
 
-  const nextStage =
-    parsed.data.status === AttendanceApproval.REJECTED
-      ? OvertimeStage.DONE
-      : nextOvertimeStage(stage);
-  const finalStatus =
-    parsed.data.status === AttendanceApproval.REJECTED
-      ? AttendanceApproval.REJECTED
-      : nextStage === OvertimeStage.DONE
-        ? AttendanceApproval.APPROVED
-        : AttendanceApproval.PENDING;
+  const finalStatus = parsed.data.status;
 
   const current = await OvertimeService.getById(overtimeId);
 
@@ -268,7 +261,7 @@ export async function reviewOvertime(
 
   const applied = await OvertimeService.review(overtimeId, {
     stage,
-    nextStage,
+    nextStage: OvertimeStage.DONE,
     status: finalStatus,
     reviewedById: reviewer.id,
     reviewNote: parsed.data.reviewNote?.trim() || null,
@@ -303,8 +296,6 @@ export async function reviewOvertime(
     message:
       finalStatus === AttendanceApproval.REJECTED
         ? "Pengajuan lembur ditolak"
-        : nextStage === OvertimeStage.DONE
-          ? "Pengajuan lembur disetujui"
-          : "Pengajuan lembur diteruskan ke supervisor",
+        : "Pengajuan lembur disetujui",
   };
 }

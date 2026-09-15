@@ -111,22 +111,19 @@ export default async function EmployeeProfileDetailPage({
     TrainingService.getByUserId(id),
   ]);
 
-  const hasRecap = employee.role === Role.EMPLOYEE;
   const today = getWorkDate();
   const range = resolveAttendanceRange(await searchParams, today);
 
-  const days = hasRecap
-    ? buildAttendanceDays({
-        rows: await ReportService.buildRecap({
-          startDate: range.startDate,
-          endDate: range.endDate,
-          userId: id,
-        }),
-        startDate: range.startDate,
-        endDate: range.endDate,
-        today,
-      })
-    : [];
+  const days = buildAttendanceDays({
+    rows: await ReportService.buildRecap({
+      startDate: range.startDate,
+      endDate: range.endDate,
+      userId: id,
+    }),
+    startDate: range.startDate,
+    endDate: range.endDate,
+    today,
+  });
 
   return (
     <div className="flex max-w-3xl flex-col gap-5">
@@ -174,29 +171,27 @@ export default async function EmployeeProfileDetailPage({
         />
       </Panel>
 
-      {hasRecap && (
-        <Panel
-          title="Kalender Kehadiran"
-          icon={CalendarRange}
-          action={
-            <DateRangeNav
-              start={toDateInputValue(range.startDate)}
-              end={toDateInputValue(range.endDate)}
-              today={toDateInputValue(today)}
-              label={`${formatCompactDate(range.startDate)} to ${formatCompactDate(range.endDate)}`}
-              basePath={`/admin/daftar-pekerja/${id}`}
-            />
-          }
-          contentClassName="p-4 sm:p-5"
-        >
-          {range.error && (
-            <p className="text-destructive mb-3 text-sm">
-              {range.error} — menampilkan bulan ini.
-            </p>
-          )}
-          <AttendanceCalendar months={groupDaysByMonth(days)} />
-        </Panel>
-      )}
+      <Panel
+        title="Kalender Kehadiran"
+        icon={CalendarRange}
+        action={
+          <DateRangeNav
+            start={toDateInputValue(range.startDate)}
+            end={toDateInputValue(range.endDate)}
+            today={toDateInputValue(today)}
+            label={`${formatCompactDate(range.startDate)} to ${formatCompactDate(range.endDate)}`}
+            basePath={`/admin/daftar-pekerja/${id}`}
+          />
+        }
+        contentClassName="p-4 sm:p-5"
+      >
+        {range.error && (
+          <p className="text-destructive mb-3 text-sm">
+            {range.error} — menampilkan bulan ini.
+          </p>
+        )}
+        <AttendanceCalendar months={groupDaysByMonth(days)} />
+      </Panel>
 
       <Panel
         title="Identitas Pribadi"

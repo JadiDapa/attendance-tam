@@ -3,6 +3,7 @@ import {
   Attendance,
   AttendanceApproval,
   AttendanceType,
+  Role,
   WorkMode,
 } from "@/generated/prisma";
 import { CreateAttendanceDTO } from "../validators/attendance.validator";
@@ -13,8 +14,16 @@ export type DailyAttendance = {
   checkOut: Attendance | null;
 };
 
+/** `CreateAttendanceDTO` plus keputusan otomatis kalau pemohonnya manager —
+ * lihat `resolveAttendanceReviewerRole` di `lib/attendance.ts`. */
+type CreateAttendanceData = CreateAttendanceDTO & {
+  approvedMode?: WorkMode | null;
+  reviewedAt?: Date | null;
+  reviewNote?: string | null;
+};
+
 export const AttendanceService = {
-  async create(data: CreateAttendanceDTO) {
+  async create(data: CreateAttendanceData) {
     return prisma.attendance.create({ data });
   },
 
@@ -76,7 +85,7 @@ export const AttendanceService = {
     });
   },
 
-  /** Absensi luar radius yang menunggu keputusan admin (terbaru dulu). */
+  /** Semua absensi luar radius yang menunggu keputusan siapa pun (terbaru dulu) — untuk oversight admin. */
   async listPendingApproval() {
     return prisma.attendance.findMany({
       where: { approvalStatus: AttendanceApproval.PENDING },
@@ -85,9 +94,35 @@ export const AttendanceService = {
     });
   },
 
+  /** Absensi luar radius yang menunggu giliran reviewer tertentu (SUPERVISOR/MANAGER) — lihat `ownerRolesForAttendanceReviewer`. */
+  async listPendingApprovalForOwnerRoles(ownerRoles: Role[]) {
+    if (ownerRoles.length === 0) return [];
+
+    return prisma.attendance.findMany({
+      where: {
+        approvalStatus: AttendanceApproval.PENDING,
+        user: { role: { in: ownerRoles } },
+      },
+      orderBy: [{ workDate: "desc" }, { timestamp: "desc" }],
+      include: { user: true },
+    });
+  },
+
   async countPendingApproval() {
     return prisma.attendance.count({
       where: { approvalStatus: AttendanceApproval.PENDING },
+    });
+  },
+
+  /** Sama seperti `listPendingApprovalForOwnerRoles`, tapi cuma jumlahnya — untuk badge sidebar. */
+  async countPendingApprovalForOwnerRoles(ownerRoles: Role[]) {
+    if (ownerRoles.length === 0) return 0;
+
+    return prisma.attendance.count({
+      where: {
+        approvalStatus: AttendanceApproval.PENDING,
+        user: { role: { in: ownerRoles } },
+      },
     });
   },
 

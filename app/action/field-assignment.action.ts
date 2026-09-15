@@ -23,6 +23,7 @@ const FIELD_ASSIGNMENT_PATHS = [
   "/dashboard",
   "/riwayat",
   "/supervisor/dinas-luar",
+  "/manager/dinas-luar",
   "/admin/dinas-luar",
   "/admin/dashboard",
   "/admin/laporan",
@@ -130,11 +131,11 @@ export async function createFieldAssignment(
 
   return {
     ok: true,
-    message: "Penugasan dinas luar terkirim, menunggu persetujuan admin",
+    message: "Penugasan dinas luar terkirim, menunggu persetujuan manager",
   };
 }
 
-/** Supervisor membatalkan pengajuannya sendiri selama belum di-review admin. */
+/** Supervisor membatalkan pengajuannya sendiri selama belum direview manager. */
 export async function cancelFieldAssignment(
   fieldAssignmentId: string,
 ): Promise<FieldAssignmentResult> {
@@ -148,7 +149,7 @@ export async function cancelFieldAssignment(
   if (!cancelled) {
     return {
       ok: false,
-      error: "Pengajuan tidak ditemukan atau sudah diproses admin",
+      error: "Pengajuan tidak ditemukan atau sudah diproses",
     };
   }
 
@@ -157,12 +158,17 @@ export async function cancelFieldAssignment(
   return { ok: true, message: "Pengajuan dinas luar dibatalkan" };
 }
 
-/** Setujui/tolak pengajuan dinas luar — satu langkah, hanya admin. */
+/**
+ * Setujui/tolak pengajuan dinas luar — satu langkah, hanya manager. Dinas
+ * luar selalu diajukan oleh supervisor (lihat `createFieldAssignment`), jadi
+ * giliran approvalnya selalu MANAGER — sama seperti pengajuan lain milik
+ * supervisor (izin/cuti/lembur).
+ */
 export async function reviewFieldAssignment(
   fieldAssignmentId: string,
   input: z.input<typeof ReviewFieldAssignmentSchema>,
 ): Promise<FieldAssignmentResult> {
-  const admin = await requireRole(Role.ADMIN);
+  const manager = await requireRole(Role.MANAGER);
 
   const parsed = ReviewFieldAssignmentSchema.safeParse(input);
 
@@ -177,7 +183,7 @@ export async function reviewFieldAssignment(
 
   const applied = await FieldAssignmentService.decide(fieldAssignmentId, {
     status: parsed.data.status,
-    reviewedById: admin.id,
+    reviewedById: manager.id,
     reviewNote: parsed.data.reviewNote?.trim() || null,
   });
 
@@ -192,8 +198,8 @@ export async function reviewFieldAssignment(
     await ApprovalLogService.record({
       type: ApprovalLogType.FIELD_ASSIGNMENT,
       requestId: fieldAssignmentId,
-      reviewerId: admin.id,
-      stage: admin.role,
+      reviewerId: manager.id,
+      stage: manager.role,
       status: parsed.data.status,
       note: parsed.data.reviewNote?.trim() || null,
       requesterId: current.createdById,

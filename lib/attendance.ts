@@ -6,7 +6,7 @@
  * jadi client reference kalau diimpor server, sehingga isinya tidak terbaca.
  */
 
-import type { Attendance } from "@/generated/prisma";
+import { Role, type Attendance } from "@/generated/prisma";
 import { formatTime } from "./date";
 import { formatDistance } from "./geo";
 import {
@@ -14,6 +14,29 @@ import {
   type AttendanceApprovalValue,
   type WorkModeValue,
 } from "./work-mode";
+
+/**
+ * Absensi luar radius selalu satu langkah, ditentukan dari role pemiliknya —
+ * karyawan/admin menunggu SUPERVISOR, supervisor menunggu MANAGER. Manager
+ * tidak punya siapa pun di atasnya (null = disetujui otomatis saat dicatat,
+ * lihat `submitAttendance` di `app/action/attendance.action.ts`).
+ */
+export function resolveAttendanceReviewerRole(ownerRole: Role): Role | null {
+  if (ownerRole === Role.MANAGER) return null;
+  if (ownerRole === Role.SUPERVISOR) return Role.MANAGER;
+
+  return Role.SUPERVISOR;
+}
+
+/** Kebalikan dari `resolveAttendanceReviewerRole` — role pemilik absensi mana
+ * saja yang jadi giliran seorang reviewer. Dipakai untuk memfilter antrean
+ * approval milik SUPERVISOR/MANAGER. */
+export function ownerRolesForAttendanceReviewer(reviewerRole: Role): Role[] {
+  if (reviewerRole === Role.SUPERVISOR) return [Role.EMPLOYEE, Role.ADMIN];
+  if (reviewerRole === Role.MANAGER) return [Role.SUPERVISOR];
+
+  return [];
+}
 
 export type AttendanceTypeValue = "CHECK_IN" | "CHECK_OUT";
 
@@ -23,12 +46,21 @@ export const ATTENDANCE_TYPE_LABEL: Record<AttendanceTypeValue, string> = {
 };
 
 /**
- * Enam klasifikasi kehadiran. `HADIR_DIKANTOR` mencakup yang tepat waktu
+ * Tujuh klasifikasi kehadiran. `HADIR_DIKANTOR` mencakup yang tepat waktu
  * maupun yang terlambat — keterlambatan tetap dicatat, tapi sebagai atribut
  * (`Attendance.isLate`), bukan status tersendiri.
+ *
+ * `LUAR_RADIUS` dan `DINAS_LUAR` sengaja dipisah meski sama-sama "hadir di
+ * luar kantor": `LUAR_RADIUS` datang dari `WorkMode` — klaim sepihak karyawan
+ * saat absen di luar radius kantor. `DINAS_LUAR` di sini datang dari
+ * `FieldAssignment` yang sudah disetujui MANAGER — tidak menuntut absen sama
+ * sekali. Keduanya tidak pernah muncul bersamaan untuk hari yang sama, karena
+ * `LUAR_RADIUS` hanya muncul kalau ada absen, `DINAS_LUAR` hanya muncul kalau
+ * tidak ada (lihat `ReportService.buildRecap`).
  */
 export type RecapStatus =
   | "HADIR_DIKANTOR"
+  | "LUAR_RADIUS"
   | "DINAS_LUAR"
   | "SAKIT"
   | "IZIN"
@@ -47,6 +79,7 @@ export type CalendarStatus = DayStatus | "KOSONG";
 
 export const RECAP_STATUS_OPTIONS: RecapStatus[] = [
   "HADIR_DIKANTOR",
+  "LUAR_RADIUS",
   "DINAS_LUAR",
   "SAKIT",
   "IZIN",
@@ -62,7 +95,9 @@ export const DAY_STATUS_OPTIONS: DayStatus[] = [
 
 export const DAY_STATUS_LABEL: Record<DayStatus, string> = {
   HADIR_DIKANTOR: WORK_MODE_LABEL.HADIR_DIKANTOR,
-  DINAS_LUAR: WORK_MODE_LABEL.DINAS_LUAR,
+  LUAR_RADIUS: WORK_MODE_LABEL.LUAR_RADIUS,
+  // Beda dari `LUAR_RADIUS` di atas — lihat komentar pada `RecapStatus`.
+  DINAS_LUAR: "Dinas Luar",
   SAKIT: WORK_MODE_LABEL.SAKIT,
   IZIN: WORK_MODE_LABEL.IZIN,
   ALFA: "Alfa",
@@ -75,6 +110,7 @@ export const DAY_STATUS_VARIANT: Record<
   "default" | "secondary" | "destructive" | "outline"
 > = {
   HADIR_DIKANTOR: "secondary",
+  LUAR_RADIUS: "default",
   DINAS_LUAR: "default",
   SAKIT: "outline",
   IZIN: "outline",
@@ -86,7 +122,8 @@ export const DAY_STATUS_VARIANT: Record<
 /** Warna titik status — dipakai di ringkasan dashboard, bukan satu-satunya penanda. */
 export const DAY_STATUS_DOT: Record<DayStatus, string> = {
   HADIR_DIKANTOR: "bg-chart-hadir",
-  DINAS_LUAR: "bg-chart-3",
+  LUAR_RADIUS: "bg-chart-3",
+  DINAS_LUAR: "bg-chart-1",
   SAKIT: "bg-chart-5",
   IZIN: "bg-muted-foreground/60",
   ALFA: "bg-destructive",
@@ -282,6 +319,9 @@ export type AttendanceMonth = {
 
 export type AttendanceSummary = {
   hadirDikantor: number;
+  /** Hari absen dengan klaim `WorkMode.LUAR_RADIUS` — beda dari `dinasLuar` di bawah. */
+  luarRadius: number;
+  /** Hari ditutupi `FieldAssignment` yang disetujui — beda dari `luarRadius` di atas. */
   dinasLuar: number;
   sakit: number;
   izin: number;
@@ -298,7 +338,7 @@ export type AttendanceSummary = {
   outsideRadius: number;
   /** Hari yang absen masuknya ada tapi absen pulangnya tidak pernah tercatat. */
   missingCheckOut: number;
-  /** Total hari yang dihitung hadir bekerja: di kantor + dinas luar. */
+  /** Total hari yang dihitung hadir bekerja: di kantor + luar radius + dinas luar. */
   totalHadir: number;
   /** Rata-rata jam absen masuk, mis. "08:12". Null kalau belum ada absensi. */
   averageCheckIn: string | null;

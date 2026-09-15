@@ -9,6 +9,7 @@ import {
 import Link from "next/link";
 import { useClerk } from "@clerk/nextjs";
 import { SidebarTrigger } from "../ui/sidebar";
+import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar";
 import { usePathname } from "next/navigation";
 import { Role, User as UserType } from "@/generated/prisma";
 import { ToggleTheme } from "./ToggleTheme";
@@ -137,9 +138,14 @@ export default function Navbar({
               className="hover:bg-muted flex items-center gap-2 rounded-lg px-1.5 py-1.5 sm:gap-3 sm:px-2"
             >
               {/* Avatar */}
-              <div className="bg-muted/60 flex size-9 items-center justify-center overflow-hidden rounded-full sm:size-10">
-                <User className="text-primary-subtle h-5 w-5" />
-              </div>
+              <Avatar size="lg">
+                {user.profileImageUrl && (
+                  <AvatarImage src={user.profileImageUrl} alt={user.name} />
+                )}
+                <AvatarFallback>
+                  <User className="text-primary-subtle h-5 w-5" />
+                </AvatarFallback>
+              </Avatar>
 
               {/* User Info */}
               <div className="hidden text-left sm:block">

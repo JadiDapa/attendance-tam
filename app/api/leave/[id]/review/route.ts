@@ -8,11 +8,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireApiAnyRole([
-    Role.ADMIN,
-    Role.SUPERVISOR,
-    Role.MANAGER,
-  ]);
+  const auth = await requireApiAnyRole([Role.SUPERVISOR, Role.MANAGER]);
 
   if (!auth.user) return auth.response;
 

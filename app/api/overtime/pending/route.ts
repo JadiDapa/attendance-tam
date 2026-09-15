@@ -4,9 +4,9 @@ import { requireApiAnyRole } from "@/lib/api-auth";
 import { OVERTIME_REVIEWER_STAGE } from "@/lib/overtime";
 import { OvertimeService } from "@/servers/services/overtime.service";
 
-/** Pengajuan lembur yang menunggu giliran reviewer yang login (admin/supervisor). */
+/** Pengajuan lembur yang menunggu giliran reviewer yang login (supervisor/manager). */
 export async function GET() {
-  const auth = await requireApiAnyRole([Role.ADMIN, Role.SUPERVISOR]);
+  const auth = await requireApiAnyRole([Role.SUPERVISOR, Role.MANAGER]);
 
   if (!auth.user) return auth.response;
 

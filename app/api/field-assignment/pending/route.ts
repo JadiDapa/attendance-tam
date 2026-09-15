@@ -3,9 +3,9 @@ import { AttendanceApproval, Role } from "@/generated/prisma";
 import { requireApiRole } from "@/lib/api-auth";
 import { FieldAssignmentService } from "@/servers/services/field-assignment.service";
 
-/** Penugasan dinas luar yang menunggu keputusan admin. */
+/** Penugasan dinas luar yang menunggu keputusan manager. */
 export async function GET() {
-  const auth = await requireApiRole(Role.ADMIN);
+  const auth = await requireApiRole(Role.MANAGER);
 
   if (!auth.user) return auth.response;
 

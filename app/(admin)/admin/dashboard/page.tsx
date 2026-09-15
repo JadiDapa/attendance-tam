@@ -83,7 +83,7 @@ export default async function AdminDashboardPage({
     UserService.list({ role: Role.EMPLOYEE, isActive: true }),
     AttendanceService.listByDate(workDate),
     LeaveService.listApprovedOnDate(workDate),
-    LeaveService.list({ status: LeaveStatus.PENDING, stage: LeaveStage.ADMIN }),
+    LeaveService.list({ status: LeaveStatus.PENDING, stage: LeaveStage.SUPERVISOR }),
     LeaveService.listApprovedInRange({
       startDate: weekStart,
       endDate: addDays(weekStart, 6),
@@ -151,7 +151,7 @@ export default async function AdminDashboardPage({
     <div className="flex flex-col gap-5">
       <PageHeader
         title={`Welcome, ${admin.name}`}
-        subtitle="Ringkasan kehadiran karyawan dan pengajuan yang menunggu tindakan."
+        subtitle="Ringkasan kehadiran karyawan dan pengajuan yang sedang berjalan."
         actions={
           <>
             <DashboardDateNav
@@ -222,7 +222,7 @@ export default async function AdminDashboardPage({
               label="Hadir Hari Ini"
               icon={CheckCircle2}
               value={`${presentToday}/${total}`}
-              footerLabel={`${counts.HADIR_DIKANTOR} kantor · ${counts.DINAS_LUAR} dinas luar`}
+              footerLabel={`${counts.HADIR_DIKANTOR} kantor · ${counts.LUAR_RADIUS} luar radius · ${counts.DINAS_LUAR} dinas luar`}
             />
           </div>
 
@@ -259,6 +259,11 @@ export default async function AdminDashboardPage({
                     value: counts.HADIR_DIKANTOR,
                   },
                   {
+                    key: "LUAR_RADIUS",
+                    label: "Luar Radius",
+                    value: counts.LUAR_RADIUS,
+                  },
+                  {
                     key: "DINAS_LUAR",
                     label: "Dinas Luar",
                     value: counts.DINAS_LUAR,
@@ -289,7 +294,7 @@ export default async function AdminDashboardPage({
         {/* Kolom kanan */}
         <aside className="flex flex-col gap-5">
           <Panel
-            title="Perlu Tindakan"
+            title="Ringkasan Pengajuan"
             icon={ClipboardCheck}
             className="min-h-80"
             action={
@@ -308,14 +313,14 @@ export default async function AdminDashboardPage({
             {pendingAttendanceApprovals > 0 && (
               <Button asChild size="sm" variant="outline" className="w-full">
                 <Link href="/admin/verifikasi">
-                  Tinjau {pendingAttendanceApprovals} absensi luar kantor
+                  Lihat {pendingAttendanceApprovals} absensi luar kantor
                 </Link>
               </Button>
             )}
 
             {pendingLeaves.length === 0 ? (
               <p className="text-muted-foreground py-4 text-center text-sm">
-                Tidak ada pengajuan izin yang menunggu review.
+                Tidak ada pengajuan izin yang menunggu keputusan supervisor.
               </p>
             ) : (
               <>
@@ -345,7 +350,7 @@ export default async function AdminDashboardPage({
 
                 <Button asChild size="sm" className="w-full">
                   <Link href="/admin/izin">
-                    Tinjau {pendingLeaves.length} pengajuan
+                    Lihat {pendingLeaves.length} pengajuan
                   </Link>
                 </Button>
               </>
