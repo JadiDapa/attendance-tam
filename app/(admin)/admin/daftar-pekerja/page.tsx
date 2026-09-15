@@ -4,6 +4,7 @@ import {
   IdCardIcon as UserCheck,
   AvatarIcon as Users,
   PieChartIcon as PieChart,
+  UploadIcon as Upload,
 } from "@radix-ui/react-icons";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
@@ -55,12 +56,20 @@ export default async function DaftarPekerjaPage() {
         title="Daftar Pekerja"
         subtitle={`${activeCount} aktif dari ${rows.length} akun`}
         actions={
-          <Button asChild>
-            <Link href="/admin/daftar-pekerja/baru">
-              <Plus className="size-4" />
-              Buat Akun Baru
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="outline">
+              <Link href="/admin/daftar-pekerja/impor">
+                <Upload className="size-4" />
+                Impor CSV
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/admin/daftar-pekerja/baru">
+                <Plus className="size-4" />
+                Buat Akun Baru
+              </Link>
+            </Button>
+          </div>
         }
       />
 

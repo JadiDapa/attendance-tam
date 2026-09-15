@@ -217,6 +217,111 @@ export async function setEmployeeActive(
   };
 }
 
+export type ImportEmployeeRowInput = {
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+  phone?: string;
+  position?: string;
+};
+
+export type ImportEmployeeRowResult = {
+  index: number;
+  email: string;
+  ok: boolean;
+  message: string;
+};
+
+/**
+ * Impor massal dari CSV (`/admin/daftar-pekerja/impor`) — satu baris = satu
+ * `createEmployee`, tapi baris yang gagal tidak menghentikan baris
+ * berikutnya, jadi hasilnya dilaporkan per baris (bukan `UserResult` tunggal).
+ * Validasi tiap baris tetap lewat `CreateUserSchema` yang sama supaya
+ * aturannya (panjang password, format email, dst.) selalu konsisten dengan
+ * form satuan.
+ */
+export async function importEmployees(
+  rows: ImportEmployeeRowInput[],
+): Promise<{ results: ImportEmployeeRowResult[] }> {
+  await requireRole(Role.ADMIN);
+
+  const client = await clerkClient();
+  const results: ImportEmployeeRowResult[] = [];
+
+  for (let index = 0; index < rows.length; index++) {
+    const row = rows[index];
+    const parsed = CreateUserSchema.safeParse(row);
+
+    if (!parsed.success) {
+      results.push({
+        index,
+        email: row.email,
+        ok: false,
+        message: parsed.error.issues[0]?.message ?? "Data tidak valid",
+      });
+      continue;
+    }
+
+    const { name, email, password, role, phone, position } = parsed.data;
+    const normalizedEmail = email.toLowerCase();
+
+    let clerkUserId: string;
+
+    try {
+      const clerkUser = await client.users.createUser({
+        emailAddress: [normalizedEmail],
+        password,
+        firstName: name,
+      });
+      clerkUserId = clerkUser.id;
+    } catch {
+      results.push({
+        index,
+        email: normalizedEmail,
+        ok: false,
+        message: GENERIC_CLERK_ERROR,
+      });
+      continue;
+    }
+
+    try {
+      await UserService.create({
+        clerkId: clerkUserId,
+        name,
+        email: normalizedEmail,
+        role,
+        phone: optional(phone),
+        position: optional(position),
+      });
+    } catch (error) {
+      // Rollback akun Clerk supaya tidak jadi akun yatim tanpa profil di database.
+      await client.users.deleteUser(clerkUserId).catch(() => {});
+
+      const message =
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+          ? DUPLICATE_EMAIL
+          : "Gagal menyimpan data karyawan";
+
+      results.push({ index, email: normalizedEmail, ok: false, message });
+      continue;
+    }
+
+    results.push({
+      index,
+      email: normalizedEmail,
+      ok: true,
+      message: `Akun ${name} berhasil dibuat`,
+    });
+  }
+
+  revalidatePath("/admin/daftar-pekerja");
+  revalidatePath("/admin/rekapan-kehadiran");
+
+  return { results };
+}
+
 export type CreateEmployeeFullInput = z.input<typeof CreateUserSchema> & {
   confirmPassword: string;
   /** Tiap bagian cuma dikirim kalau admin mengaktifkan togel "Isi sekarang". */

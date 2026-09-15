@@ -13,6 +13,7 @@ import {
   DownloadIcon as Download,
   BadgeIcon as ShieldCheck,
   GearIcon as Settings,
+  PersonIcon as UserPlus,
 } from "@radix-ui/react-icons";
 
 type Icon = ComponentType<{ className?: string }>;
@@ -69,6 +70,13 @@ export const overviewItems: MenuItem[] = [
     title: "Daftar Pekerja",
     url: "/admin/daftar-pekerja",
     icon: Users,
+    roles: ["ADMIN"],
+    group: "manajemen",
+  },
+  {
+    title: "Permintaan Akun",
+    url: "/admin/permintaan-akun",
+    icon: UserPlus,
     roles: ["ADMIN"],
     group: "manajemen",
   },

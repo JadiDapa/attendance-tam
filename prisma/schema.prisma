@@ -102,6 +102,47 @@ enum AttendanceApproval {
   REJECTED
 }
 
+/// Status pengajuan pembuatan akun mandiri dari mobile app.
+enum AccountRequestStatus {
+  /// Menunggu keputusan admin.
+  PENDING
+  /// Disetujui — akun Clerk + baris User sudah dibuat.
+  APPROVED
+  /// Ditolak — pemohon boleh mengajukan lagi kapan saja, tidak ada batasan.
+  REJECTED
+}
+
+/// Pengajuan pembuatan akun dari karyawan yang belum terdaftar (mobile app,
+/// layar "Ajukan pembuatan akun"). Password ditulis mentah oleh pemohon di
+/// form pengajuan, jadi disimpan terenkripsi (`lib/crypto.ts`) — hanya
+/// didekripsi sesaat saat admin menyetujui, untuk dipakai membuat akun Clerk
+/// (lihat `reviewAccountRequest` di app/action/account-request.action.ts),
+/// lalu dikosongkan lagi. `role` default `EMPLOYEE`, admin boleh menggantinya
+/// saat meninjau.
+model AccountRequest {
+  id                String               @id @default(cuid())
+  name              String
+  email             String
+  phone             String?
+  /// Terenkripsi (AES-256-GCM) — lihat lib/crypto.ts. Dikosongkan (null)
+  /// begitu request selesai diputuskan (approve/reject), tidak pernah
+  /// disimpan lebih lama dari yang perlu.
+  passwordEncrypted String?
+  role              Role                 @default(EMPLOYEE)
+  status            AccountRequestStatus @default(PENDING)
+
+  reviewedBy   User?     @relation("AccountRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email, status])
+  @@index([status])
+}
+
 model User {
   id        String   @id @default(cuid())
   /// ID user di Clerk — sumber kebenaran identitas & password ada di Clerk,
@@ -116,28 +157,29 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  attendances         Attendance[]    @relation("AttendanceOwner")
-  reviewedAttendances Attendance[]    @relation("AttendanceReviewer")
-  leaveRequests       LeaveRequest[]  @relation("LeaveRequester")
-  reviewedLeaves      LeaveRequest[]  @relation("LeaveReviewer")
-  overtimes           Overtime[]      @relation("OvertimeOwner")
-  reviewedOvertimes   Overtime[]      @relation("OvertimeReviewer")
+  attendances              Attendance[]      @relation("AttendanceOwner")
+  reviewedAttendances      Attendance[]      @relation("AttendanceReviewer")
+  leaveRequests            LeaveRequest[]    @relation("LeaveRequester")
+  reviewedLeaves           LeaveRequest[]    @relation("LeaveReviewer")
+  overtimes                Overtime[]        @relation("OvertimeOwner")
+  reviewedOvertimes        Overtime[]        @relation("OvertimeReviewer")
   createdFieldAssignments  FieldAssignment[] @relation("FieldAssignmentCreator")
   fieldAssignments         FieldAssignment[] @relation("FieldAssignmentEmployees")
   reviewedFieldAssignments FieldAssignment[] @relation("FieldAssignmentReviewer")
-  approvalLogs        ApprovalLog[]   @relation("ApprovalLogReviewer")
-  faceEmbeddings      FaceEmbedding[]
+  approvalLogs             ApprovalLog[]     @relation("ApprovalLogReviewer")
+  faceEmbeddings           FaceEmbedding[]
+  reviewedAccountRequests  AccountRequest[]  @relation("AccountRequestReviewer")
 
   /// Ketujuh bagian profil karyawan di bawah ini masing-masing satu baris per
   /// user (1:1) — "belum ada baris" berarti bagian itu belum pernah diisi,
   /// bukan error. Lihat servers/services/employee-profile.service.ts.
-  personalIdentity        PersonalIdentity?
-  contact                 Contact?
-  employmentData          EmploymentData?
-  workHistory             WorkHistory?
-  administrativeDocument  AdministrativeDocument?
-  payroll                 Payroll?
-  training                Training?
+  personalIdentity       PersonalIdentity?
+  contact                Contact?
+  employmentData         EmploymentData?
+  workHistory            WorkHistory?
+  administrativeDocument AdministrativeDocument?
+  payroll                Payroll?
+  training               Training?
 
   @@index([role, isActive])
 }
@@ -321,7 +363,7 @@ model WorkSchedule {
 
 /// Satu baris per hari dalam seminggu — selalu 7 baris.
 model WorkDay {
-  id String @id @default(cuid())
+  id           String   @id @default(cuid())
   /// 0 = Minggu … 6 = Sabtu, sama dengan `Date#getUTCDay()`
   dayOfWeek    Int      @unique
   isWorkingDay Boolean  @default(true)
@@ -357,7 +399,7 @@ model Attendance {
 
   /// Cara kerja absensi ini. Di dalam radius selalu `HADIR_DIKANTOR`; di luar
   /// radius otomatis `DINAS_LUAR`.
-  workMode WorkMode @default(HADIR_DIKANTOR)
+  workMode       WorkMode @default(HADIR_DIKANTOR)
   /// Penjelasan yang wajib diisi karyawan saat absen di luar radius.
   /// Null untuk absensi di dalam radius.
   workModeDetail String?
@@ -367,11 +409,11 @@ model Attendance {
   approvalStatus AttendanceApproval?
   /// Diisi kalau admin menyetujui dengan mode yang berbeda dari klaim karyawan.
   /// Mode final selalu `approvedMode ?? workMode`.
-  approvedMode WorkMode?
-  reviewedBy   User?     @relation("AttendanceReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-  reviewedById String?
-  reviewedAt   DateTime?
-  reviewNote   String?
+  approvedMode   WorkMode?
+  reviewedBy     User?               @relation("AttendanceReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedById   String?
+  reviewedAt     DateTime?
+  reviewNote     String?
 
   createdAt DateTime @default(now())
 
@@ -433,29 +475,29 @@ model FieldAssignment {
   createdBy   User   @relation("FieldAssignmentCreator", fields: [createdById], references: [id], onDelete: Cascade)
   createdById String
   /// Karyawan yang ditugaskan — satu pengajuan bisa untuk beberapa orang sekaligus.
-  employees User[] @relation("FieldAssignmentEmployees")
+  employees   User[] @relation("FieldAssignmentEmployees")
 
-  startDate DateTime @db.Date
-  endDate   DateTime @db.Date
+  startDate           DateTime            @db.Date
+  endDate             DateTime            @db.Date
   /// Kegiatan/tujuan dinas luar — sebelumnya bernama `reason`.
-  activityDetail String
+  activityDetail      String
   /// "Tujuan Kota".
-  destinationCity String?
+  destinationCity     String?
   /// "Lokasi/Alamat Tujuan".
-  destinationAddress String?
+  destinationAddress  String?
   /// "Keperluan Dinas" — ringkas, beda dari `activityDetail`.
-  purpose String?
+  purpose             String?
   /// "Nama Perusahaan/Instansi yang Dikunjungi" — satu-satunya field baru yang
   /// tetap opsional walau untuk pengajuan baru.
-  companyName String?
-  transportation TransportationType?
+  companyName         String?
+  transportation      TransportationType?
   /// Wajib diisi hanya kalau `transportation` = `LAINNYA`.
   transportationOther String?
   /// Estimasi biaya dalam Rupiah utuh (bukan sen).
-  estimatedCost Int?
+  estimatedCost       Int?
   /// Wajib diisi — beda dari `LeaveRequest.attachmentUrl` yang opsional.
   /// Merepresentasikan "Upload rincian biaya".
-  attachmentUrl String
+  attachmentUrl       String
 
   /// Reuse `AttendanceApproval` (PENDING/APPROVED/REJECTED) — makna & nilainya sama.
   status AttendanceApproval @default(PENDING)
@@ -488,19 +530,19 @@ model LeaveRequest {
   userId String
   user   User   @relation("LeaveRequester", fields: [userId], references: [id], onDelete: Cascade)
 
-  type          LeaveType
-  startDate     DateTime    @db.Date
-  endDate       DateTime    @db.Date
+  type           LeaveType
+  startDate      DateTime             @db.Date
+  endDate        DateTime             @db.Date
   /// Elaborasi bebas — sebelumnya bernama `reason`. Wajib untuk ketiga jenis.
-  detail        String
+  detail         String
   /// Kategori alasan ("Alasan" pada form) — wajib untuk `CUTI`/`IZIN`, wajib
   /// null untuk `SAKIT`. Divalidasi di zod (`leave.validator.ts`), bukan DB.
   reasonCategory LeaveReasonCategory?
-  attachmentUrl String?
-  status        LeaveStatus @default(PENDING)
+  attachmentUrl  String?
+  status         LeaveStatus          @default(PENDING)
   /// Giliran approval saat ini. `SAKIT` langsung `DONE` setelah admin
   /// memutuskan; `IZIN`/`CUTI` lanjut ke SUPERVISOR lalu MANAGER sebelum `DONE`.
-  stage         LeaveStage  @default(ADMIN)
+  stage          LeaveStage           @default(ADMIN)
 
   /// Reviewer & catatan dari keputusan TERAKHIR (admin, supervisor, atau
   /// manager, tergantung `stage` saat keputusan itu diambil) — bukan riwayat
@@ -537,12 +579,12 @@ model ApprovalLog {
   type      ApprovalLogType
   requestId String
 
-  reviewer   User   @relation("ApprovalLogReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewer   User               @relation("ApprovalLogReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
   reviewerId String
   /// Role reviewer saat memutuskan — sekaligus tahap approval-nya.
-  stage  Role
-  status AttendanceApproval
-  note   String?
+  stage      Role
+  status     AttendanceApproval
+  note       String?
 
   /// Ringkasan pengajuan saat diputuskan, didenormalisasi supaya histori
   /// bisa ditampilkan tanpa join ulang ke tabel asal (yang tahap/reviewer

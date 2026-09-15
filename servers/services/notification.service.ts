@@ -1,4 +1,5 @@
 import { LeaveStage, OvertimeStage, Role, type User } from "@/generated/prisma";
+import { AccountRequestService } from "./account-request.service";
 import { AttendanceService } from "./attendance.service";
 import { FieldAssignmentService } from "./field-assignment.service";
 import { LeaveService } from "./leave.service";
@@ -26,14 +27,15 @@ export const NotificationService = {
     }
   },
 
-  /** Antrean admin: pengajuan izin + persetujuan dinas luar di giliran admin + approval absensi + pengajuan lembur. */
+  /** Antrean admin: pengajuan izin + persetujuan dinas luar di giliran admin + approval absensi + pengajuan lembur + pengajuan akun baru. */
   async forAdmin(): Promise<SidebarBadges> {
-    const [leaves, attendanceApprovals, overtimes, fieldAssignments] =
+    const [leaves, attendanceApprovals, overtimes, fieldAssignments, accountRequests] =
       await Promise.all([
         LeaveService.countPending(LeaveStage.ADMIN),
         AttendanceService.countPendingApproval(),
         OvertimeService.countPending(OvertimeStage.ADMIN),
         FieldAssignmentService.countPending(),
+        AccountRequestService.countPending(),
       ]);
 
     return {
@@ -41,6 +43,7 @@ export const NotificationService = {
       "/admin/verifikasi": attendanceApprovals,
       "/admin/lembur": overtimes,
       "/admin/dinas-luar": fieldAssignments,
+      "/admin/permintaan-akun": accountRequests,
     };
   },
 
