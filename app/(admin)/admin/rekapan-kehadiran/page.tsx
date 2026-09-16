@@ -28,6 +28,8 @@ type Recap = {
   luarRadius: number;
   dinasLuar: number;
   terlambat: number;
+  /** Total menit terlambat, tanpa toleransi — lihat `Attendance.lateMinutes`. */
+  terlambatMenit: number;
   alfa: number;
   izin: number;
   sakit: number;
@@ -40,6 +42,7 @@ function emptyRecap(): Recap {
     luarRadius: 0,
     dinasLuar: 0,
     terlambat: 0,
+    terlambatMenit: 0,
     alfa: 0,
     izin: 0,
     sakit: 0,
@@ -80,6 +83,12 @@ export default async function RekapanKehadiranPage({
       recap.terlambat += 1;
     }
 
+    // Menitnya tetap direkap walau di bawah toleransi (`isLate` false) — dipakai
+    // untuk menilai performa, bukan cuma yang lewat ambang batas.
+    if (row.status === "HADIR_DIKANTOR" && row.checkIn) {
+      recap.terlambatMenit += row.checkIn.lateMinutes;
+    }
+
     // Hari libur sudah berstatus LIBUR sejak `buildRecap`, jadi di sini tinggal
     // menyaring hari yang belum lewat — hari berjalan belum bisa disebut bolos.
     if (row.status === "ALFA" && row.workDate.getTime() < today.getTime()) {
@@ -109,6 +118,7 @@ export default async function RekapanKehadiranPage({
       totalLuarRadius: recap.luarRadius,
       totalDinasLuar: recap.dinasLuar,
       totalTerlambat: recap.terlambat,
+      totalTerlambatMenit: recap.terlambatMenit,
       totalAlfa: recap.alfa,
       totalIzin: recap.izin,
       totalSakit: recap.sakit,

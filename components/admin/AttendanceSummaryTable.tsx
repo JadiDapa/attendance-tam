@@ -36,6 +36,8 @@ export type AttendanceSummaryRow = {
   /** Hari ditutupi `FieldAssignment` yang disetujui — beda dari `totalLuarRadius` di atas. */
   totalDinasLuar: number;
   totalTerlambat: number;
+  /** Total menit terlambat, tanpa toleransi — tetap terhitung walau `totalTerlambat` 0. */
+  totalTerlambatMenit: number;
   totalAlfa: number;
   totalIzin: number;
   totalSakit: number;
@@ -95,8 +97,10 @@ const columns: ColumnDef<AttendanceSummaryRow>[] = [
         value={row.original.totalHadirDikantor}
         hasRecap={row.original.hasRecap}
         hint={
-          row.original.totalTerlambat > 0
-            ? `${row.original.totalTerlambat} telat`
+          row.original.totalTerlambatMenit > 0
+            ? row.original.totalTerlambat > 0
+              ? `${row.original.totalTerlambat} telat · ${row.original.totalTerlambatMenit} menit`
+              : `${row.original.totalTerlambatMenit} menit (di bawah toleransi)`
             : undefined
         }
       />

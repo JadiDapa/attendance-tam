@@ -41,6 +41,8 @@ export const CreateAttendanceSchema = SubmitAttendanceSchema.omit({
   accuracyMeters: z.number().nullable(),
   isWithinRadius: z.boolean(),
   isLate: z.boolean(),
+  // Menit terlambat tanpa toleransi — lihat `lateMinutesAt()`.
+  lateMinutes: z.number().int().min(0),
   workMode: z.enum(WorkMode),
   /** Null untuk absensi di dalam radius — tidak ada yang perlu dijelaskan. */
   workModeDetail: z.string().nullable(),

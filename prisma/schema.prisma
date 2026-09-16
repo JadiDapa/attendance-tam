@@ -157,8 +157,8 @@ model User {
   role      Role     @default(EMPLOYEE)
   phone     String?
   position  String?
-  /// URL foto profil (`/api/images/<file>`), diisi otomatis dari pendaftaran
-  /// wajah terbaru — lihat app/action/face.action.ts.
+  /// URL foto profil (`/api/images/<file>`), diisi otomatis dari foto
+  /// pendaftaran wajah pertama — lihat app/action/face.action.ts.
   profileImageUrl String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -399,6 +399,10 @@ model Attendance {
   photoUrl       String?
   isWithinRadius Boolean?
   isLate         Boolean  @default(false)
+  /// Menit keterlambatan sejak jam masuk terjadwal, tanpa toleransi — dihitung
+  /// berapa pun nilainya, walau di bawah `lateToleranceMinutes` dan `isLate`
+  /// tetap false. Dipakai rekap performa/bulanan, bukan untuk label "terlambat".
+  lateMinutes    Int      @default(0)
 
   /// True kalau baris ini dicatat admin secara manual (mis. karyawan lupa absen
   /// pulang), bukan absen langsung dari HP karyawan.

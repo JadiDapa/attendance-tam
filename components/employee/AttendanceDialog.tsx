@@ -11,17 +11,16 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   CameraIcon as Camera,
-  CheckIcon as Check,
+  Cross2Icon as Close,
   SewingPinIcon as MapPin,
   ReloadIcon as RefreshCw,
 } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -429,6 +428,8 @@ export default function AttendanceDialog({
     handleSubmit,
   ]);
 
+  const waitingForLocation = !isOutside && (!coords || !isAccurate);
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -445,292 +446,297 @@ export default function AttendanceDialog({
         )}
       </DialogTrigger>
 
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="from-primary to-primary/60 text-primary-foreground flex size-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br shadow-sm">
-              <Camera className="size-5" />
-            </div>
-            <div>
-              <DialogTitle>{label}</DialogTitle>
-              <DialogDescription>
-                Posisikan wajah lalu ambil foto — sisanya berjalan otomatis.
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
+      {/* Di layar < lg (HP & tablet) tampil penuh layar ala aplikasi kamera
+          bawaan; di layar lg ke atas (desktop) jadi bingkai mirip HP yang
+          mengambang di tengah, bukan modal kotak biasa. */}
+      <DialogContent
+        showCloseButton={false}
+        className={cn(
+          "inset-0 top-0 left-0 h-[100dvh] max-h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 gap-0 rounded-none border-0 bg-black p-0 text-white ring-0",
+          "lg:top-1/2 lg:left-1/2 lg:h-[88vh] lg:max-h-[840px] lg:w-full lg:max-w-[420px] lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-[2.5rem] lg:border-[10px] lg:border-neutral-900 lg:shadow-2xl lg:ring-1 lg:ring-black/10",
+        )}
+      >
+        <DialogTitle className="sr-only">{label}</DialogTitle>
+        <DialogDescription className="sr-only">
+          Posisikan wajah lalu ambil foto — sisanya berjalan otomatis.
+        </DialogDescription>
 
-        <div className="border-border relative aspect-4/3 w-full overflow-hidden rounded-xl border bg-black shadow-inner">
-          {photo ? (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+        <div className="relative flex h-full w-full flex-col overflow-hidden bg-black">
+          {/* Area kamera / foto — mengisi seluruh ruang di atas panel bawah */}
+          <div className="relative min-h-0 flex-1 overflow-hidden">
+            {photo ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={photo.preview}
                 alt="Foto absensi"
-                className="h-full w-full object-cover"
+                className="absolute inset-0 h-full w-full object-cover"
               />
-
-              <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-black/50 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
-                <Check className="size-3.5" />
-                Foto diambil
-              </div>
-
-              {(submitting || (!isOutside && (!coords || !isAccurate))) && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/55 text-center backdrop-blur-[2px]">
-                  <Spinner className="size-6 text-white" />
-                  <p className="px-4 text-sm font-medium text-white">
-                    {submitting
-                      ? "Mengirim absensi..."
-                      : "Menunggu lokasi terbaca..."}
-                  </p>
-                </div>
-              )}
-            </>
-          ) : (
-            <>
+            ) : (
               <video
                 ref={videoRef}
                 playsInline
                 muted
-                className="h-full w-full scale-x-[-1] object-cover"
+                className="absolute inset-0 h-full w-full scale-x-[-1] object-cover"
               />
+            )}
 
-              {!preparing && !error && (
-                <>
-                  {/* Vignette supaya area luar wajah lebih gelap, bukan bidang datar */}
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_45%_60%_at_center,transparent_55%,rgba(0,0,0,0.55)_100%)]" />
+            {!photo && !preparing && !error && (
+              <>
+                {/* Vignette supaya area luar wajah lebih gelap, bukan bidang datar */}
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_45%_55%_at_center,transparent_55%,rgba(0,0,0,0.55)_100%)]" />
 
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                    <div className="border-primary/80 h-[68%] w-[48%] animate-pulse rounded-[50%] border-2 border-dashed shadow-[0_0_0_9999px_rgba(0,0,0,0.15)]" />
-                  </div>
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="border-primary/80 h-[62%] w-[46%] animate-pulse rounded-[50%] border-2 border-dashed shadow-[0_0_0_9999px_rgba(0,0,0,0.15)]" />
+                </div>
 
-                  {/* Bingkai sudut ala viewfinder kamera, bukan siluet kepala+bahu */}
-                  <div className="pointer-events-none absolute inset-5">
-                    <span className="absolute top-0 left-0 h-6 w-6 rounded-tl-xl border-t-2 border-l-2 border-white/90" />
-                    <span className="absolute top-0 right-0 h-6 w-6 rounded-tr-xl border-t-2 border-r-2 border-white/90" />
-                    <span className="absolute bottom-0 left-0 h-6 w-6 rounded-bl-xl border-b-2 border-l-2 border-white/90" />
-                    <span className="absolute right-0 bottom-0 h-6 w-6 rounded-br-xl border-r-2 border-b-2 border-white/90" />
-                  </div>
+                {/* Bingkai sudut ala viewfinder kamera, bukan siluet kepala+bahu */}
+                <div className="pointer-events-none absolute inset-5">
+                  <span className="absolute top-0 left-0 h-6 w-6 rounded-tl-xl border-t-2 border-l-2 border-white/90" />
+                  <span className="absolute top-0 right-0 h-6 w-6 rounded-tr-xl border-t-2 border-r-2 border-white/90" />
+                  <span className="absolute bottom-0 left-0 h-6 w-6 rounded-bl-xl border-b-2 border-l-2 border-white/90" />
+                  <span className="absolute right-0 bottom-0 h-6 w-6 rounded-br-xl border-r-2 border-b-2 border-white/90" />
+                </div>
 
-                  <div className="pointer-events-none absolute right-0 bottom-0 left-0 bg-linear-to-t from-black/70 to-transparent px-4 pt-8 pb-3 text-center text-xs font-medium text-white">
-                    Posisikan wajah di dalam bingkai
-                  </div>
-                </>
-              )}
+                <div className="pointer-events-none absolute right-0 bottom-0 left-0 bg-linear-to-t from-black/70 to-transparent px-4 pt-10 pb-4 text-center text-xs font-medium text-white">
+                  Posisikan wajah di dalam bingkai
+                </div>
+              </>
+            )}
 
-              <div className="absolute top-3 left-3">
-                {coords ? (
+            {(preparing || error) && !photo && (
+              <div className="bg-black/90 absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
+                {error ? (
+                  <p className="text-sm text-red-200">{error}</p>
+                ) : (
+                  <>
+                    <Spinner className="size-5 text-white" />
+                    <p className="text-sm text-white/70">
+                      Menyiapkan kamera...
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+
+            {photo && (submitting || waitingForLocation) && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/55 text-center backdrop-blur-[2px]">
+                <Spinner className="size-6 text-white" />
+                <p className="px-4 text-sm font-medium text-white">
+                  {submitting
+                    ? "Mengirim absensi..."
+                    : "Menunggu lokasi terbaca..."}
+                </p>
+              </div>
+            )}
+
+            {/* Bar atas: tombol tutup + status lokasi, aman dari notch/status bar HP */}
+            <div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-4 pt-[max(1rem,env(safe-area-inset-top))]">
+              <DialogClose asChild>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  aria-label="Tutup"
+                  className="flex size-9 shrink-0 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm transition disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Close className="size-4" />
+                </button>
+              </DialogClose>
+
+              {coords ? (
+                <span
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium backdrop-blur-sm",
+                    isAccurate
+                      ? "bg-emerald-500/20 text-emerald-100"
+                      : "bg-destructive/25 text-red-100",
+                  )}
+                >
                   <span
                     className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium backdrop-blur-sm",
-                      isAccurate
-                        ? "bg-emerald-500/20 text-emerald-100"
-                        : "bg-destructive/25 text-red-100",
+                      "size-1.5 rounded-full",
+                      isAccurate ? "bg-emerald-400" : "bg-red-400",
                     )}
+                  />
+                  ±{Math.round(coords.accuracy)} m
+                  {locating && " · memperbarui"}
+                </span>
+              ) : (
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-black/45 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur-sm">
+                  <MapPin className="size-3" />
+                  {locating ? "Membaca lokasi..." : "Lokasi belum terbaca"}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Panel bawah: berubah bentuk sesuai tahap — rana kamera, ulangi
+              foto, atau formulir alasan luar radius. */}
+          <div
+            className={cn(
+              "relative z-10 flex shrink-0 flex-col gap-3 px-4 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]",
+              photo && isOutside
+                ? "rounded-t-3xl bg-white text-neutral-900 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
+                : "bg-black",
+            )}
+          >
+            {photo && isOutside && (
+              <div className="mx-auto -mt-1 h-1.5 w-10 rounded-full bg-neutral-300" />
+            )}
+
+            {!photo && (
+              <>
+                {!coords && !locating && (
+                  <div className="flex flex-col gap-2 rounded-xl border border-red-500/30 bg-red-500/15 p-3 text-xs text-red-100">
+                    <p>{locationError ?? "Lokasi belum terbaca"}</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={refreshLocation}
+                      className="self-start border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                    >
+                      <RefreshCw className="size-3.5" />
+                      Baca ulang lokasi
+                    </Button>
+                  </div>
+                )}
+
+                {coords && !isAccurate && (
+                  <div className="flex flex-col gap-2 rounded-xl border border-red-500/30 bg-red-500/15 p-3 text-xs text-red-100">
+                    <p>
+                      Akurasi lokasi terlalu rendah (±
+                      {Math.round(coords.accuracy)} m, maksimal ±
+                      {maxAccuracyMeters} m). Pindah ke area terbuka lalu baca
+                      ulang lokasinya.
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={refreshLocation}
+                      disabled={locating}
+                      className="self-start border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                    >
+                      <RefreshCw className="size-3.5" />
+                      Baca ulang lokasi
+                    </Button>
+                  </div>
+                )}
+
+                {/* Tombol rana ala kamera HP */}
+                <div className="flex items-center justify-center py-1">
+                  <button
+                    type="button"
+                    onClick={capturePhoto}
+                    disabled={preparing || !!error || !coords || !isAccurate}
+                    aria-label="Ambil foto"
+                    className="flex size-[72px] items-center justify-center rounded-full border-4 border-white/90 transition active:scale-95 disabled:cursor-not-allowed disabled:border-white/30"
                   >
                     <span
                       className={cn(
-                        "size-1.5 rounded-full",
-                        isAccurate ? "bg-emerald-400" : "bg-red-400",
+                        "size-[56px] rounded-full bg-white transition",
+                        (preparing || !!error || !coords || !isAccurate) &&
+                          "bg-white/40",
                       )}
                     />
-                    ±{Math.round(coords.accuracy)} m
-                    {locating && " · memperbarui"}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-black/50 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
-                    <MapPin className="size-3" />
-                    {locating ? "Membaca lokasi..." : "Lokasi belum terbaca"}
-                  </span>
-                )}
-              </div>
-            </>
-          )}
+                  </button>
+                </div>
+              </>
+            )}
 
-          {(preparing || error) && !photo && (
-            <div className="bg-background/90 absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center">
-              {error ? (
-                <p className="text-destructive text-sm">{error}</p>
-              ) : (
-                <>
-                  <Spinner className="size-5" />
-                  <p className="text-muted-foreground text-sm">
-                    Menyiapkan kamera...
-                  </p>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          {coords && (
-            <p className="text-muted-foreground text-xs">
-              {coords.latitude.toFixed(6)}, {coords.longitude.toFixed(6)}
-            </p>
-          )}
-
-          {!coords && !locating && (
-            <div className="border-destructive/40 bg-destructive/10 text-destructive flex flex-col gap-2 rounded-lg border p-3 text-xs">
-              <p>{locationError ?? "Lokasi belum terbaca"}</p>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={refreshLocation}
-                className="self-start"
-              >
-                <RefreshCw className="size-3.5" />
-                Baca ulang lokasi
-              </Button>
-            </div>
-          )}
-
-          {coords && !isAccurate && (
-            <div className="border-destructive/40 bg-destructive/10 text-destructive flex flex-col gap-2 rounded-lg border p-3 text-xs">
-              <p>
-                Akurasi lokasi terlalu rendah (±{Math.round(coords.accuracy)} m,
-                maksimal ±{maxAccuracyMeters} m). Pindah ke area terbuka lalu
-                baca ulang lokasinya.
-              </p>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={refreshLocation}
-                disabled={locating}
-                className="self-start"
-              >
-                <RefreshCw className="size-3.5" />
-                Baca ulang lokasi
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Di luar radius: alasan + penjelasan wajib, lalu menunggu approval. */}
-        {isOutside && isAccurate && (
-          <div className="border-border flex flex-col gap-3 rounded-lg border p-3">
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium">
-                Kamu {formatDistance(distanceMeters!)} dari kantor
-              </p>
-              <p className="text-muted-foreground text-xs">
-                Tulis penjelasan singkat kenapa kamu absen di luar kantor.
-                Absensi ini menunggu persetujuan admin, dan tidak dihitung
-                terlambat.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="workModeDetail">Penjelasan</Label>
-              <Textarea
-                id="workModeDetail"
-                rows={2}
-                value={detail}
-                onChange={(event) => setDetail(event.target.value)}
-                maxLength={300}
-                placeholder="Contoh: kunjungan klien di Bekasi bersama Pak Adi"
-              />
-              {trimmedDetail.length < MIN_DETAIL_LENGTH && (
-                <p className="text-muted-foreground text-xs">
-                  Tulis minimal {MIN_DETAIL_LENGTH} karakter supaya admin bisa
-                  menilainya.
-                </p>
-              )}
-            </div>
-
-            <p className="text-muted-foreground text-xs">
-              Sakit, izin, atau cuti tidak diajukan dari sini — pakai menu Izin
-              &amp; Cuti.
-            </p>
-          </div>
-        )}
-
-        <DialogFooter className="gap-2 sm:justify-between">
-          {/* Tombol dikunci sampai lokasi cukup akurat — kalau tidak, foto
-              sudah diambil tapi tidak bisa terkirim sampai lokasi menyusul. */}
-          {!photo && (
-            <Button
-              type="button"
-              size="lg"
-              onClick={capturePhoto}
-              disabled={preparing || !!error || !coords || !isAccurate}
-              className="w-full"
-            >
-              {coords && !isAccurate ? (
-                <>
-                  <RefreshCw className="size-4" />
-                  Akurasi lokasi kurang
-                </>
-              ) : !coords ? (
-                <>
-                  <Spinner className="size-4" />
-                  Menunggu lokasi...
-                </>
-              ) : (
-                <>
-                  <Camera className="size-4" />
-                  Ambil Foto
-                </>
-              )}
-            </Button>
-          )}
-
-          {/* Di dalam radius: begitu foto & lokasi siap, absensi terkirim
-              sendiri lewat effect di atas — tidak perlu tombol kirim lagi,
-              kecuali percobaan sebelumnya gagal (autoSubmitFailed). */}
-          {photo && !isOutside && (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={retakePhoto}
-                disabled={submitting}
-                className={cn(!autoSubmitFailed && "w-full")}
-              >
-                <RefreshCw className="size-4" />
-                Ulangi
-              </Button>
-
-              {autoSubmitFailed && (
+            {photo && !isOutside && (
+              <div className="flex gap-2">
                 <Button
                   type="button"
-                  onClick={handleSubmit}
-                  disabled={!coords || !isAccurate || submitting}
+                  variant="outline"
+                  onClick={retakePhoto}
+                  disabled={submitting}
+                  className={cn(
+                    "border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white",
+                    !autoSubmitFailed && "w-full",
+                  )}
                 >
-                  {submitting && <Spinner />}
-                  Coba Lagi
+                  <RefreshCw className="size-4" />
+                  Ulangi
                 </Button>
-              )}
-            </>
-          )}
 
-          {photo && isOutside && (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={retakePhoto}
-                disabled={submitting}
-              >
-                <RefreshCw className="size-4" />
-                Ulangi
-              </Button>
+                {autoSubmitFailed && (
+                  <Button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={!coords || !isAccurate || submitting}
+                    className="flex-1"
+                  >
+                    {submitting && <Spinner />}
+                    Coba Lagi
+                  </Button>
+                )}
+              </div>
+            )}
 
-              <Button
-                type="button"
-                onClick={handleSubmit}
-                disabled={
-                  !coords || !isAccurate || !isReasonComplete || submitting
-                }
-              >
-                {submitting && <Spinner />}
-                Kirim Absensi
-              </Button>
-            </>
-          )}
-        </DialogFooter>
+            {photo && isOutside && (
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-medium">
+                    Kamu {formatDistance(distanceMeters!)} dari kantor
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    Tulis penjelasan singkat kenapa kamu absen di luar kantor.
+                    Absensi ini menunggu persetujuan admin, dan tidak dihitung
+                    terlambat.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="workModeDetail">Penjelasan</Label>
+                  <Textarea
+                    id="workModeDetail"
+                    rows={2}
+                    value={detail}
+                    onChange={(event) => setDetail(event.target.value)}
+                    maxLength={300}
+                    placeholder="Contoh: kunjungan klien di Bekasi bersama Pak Adi"
+                  />
+                  {trimmedDetail.length < MIN_DETAIL_LENGTH && (
+                    <p className="text-muted-foreground text-xs">
+                      Tulis minimal {MIN_DETAIL_LENGTH} karakter supaya admin
+                      bisa menilainya.
+                    </p>
+                  )}
+                </div>
+
+                <p className="text-muted-foreground text-xs">
+                  Sakit, izin, atau cuti tidak diajukan dari sini — pakai menu
+                  Izin &amp; Cuti.
+                </p>
+
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={retakePhoto}
+                    disabled={submitting}
+                  >
+                    <RefreshCw className="size-4" />
+                    Ulangi
+                  </Button>
+
+                  <Button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={
+                      !coords || !isAccurate || !isReasonComplete || submitting
+                    }
+                    className="flex-1"
+                  >
+                    {submitting && <Spinner />}
+                    Kirim Absensi
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

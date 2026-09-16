@@ -66,18 +66,18 @@ export async function enrollFace(formData: FormData): Promise<FaceResult> {
     throw error;
   }
 
-  // Foto enrollment terbaru dipakai sebagai foto profil, menggantikan stub
-  // avatar — best-effort, kegagalan simpan gambar tidak boleh menggagalkan
-  // enrollment yang embedding-nya sudah tersimpan di atas.
-  try {
-    const previousImageUrl = user.profileImageUrl;
-    const profileImageUrl = await saveImage(photo);
+  // Foto enrollment pertama dipakai sebagai foto profil, menggantikan stub
+  // avatar — hanya sekali, enrollment berikutnya tidak menimpanya. Best-effort,
+  // kegagalan simpan gambar tidak boleh menggagalkan enrollment yang
+  // embedding-nya sudah tersimpan di atas.
+  if (currentTotal === 0 && !user.profileImageUrl) {
+    try {
+      const profileImageUrl = await saveImage(photo);
 
-    await UserService.update(user.id, { profileImageUrl });
-
-    if (previousImageUrl) await deleteUpload(previousImageUrl);
-  } catch {
-    // Diamkan — enrollment tetap sukses walau foto profil gagal diperbarui.
+      await UserService.update(user.id, { profileImageUrl });
+    } catch {
+      // Diamkan — enrollment tetap sukses walau foto profil gagal diperbarui.
+    }
   }
 
   const totalPhotos = await FaceService.countByUser(user.id);

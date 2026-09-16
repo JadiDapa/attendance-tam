@@ -16,6 +16,8 @@ export type MonthlyAttendanceRow = {
   name: string;
   hadir: number;
   telat: number;
+  /** Total menit terlambat, tanpa toleransi — tetap terhitung walau `telat` 0. */
+  telatMenit: number;
   /** Sistem belum punya mode kerja WFH — selalu 0. */
   wfh: number;
   dinasLuar: number;
@@ -30,6 +32,7 @@ export type MonthlyAttendanceRow = {
 type Counts = {
   hadir: number;
   telat: number;
+  telatMenit: number;
   dinasLuar: number;
   sakit: number;
   izin: number;
@@ -38,7 +41,16 @@ type Counts = {
 };
 
 function emptyCounts(): Counts {
-  return { hadir: 0, telat: 0, dinasLuar: 0, sakit: 0, izin: 0, alfa: 0, cuti: 0 };
+  return {
+    hadir: 0,
+    telat: 0,
+    telatMenit: 0,
+    dinasLuar: 0,
+    sakit: 0,
+    izin: 0,
+    alfa: 0,
+    cuti: 0,
+  };
 }
 
 export const MonthlyReportService = {
@@ -74,6 +86,9 @@ export const MonthlyReportService = {
       if (row.status === "HADIR_DIKANTOR") {
         counts.hadir += 1;
         if (row.checkIn?.isLate) counts.telat += 1;
+        // Menitnya tetap direkap walau di bawah toleransi (`isLate` false) —
+        // dipakai untuk menilai performa, bukan cuma yang lewat ambang batas.
+        if (row.checkIn) counts.telatMenit += row.checkIn.lateMinutes;
       }
       // Kolom Excel "Dinas Luar" ikut template lama yang tidak membedakan
       // klaim luar radius (`WorkMode.LUAR_RADIUS`) dari penugasan dinas luar

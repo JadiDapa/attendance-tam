@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ColumnDef } from "@tanstack/react-table";
 import { IdCardIcon as IdCard } from "@radix-ui/react-icons";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import DataTable from "@/components/dashboard/DataTable";
@@ -20,7 +21,18 @@ export type WorkerRow = {
   position: string;
   isActive: boolean;
   joinedAt: string;
+  profileImageUrl: string | null;
 };
+
+function initials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
 
 const ROLE_OPTIONS = Object.values(Role).map((value) => ({
   value,
@@ -40,16 +52,27 @@ const columns: ColumnDef<WorkerRow>[] = [
     accessorFn: (row) => `${row.name} ${row.phone} ${row.email}`,
     header: "Nama",
     cell: ({ row }) => (
-      <div className="min-w-40">
-        <Link
-          href={`/admin/daftar-pekerja/${row.original.id}`}
-          className="font-medium hover:underline"
-        >
-          {row.original.name}
-        </Link>
-        <p className="text-muted-foreground text-xs">
-          {row.original.position || "Tanpa jabatan"}
-        </p>
+      <div className="flex min-w-40 items-center gap-3">
+        <Avatar>
+          {row.original.profileImageUrl && (
+            <AvatarImage
+              src={row.original.profileImageUrl}
+              alt={`Foto ${row.original.name}`}
+            />
+          )}
+          <AvatarFallback>{initials(row.original.name)}</AvatarFallback>
+        </Avatar>
+        <div>
+          <Link
+            href={`/admin/daftar-pekerja/${row.original.id}`}
+            className="font-medium hover:underline"
+          >
+            {row.original.name}
+          </Link>
+          <p className="text-muted-foreground text-xs">
+            {row.original.position || "Tanpa jabatan"}
+          </p>
+        </div>
       </div>
     ),
   },

@@ -42,11 +42,18 @@ import {
   getWorkDayFor,
   isCheckInClosed,
   isLateAt,
+  lateMinutesAt,
   type WorkDayConfig,
 } from "@/lib/work-schedule";
 
 export type AttendanceResult =
-  | { ok: true; message: string; warning?: string }
+  | {
+      ok: true;
+      message: string;
+      warning?: string;
+      /** Menit terlambat tanpa toleransi (0 kalau bukan absen masuk / tidak terlambat sama sekali). */
+      lateMinutes?: number;
+    }
   | { ok: false; error: string };
 
 export type ReviewAttendanceResult =
@@ -97,8 +104,12 @@ function revalidateAttendancePages() {
  *
  * Sengaja murni (tanpa query) supaya pemanggil yang sudah punya datanya tidak
  * mengambilnya dua kali. `isLateAt()` tetap satu-satunya definisi "terlambat".
+ *
+ * `lateMinutes` dihitung terpisah dari `isLate` (lihat `lateMinutesAt()`):
+ * tanpa toleransi, jadi tetap terekam walau di bawah `toleranceMinutes` dan
+ * `isLate`-nya false — dipakai rekap performa/bulanan, bukan label.
  */
-function resolveIsLate(input: {
+function resolveLateness(input: {
   type: AttendanceType;
   mode: WorkMode;
   workDate: Date;
@@ -106,16 +117,21 @@ function resolveIsLate(input: {
   workDays: WorkDayConfig[];
   toleranceMinutes: number;
   isHoliday: boolean;
-}): boolean {
-  if (input.type !== AttendanceType.CHECK_IN) return false;
-  if (!isLateEligible(input.mode)) return false;
-  if (input.isHoliday) return false;
+}): { isLate: boolean; lateMinutes: number } {
+  if (
+    input.type !== AttendanceType.CHECK_IN ||
+    !isLateEligible(input.mode) ||
+    input.isHoliday
+  ) {
+    return { isLate: false, lateMinutes: 0 };
+  }
 
-  return isLateAt(
-    input.minutesOfDay,
-    getWorkDayFor(input.workDate, input.workDays),
-    input.toleranceMinutes,
-  );
+  const workDay = getWorkDayFor(input.workDate, input.workDays);
+
+  return {
+    isLate: isLateAt(input.minutesOfDay, workDay, input.toleranceMinutes),
+    lateMinutes: lateMinutesAt(input.minutesOfDay, workDay),
+  };
 }
 
 export async function submitAttendance(
@@ -287,7 +303,7 @@ export async function submitAttendance(
     };
   }
 
-  const isLate = resolveIsLate({
+  const { isLate, lateMinutes } = resolveLateness({
     type,
     mode: workMode,
     workDate,
@@ -329,6 +345,7 @@ export async function submitAttendance(
       accuracyMeters: accuracy,
       isWithinRadius,
       isLate,
+      lateMinutes,
       workMode,
       workModeDetail,
       approvalStatus: isWithinRadius
@@ -382,6 +399,7 @@ export async function submitAttendance(
         ? "Absen masuk tercatat"
         : "Absen pulang tercatat",
     warning: warnings.length ? warnings.join(" ") : undefined,
+    lateMinutes,
   };
 }
 
@@ -430,6 +448,7 @@ export async function reviewAttendance(
   // meleset, jadi aturan terlambat berlaku lagi dan harus dihitung ulang dari
   // jam absen aslinya. Mode lain tidak pernah terlambat.
   let isLate = false;
+  let lateMinutes = 0;
 
   if (approvedMode !== null && isLateEligible(approvedMode)) {
     const [schedule, workDays, holiday] = await Promise.all([
@@ -438,7 +457,7 @@ export async function reviewAttendance(
       HolidayService.getByDate(attendance.workDate),
     ]);
 
-    isLate = resolveIsLate({
+    ({ isLate, lateMinutes } = resolveLateness({
       type: attendance.type,
       mode: approvedMode,
       workDate: attendance.workDate,
@@ -446,13 +465,14 @@ export async function reviewAttendance(
       workDays,
       toleranceMinutes: schedule?.lateToleranceMinutes ?? 0,
       isHoliday: holiday !== null,
-    });
+    }));
   }
 
   const applied = await AttendanceService.decide(attendanceId, {
     status: parsed.data.status,
     approvedMode,
     isLate,
+    lateMinutes,
     reviewedById: reviewer.id,
     reviewNote: parsed.data.reviewNote?.trim() || null,
   });
@@ -540,7 +560,7 @@ export async function createManualAttendance(
     HolidayService.getByDate(workDate),
   ]);
 
-  const isLate = resolveIsLate({
+  const { isLate, lateMinutes } = resolveLateness({
     type: parsed.data.type,
     mode: parsed.data.workMode,
     workDate,
@@ -557,6 +577,7 @@ export async function createManualAttendance(
     timestamp,
     workMode: parsed.data.workMode,
     isLate,
+    lateMinutes,
     reviewedById: admin.id,
     reviewNote: parsed.data.reviewNote,
   });

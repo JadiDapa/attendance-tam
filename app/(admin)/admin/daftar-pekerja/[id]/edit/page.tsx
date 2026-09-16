@@ -10,6 +10,7 @@ import {
 } from "@radix-ui/react-icons";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import EditEmployeeAccountForm from "@/components/admin/EditEmployeeAccountForm";
 import PersonalIdentityForm from "@/components/profile/PersonalIdentityForm";
 import ContactForm from "@/components/profile/ContactForm";
@@ -31,6 +32,16 @@ import {
   TrainingService,
   WorkHistoryService,
 } from "@/servers/services/employee-profile.service";
+
+function initials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
 
 export default async function EditEmployeeProfilePage({
   params,
@@ -78,6 +89,17 @@ export default async function EditEmployeeProfilePage({
       />
 
       <Panel title="Data Akun" icon={IdCard} contentClassName="p-4 sm:p-5">
+        <div className="mb-4 flex items-center gap-3">
+          <Avatar size="lg">
+            {employee.profileImageUrl && (
+              <AvatarImage
+                src={employee.profileImageUrl}
+                alt={`Foto ${employee.name}`}
+              />
+            )}
+            <AvatarFallback>{initials(employee.name)}</AvatarFallback>
+          </Avatar>
+        </div>
         <EditEmployeeAccountForm
           employee={{
             id: employee.id,

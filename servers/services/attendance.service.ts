@@ -139,6 +139,7 @@ export const AttendanceService = {
       status: AttendanceApproval;
       approvedMode: WorkMode | null;
       isLate: boolean;
+      lateMinutes: number;
       reviewedById: string;
       reviewNote: string | null;
     },
@@ -149,6 +150,7 @@ export const AttendanceService = {
         approvalStatus: data.status,
         approvedMode: data.approvedMode,
         isLate: data.isLate,
+        lateMinutes: data.lateMinutes,
         reviewedById: data.reviewedById,
         reviewNote: data.reviewNote,
         reviewedAt: new Date(),
@@ -173,6 +175,7 @@ export const AttendanceService = {
     timestamp: Date;
     workMode: WorkMode;
     isLate: boolean;
+    lateMinutes: number;
     reviewedById: string;
     reviewNote: string;
   }) {
@@ -191,6 +194,7 @@ export const AttendanceService = {
         timestamp: data.timestamp,
         workMode: data.workMode,
         isLate: data.isLate,
+        lateMinutes: data.lateMinutes,
         isManual: true,
         reviewedById: data.reviewedById,
         reviewNote: data.reviewNote,
@@ -210,6 +214,7 @@ export const AttendanceService = {
         timestamp: data.timestamp,
         workMode: data.workMode,
         isLate: data.isLate,
+        lateMinutes: data.lateMinutes,
         isManual: true,
         reviewedById: data.reviewedById,
         reviewNote: data.reviewNote,

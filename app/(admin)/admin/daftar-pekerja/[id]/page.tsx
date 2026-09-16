@@ -14,6 +14,7 @@ import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
 import DateRangeNav from "@/components/dashboard/DateRangeNav";
 import AttendanceCalendar from "@/components/employee/attendance/AttendanceCalendar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import EmployeeStatusToggle from "@/components/admin/EmployeeStatusToggle";
@@ -65,6 +66,16 @@ function Field({ label, value }: { label: string; value: string }) {
 
 function EmptySection({ children }: { children: string }) {
   return <p className="text-muted-foreground text-sm">{children}</p>;
+}
+
+function initials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 }
 
 const DOCUMENT_FIELDS: { key: string; label: string }[] = [
@@ -157,6 +168,17 @@ export default async function EmployeeProfileDetailPage({
         icon={IdCard}
         contentClassName="grid gap-4 p-4 sm:grid-cols-2 sm:p-5"
       >
+        <div className="flex items-center gap-3 sm:col-span-2">
+          <Avatar size="lg">
+            {employee.profileImageUrl && (
+              <AvatarImage
+                src={employee.profileImageUrl}
+                alt={`Foto ${employee.name}`}
+              />
+            )}
+            <AvatarFallback>{initials(employee.name)}</AvatarFallback>
+          </Avatar>
+        </div>
         <Field label="Nama" value={employee.name} />
         <Field label="Email" value={employee.email} />
         <Field label="Jabatan" value={employee.position || "—"} />

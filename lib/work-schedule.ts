@@ -100,6 +100,23 @@ export function isLateAt(
 }
 
 /**
+ * Selisih menit dari jam masuk terjadwal, tanpa toleransi — dipakai untuk
+ * `Attendance.lateMinutes` (rekap performa/bulanan), bukan untuk label
+ * "terlambat" (lihat `isLateAt()`, yang tetap satu-satunya definisi itu).
+ *
+ * Contoh: jam masuk 08:00, toleransi 15 menit. Absen jam 08:10 → bukan
+ * "terlambat" (10 < 15), tapi tetap dihitung 10 menit di sini. Absen jam
+ * 08:20 → "terlambat" dan dihitung 20 menit di sini.
+ */
+export function lateMinutesAt(minutesOfDay: number, day: WorkDayConfig): number {
+  if (!day.isWorkingDay) return 0;
+
+  const start = parseTimeToMinutes(day.checkInTime);
+
+  return start !== null ? Math.max(0, minutesOfDay - start) : 0;
+}
+
+/**
  * Absen masuk ditutup begitu lewat jam pulang terjadwal hari itu — dari titik
  * ini karyawan cuma bisa mengajukan lembur, bukan absen masuk biasa. Tidak
  * ada toleransi seperti `isLateAt()`, karena ini bukan soal terlambat.

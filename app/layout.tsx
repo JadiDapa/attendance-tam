@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
@@ -15,6 +15,18 @@ export const metadata: Metadata = {
   title: "Absensi | Taruna Anugerah Mandiri",
   description:
     "Absensi Taruna Anugerah Mandiri adalah sistem absensi yang dirancang untuk memudahkan proses pencatatan kehadiran taruna. Dengan fitur-fitur canggih dan antarmuka yang intuitif, sistem ini memungkinkan pengelolaan absensi yang efisien dan akurat, membantu organisasi dalam memantau kehadiran taruna secara real-time.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Absensi TAM",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1e2a78",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
