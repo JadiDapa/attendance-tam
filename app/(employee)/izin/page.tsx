@@ -18,6 +18,7 @@ import { requireRole } from "@/lib/session";
 import { formatWorkDate, getWorkDate, toDateInputValue } from "@/lib/date";
 import { LEAVE_TYPE_LABEL, countLeaveDays } from "@/lib/leave";
 import { LeaveService } from "@/servers/services/leave.service";
+import { IzinScreen } from "@/components/mobile/izin/izin-screen";
 
 export default async function IzinPage() {
   const user = await requireRole(Role.EMPLOYEE);
@@ -56,52 +57,56 @@ export default async function IzinPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <PageHeader
-          title="Izin & Cuti"
-          subtitle="Ajukan izin, sakit, atau cuti lalu pantau statusnya di sini."
-        />
-        <LeaveRequestForm today={toDateInputValue(getWorkDate())} />
+    <>
+      <IzinScreen role={user.role} />
+
+      <div className="hidden flex-col gap-6 md:flex">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <PageHeader
+            title="Izin & Cuti"
+            subtitle="Ajukan izin, sakit, atau cuti lalu pantau statusnya di sini."
+          />
+          <LeaveRequestForm today={toDateInputValue(getWorkDate())} />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatTile
+            label="Menunggu"
+            icon={Clock4}
+            value={String(countByStatusMap.PENDING)}
+            footerLabel="Pengajuan belum diputuskan admin"
+          />
+          <StatTile
+            label="Disetujui"
+            icon={CheckCircle2}
+            value={String(countByStatusMap.APPROVED)}
+            footerLabel="Pengajuan yang disetujui"
+            highlighted
+          />
+          <StatTile
+            label="Ditolak"
+            icon={XCircle}
+            value={String(countByStatusMap.REJECTED)}
+            footerLabel="Pengajuan yang ditolak"
+          />
+        </div>
+
+        <div className="flex flex-col gap-4 lg:flex-row">
+          <Panel
+            title="Pengajuan per Jenis"
+            icon={CalendarClock}
+            className="flex-2 p-4"
+          >
+            <LeaveTypeChart countByType={countByType} />
+          </Panel>
+
+          <Panel title="Status Pengajuan" icon={Clock4} className="flex flex-1">
+            <LeaveStatusChart countByStatus={countByStatusMap} />
+          </Panel>
+        </div>
+
+        <LeaveRequestTable rows={rows} />
       </div>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatTile
-          label="Menunggu"
-          icon={Clock4}
-          value={String(countByStatusMap.PENDING)}
-          footerLabel="Pengajuan belum diputuskan admin"
-        />
-        <StatTile
-          label="Disetujui"
-          icon={CheckCircle2}
-          value={String(countByStatusMap.APPROVED)}
-          footerLabel="Pengajuan yang disetujui"
-          highlighted
-        />
-        <StatTile
-          label="Ditolak"
-          icon={XCircle}
-          value={String(countByStatusMap.REJECTED)}
-          footerLabel="Pengajuan yang ditolak"
-        />
-      </div>
-
-      <div className="flex flex-col gap-4 lg:flex-row">
-        <Panel
-          title="Pengajuan per Jenis"
-          icon={CalendarClock}
-          className="flex-2 p-4"
-        >
-          <LeaveTypeChart countByType={countByType} />
-        </Panel>
-
-        <Panel title="Status Pengajuan" icon={Clock4} className="flex flex-1">
-          <LeaveStatusChart countByStatus={countByStatusMap} />
-        </Panel>
-      </div>
-
-      <LeaveRequestTable rows={rows} />
-    </div>
+    </>
   );
 }

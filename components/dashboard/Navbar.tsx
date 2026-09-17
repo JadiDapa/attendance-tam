@@ -68,7 +68,8 @@ export default function Navbar({
     <header
       className={cn(
         "bg-card flex h-14 w-full items-center justify-between gap-3 border-b px-3 sm:h-22 sm:px-4",
-        isEmployee && "hidden lg:flex",
+        "hidden",
+        isEmployee ? "lg:flex" : "md:flex",
       )}
     >
       {/* Left: mobile sidebar toggle (desktop toggle lives in the sidebar header) & page title */}

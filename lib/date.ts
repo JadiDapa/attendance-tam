@@ -49,6 +49,15 @@ const monthFormatter = new Intl.DateTimeFormat("id-ID", {
   year: "numeric",
 });
 
+/** Full weekday + full month, mis. "Senin, 14 September 2026" — mirrors mobile's `formatLongIndonesianDate`. */
+const longDateFormatter = new Intl.DateTimeFormat("id-ID", {
+  timeZone: "UTC",
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
 const compactDateFormatter = new Intl.DateTimeFormat("id-ID", {
   timeZone: "UTC",
   day: "numeric",
@@ -161,6 +170,49 @@ export function formatWeekday(date: Date): string {
   return weekdayFormatter.format(date);
 }
 
+/** Label lengkap, mis. "Senin, 14 September 2026". Input harus kolom `date`. */
+export function formatLongIndonesianDate(date: Date): string {
+  return longDateFormatter.format(date);
+}
+
+/** "2j 5m" kalau >= 1 jam, "45m" kalau tidak — durasi keterlambatan dalam menit. */
+export function formatLateDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  return hours > 0 ? `${hours}j ${minutes % 60}m` : `${minutes}m`;
+}
+
+/** "9 Sep" — tanpa tahun. Input ISO date string. Mirrors mobile's `formatShortDateNoYear`. */
+export function formatShortDateNoYear(iso: string): string {
+  const date = new Date(iso);
+  return date.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
+/** "9 Sep 2026" — dengan tahun. Input ISO date string. Mirrors mobile's `formatShortDate(iso)`
+ * (a different function from this file's own `formatShortDate(date: Date)`, which omits the year). */
+export function formatShortDateWithYear(iso: string): string {
+  const date = new Date(iso);
+  return date.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/** Jumlah hari inklusif antara dua tanggal ISO "YYYY-MM-DD". */
+export function countDaysInclusive(start: string, end: string): number {
+  const msPerDay = 1000 * 60 * 60 * 24;
+  return (
+    Math.round(
+      (new Date(end).getTime() - new Date(start).getTime()) / msPerDay,
+    ) + 1
+  );
+}
+
 /** Label ringkas dengan tahun, mis. "12, Jan 2026". Input harus kolom `date`. */
 export function formatCompactDate(date: Date): string {
   const parts = compactDateFormatter.formatToParts(date);
@@ -180,7 +232,9 @@ export function formatMonth(date: Date): string {
 export function getMonthRange(date: Date): { startDate: Date; endDate: Date } {
   return {
     startDate: new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)),
-    endDate: new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)),
+    endDate: new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0),
+    ),
   };
 }
 

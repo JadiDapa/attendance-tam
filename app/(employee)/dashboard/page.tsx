@@ -1,6 +1,7 @@
 import SelfAttendanceDashboard, {
   type SelfAttendanceSearchParams,
 } from "@/components/dashboard/SelfAttendanceDashboard";
+import { MobileHome } from "@/components/mobile/beranda/home";
 import { Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 
@@ -12,11 +13,17 @@ export default async function EmployeeDashboardPage({
   const user = await requireRole(Role.EMPLOYEE);
 
   return (
-    <SelfAttendanceDashboard
-      user={user}
-      searchParams={await searchParams}
-      basePath="/dashboard"
-      title="Dashboard"
-    />
+    <>
+      <MobileHome user={user} />
+
+      <div className="hidden md:block">
+        <SelfAttendanceDashboard
+          user={user}
+          searchParams={await searchParams}
+          basePath="/dashboard"
+          title="Dashboard"
+        />
+      </div>
+    </>
   );
 }

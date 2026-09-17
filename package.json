@@ -11,7 +11,10 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "parity:auth": "node scripts/parity/save-auth.mjs",
+    "parity:compare": "node scripts/parity/compare.mjs",
+    "parity:capture": "node scripts/parity/capture.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
@@ -59,10 +62,14 @@
     "@types/leaflet": "^1.9.22",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
+    "@types/pngjs": "^6.0.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "pixelmatch": "^7.2.0",
+    "playwright": "^1.62.0",
+    "pngjs": "^7.0.0",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "prisma": "^7.8.0",

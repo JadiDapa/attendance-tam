@@ -241,3 +241,112 @@ itu bisa login.
 ### Styling
 
 Tailwind v4 (PostCSS plugin). Use `cn()` from `lib/utils.ts` (clsx + tailwind-merge) for conditional classes.
+
+## Mobile-parity project
+
+We're rebuilding the `md:hidden` (<768px) web experience to be an exact
+clone of the sibling Expo app at `../mobile` (relative to this `dashboard/`
+folder — i.e. `attendance-system-tam/mobile`), reusing this app's existing
+backend. Full plan and screen-by-screen status: `MOBILE_PARITY.md`.
+
+### Hard rules
+
+1. Never change desktop UI (`md:` and up). Never modify `../mobile` source.
+2. Never duplicate or rewrite backend logic — reuse existing API routes,
+   server actions, `lib/session.ts` auth, and hooks. If backend support is
+   missing, stop and ask instead of inventing an endpoint.
+3. Mobile components live in `components/mobile/`. Pages switch trees with
+   CSS only (`md:hidden` / `hidden md:block`), never JS width detection.
+   Both trees share the same data layer (React Query hooks, server data).
+4. Copy NativeWind classNames from `../mobile` verbatim wherever possible —
+   design tokens are already kept in sync between `dashboard/app/globals.css`
+   and `../mobile/global.css` (same oklch values, same variable names).
+5. RN → web conversion rules:
+   - `<View>` → `<div>` **with `flex flex-col` added** (RN defaults to column
+     flexbox; web divs default to block).
+   - `<Text>` → `<span>`/`<p>` with its own explicit font, size, weight,
+     line-height, and color classes (web inherits; RN doesn't).
+   - `Pressable`/`TouchableOpacity` → `<button>` or `<Link>`, keep pressed
+     feedback via `active:` classes.
+   - `TextInput` → `<input>`/`<textarea>` with matching styles, `type`, and
+     `inputMode`.
+   - `ScrollView`/`FlatList` → overflow containers + `.map()`; add `min-h-0`
+     inside `flex-1` parents.
+   - `numberOfLines` → `line-clamp-*`.
+   - `SafeAreaView` → `env(safe-area-inset-*)` padding.
+   - Drop `ios:`/`android:`/`native:` variants; keep `web:` variants
+     unprefixed.
+   - Elevation → closest Tailwind shadow.
+   - `@react-native-vector-icons/ionicons` → `lucide-react` or an Ionicons
+     web set, mapped 1:1 by icon name/size/stroke (see `components/icon.tsx`
+     in the mobile app for the tone→color mapping to replicate).
+   - The mobile app's bottom-sheet pattern (`Modal transparent
+     animationType="slide"`, used by every drawer/picker) needs a web
+     "Sheet" component — build it on top of `components/ui/drawer.tsx` or
+     `dialog.tsx` (Radix), not a new dependency.
+   - `Alert.alert(...)` (used for all success/error feedback, since the
+     mobile app has no toast library) → `sonner` toast (already used on
+     desktop web).
+   - Camera (`expo-camera`) and location (`expo-location`) → browser
+     `getUserMedia`/`navigator.geolocation`; handle permission-denied and
+     unsupported states explicitly. `dashboard/components/employee/
+     AttendanceDialog.tsx` already has a working `getUserMedia` capture
+     pattern for desktop — the mobile capture screen should reuse that
+     approach, not re-invent it.
+6. Keep the app building at every step. Run `npm run lint` and `tsc
+   --noEmit` after each screen.
+
+### Visual verification loop (mandatory after every section/state)
+
+1. Start both servers: `npm run dev` (this app, port 3000) and the mobile
+   reference server (see below, port 8081). Re-run `npm run parity:auth` if
+   sessions have expired (saved to `parity-auth/*.json`, gitignored).
+2. `npm run parity:compare -- --name <screen> --web <route> --mobile
+   <mobile-route>` (add `--steps <file>` for interactive states, `--mask
+   <selector>` for dynamic content like clocks).
+3. Open and **look at** `parity-output/<screen>/{web,mobile,diff}.png` —
+   don't rely on the printed percentage alone.
+4. List every visible difference (spacing, font, weight, color, radius,
+   shadow, icon size, alignment, missing/extra elements), fix, repeat.
+5. After finishing a screen, also run `npm run parity:capture -- --url
+   <route> --out <path> --desktop` and confirm desktop is unchanged.
+6. Record the final diff % in `MOBILE_PARITY.md`.
+
+### Mobile reference server (Expo web)
+
+Do **not** use `npx expo start --web` (Metro dev server) as the reference —
+Expo SDK 57's `expo-secure-store` web shim throws `getValueWithKeyAsync is
+not a function` inside a `useEffect` in `../mobile/src/app/_layout.tsx` on
+every route mount, which triggers an uncaught-error LogBox overlay that
+intercepts pointer events and blocks Playwright automation. This is a bug
+in the mobile app's SDK/web-shim combination, not something to fix (mobile
+source is off-limits) — the overlay doesn't appear in a production-style
+static export, so use that instead:
+
+```bash
+cd ../mobile && npx expo export -p web   # writes ../mobile/dist
+cd ../mobile/dist && npx serve -l 8081 -s .
+```
+
+Re-run `expo export -p web` whenever you need to confirm something against
+a freshly-loaded reference (rare, since mobile source doesn't change during
+this project). `parity:auth`/`parity:compare` default to
+`http://localhost:8081` for the mobile side (override with
+`PARITY_MOBILE_WEB_URL`).
+
+### Parity scripts (`scripts/parity/`)
+
+- `save-auth.mjs` — logs into both apps with the test account, saves
+  Playwright storage state to `parity-auth/{web,mobile}.json`.
+- `compare.mjs` — captures both sides at 390×844 @3x (mobile) or against a
+  static reference PNG, diffs with pixelmatch, writes
+  `parity-output/<name>/{web,mobile,diff}.png`, prints % difference.
+- `capture.mjs` — single screenshot of any URL at mobile or desktop
+  (1440×900) size, for spot-checks.
+- `lib.mjs` — shared Playwright helpers (viewport/context setup, animation
+  disabling, font-ready waiting, selector masking).
+
+Git Bash mangles a leading `/route` arg into a Windows path — prefix
+commands with `MSYS_NO_PATHCONV=1` when running these scripts directly
+(not needed through `npm run parity:*` most of the time, but safe to
+always add).

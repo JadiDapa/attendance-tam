@@ -45,3 +45,7 @@ next-env.d.ts
 
 # uploaded attendance photos
 /uploads/
+
+# mobile-parity visual verification pipeline
+/parity-output/
+/parity-auth/

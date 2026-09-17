@@ -67,7 +67,10 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-50 lg:hidden"
+      // Mobile-parity: below `md` the RN-clone tree (`components/mobile/tab-bar.tsx`)
+      // owns the bottom nav instead — this one stays for the md–lg "tablet" tier only,
+      // exactly as before (see CLAUDE.md "Mobile parity project").
+      className="fixed inset-x-0 bottom-0 z-50 hidden md:block lg:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="bg-card mx-4 mb-4 flex h-16 items-center rounded-full px-3 shadow-lg">
