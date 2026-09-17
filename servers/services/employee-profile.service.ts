@@ -67,19 +67,40 @@ export const EmploymentDataService = {
 };
 
 export const WorkHistoryService = {
-  async getByUserId(userId: string) {
-    return prisma.workHistory.findUnique({ where: { userId } });
+  async listByUserId(userId: string) {
+    return prisma.workHistory.findMany({
+      where: { userId },
+      orderBy: { createdAt: "asc" },
+    });
   },
 
-  async upsert(
+  async create(
     userId: string,
     data: Without<Prisma.WorkHistoryUncheckedCreateInput>,
   ) {
-    return prisma.workHistory.upsert({
-      where: { userId },
-      create: { userId, ...data },
-      update: data,
+    return prisma.workHistory.create({ data: { userId, ...data } });
+  },
+
+  /** `where` disaring dengan `userId` juga supaya tidak bisa mengedit baris user lain lewat id tebakan. */
+  async update(
+    id: string,
+    userId: string,
+    data: Without<Prisma.WorkHistoryUncheckedCreateInput>,
+  ) {
+    const { count } = await prisma.workHistory.updateMany({
+      where: { id, userId },
+      data,
     });
+
+    return count > 0;
+  },
+
+  async remove(id: string, userId: string) {
+    const { count } = await prisma.workHistory.deleteMany({
+      where: { id, userId },
+    });
+
+    return count > 0;
   },
 };
 
@@ -121,18 +142,39 @@ export const PayrollService = {
 };
 
 export const TrainingService = {
-  async getByUserId(userId: string) {
-    return prisma.training.findUnique({ where: { userId } });
+  async listByUserId(userId: string) {
+    return prisma.training.findMany({
+      where: { userId },
+      orderBy: { createdAt: "asc" },
+    });
   },
 
-  async upsert(
+  async create(
     userId: string,
     data: Without<Prisma.TrainingUncheckedCreateInput>,
   ) {
-    return prisma.training.upsert({
-      where: { userId },
-      create: { userId, ...data },
-      update: data,
+    return prisma.training.create({ data: { userId, ...data } });
+  },
+
+  /** `where` disaring dengan `userId` juga supaya tidak bisa mengedit baris user lain lewat id tebakan. */
+  async update(
+    id: string,
+    userId: string,
+    data: Without<Prisma.TrainingUncheckedCreateInput>,
+  ) {
+    const { count } = await prisma.training.updateMany({
+      where: { id, userId },
+      data,
     });
+
+    return count > 0;
+  },
+
+  async remove(id: string, userId: string) {
+    const { count } = await prisma.training.deleteMany({
+      where: { id, userId },
+    });
+
+    return count > 0;
   },
 };

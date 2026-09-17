@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/api-auth";
-import { upsertTraining } from "@/app/action/employee-profile.action";
+import { createTraining } from "@/app/action/employee-profile.action";
 
-/** Simpan riwayat training sendiri — JSON body sesuai TrainingSchema. */
-export async function PUT(request: Request) {
+/** Tambah satu pelatihan baru sendiri — JSON body sesuai TrainingSchema. */
+export async function POST(request: Request) {
   const auth = await requireApiUser();
 
   if (!auth.user) return auth.response;
@@ -14,7 +14,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Body tidak valid" }, { status: 400 });
   }
 
-  const result = await upsertTraining(body);
+  const result = await createTraining(body);
 
   return NextResponse.json(result, { status: result.ok ? 200 : 400 });
 }

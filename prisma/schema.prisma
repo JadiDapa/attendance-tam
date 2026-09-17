@@ -177,16 +177,18 @@ model User {
   faceEmbeddings           FaceEmbedding[]
   reviewedAccountRequests  AccountRequest[]  @relation("AccountRequestReviewer")
 
-  /// Ketujuh bagian profil karyawan di bawah ini masing-masing satu baris per
-  /// user (1:1) — "belum ada baris" berarti bagian itu belum pernah diisi,
-  /// bukan error. Lihat servers/services/employee-profile.service.ts.
+  /// Bagian profil karyawan di bawah ini masing-masing satu baris per user
+  /// (1:1) — "belum ada baris" berarti bagian itu belum pernah diisi, bukan
+  /// error. Lihat servers/services/employee-profile.service.ts.
+  /// `workHistory` dan `training` beda sendiri: satu user bisa punya banyak
+  /// baris (riwayat pekerjaan/pelatihan boleh lebih dari satu).
   personalIdentity       PersonalIdentity?
   contact                Contact?
   employmentData         EmploymentData?
-  workHistory            WorkHistory?
+  workHistory            WorkHistory[]
   administrativeDocument AdministrativeDocument?
   payroll                Payroll?
-  training               Training?
+  training               Training[]
 
   @@index([role, isActive])
 }
@@ -266,17 +268,19 @@ model EmploymentData {
   updatedAt        DateTime         @updatedAt
 }
 
-/// Riwayat pekerjaan sebelumnya — 1:1 dengan User, semua field opsional
-/// (tidak semua karyawan punya riwayat kerja sebelumnya).
+/// Riwayat pekerjaan sebelumnya — satu user bisa punya banyak baris (satu per
+/// pekerjaan sebelumnya), semua field opsional.
 model WorkHistory {
   id               String   @id @default(cuid())
-  userId           String   @unique
+  userId           String
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   previousCompany  String?
   previousPosition String?
   previousDuration String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  @@index([userId])
 }
 
 /// Dokumen administrasi (URL berkas) — 1:1 dengan User, semua field nullable
@@ -315,14 +319,22 @@ model Payroll {
   updatedAt                 DateTime @updatedAt
 }
 
-/// Riwayat training/seminar/sertifikasi — 1:1 dengan User, satu field bebas teks.
+/// Riwayat training/seminar/sertifikasi — satu user bisa punya banyak baris
+/// (satu per pelatihan yang pernah diikuti).
 model Training {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trainingHistory String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Nama pelatihan/seminar/sertifikasi — wajib diisi.
+  name      String
+  /// Penyelenggara/institusi — opsional.
+  organizer String?
+  /// Tahun/periode pelaksanaan, bebas format (mis. "2024" atau "Jan–Mar 2025").
+  period    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 /// Data wajah referensi karyawan untuk verifikasi 1:1 saat absen (anti titip

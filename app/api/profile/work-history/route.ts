@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/api-auth";
-import { upsertWorkHistory } from "@/app/action/employee-profile.action";
+import { createWorkHistory } from "@/app/action/employee-profile.action";
 
-/** Simpan riwayat pekerjaan sendiri — JSON body sesuai WorkHistorySchema. */
-export async function PUT(request: Request) {
+/** Tambah satu riwayat pekerjaan baru sendiri — JSON body sesuai WorkHistorySchema. */
+export async function POST(request: Request) {
   const auth = await requireApiUser();
 
   if (!auth.user) return auth.response;
@@ -14,7 +14,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Body tidak valid" }, { status: 400 });
   }
 
-  const result = await upsertWorkHistory(body);
+  const result = await createWorkHistory(body);
 
   return NextResponse.json(result, { status: result.ok ? 200 : 400 });
 }

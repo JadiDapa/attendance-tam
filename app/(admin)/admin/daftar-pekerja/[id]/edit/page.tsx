@@ -67,10 +67,10 @@ export default async function EditEmployeeProfilePage({
     PersonalIdentityService.getByUserId(id),
     ContactService.getByUserId(id),
     EmploymentDataService.getByUserId(id),
-    WorkHistoryService.getByUserId(id),
+    WorkHistoryService.listByUserId(id),
     AdministrativeDocumentService.getByUserId(id),
     PayrollService.getByUserId(id),
-    TrainingService.getByUserId(id),
+    TrainingService.listByUserId(id),
   ]);
 
   return (
@@ -177,14 +177,7 @@ export default async function EditEmployeeProfilePage({
         icon={Archive}
         contentClassName="p-4 sm:p-5"
       >
-        <WorkHistoryForm
-          targetUserId={id}
-          initial={{
-            previousCompany: workHistory?.previousCompany ?? "",
-            previousPosition: workHistory?.previousPosition ?? "",
-            previousDuration: workHistory?.previousDuration ?? "",
-          }}
-        />
+        <WorkHistoryForm targetUserId={id} entries={workHistory} />
       </Panel>
 
       <Panel
@@ -224,10 +217,7 @@ export default async function EditEmployeeProfilePage({
       </Panel>
 
       <Panel title="Pelatihan" icon={Reader} contentClassName="p-4 sm:p-5">
-        <TrainingForm
-          targetUserId={id}
-          initial={{ trainingHistory: training?.trainingHistory ?? "" }}
-        />
+        <TrainingForm targetUserId={id} entries={training} />
       </Panel>
     </div>
   );

@@ -117,11 +117,8 @@ export function EmployeeDataScreen({ role }: { role: Role }) {
     : "Belum diisi";
 
   const workHistorySubtitle =
-    data.workHistory &&
-    (data.workHistory.previousCompany || data.workHistory.previousPosition)
-      ? [data.workHistory.previousPosition, data.workHistory.previousCompany]
-          .filter(Boolean)
-          .join(" di ")
+    data.workHistory.length > 0
+      ? `${data.workHistory.length} riwayat pekerjaan`
       : "Belum diisi";
 
   const uploadedDocumentCount = data.administrativeDocument
@@ -131,9 +128,10 @@ export function EmployeeDataScreen({ role }: { role: Role }) {
     : 0;
   const documentsSubtitle = `${uploadedDocumentCount}/${DOCUMENT_URL_FIELDS.length} dokumen terunggah`;
 
-  const trainingSubtitle = data.training?.trainingHistory
-    ? data.training.trainingHistory
-    : "Belum diisi";
+  const trainingSubtitle =
+    data.training.length > 0
+      ? `${data.training.length} pelatihan`
+      : "Belum diisi";
 
   return shell(
     <div className="flex-1 overflow-y-auto pb-24">

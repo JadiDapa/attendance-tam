@@ -449,7 +449,7 @@ export async function createEmployeeFull(
 
   const trainingParsed = TrainingSchema.safeParse(input.training ?? {});
   const training =
-    trainingParsed.success && trainingParsed.data.trainingHistory
+    trainingParsed.success && trainingParsed.data.name
       ? trainingParsed.data
       : undefined;
 
@@ -539,7 +539,7 @@ export async function createEmployeeFull(
 
   if (workHistory) {
     try {
-      await WorkHistoryService.upsert(userId, {
+      await WorkHistoryService.create(userId, {
         previousCompany: workHistory.previousCompany || null,
         previousPosition: workHistory.previousPosition || null,
         previousDuration: workHistory.previousDuration || null,
@@ -551,8 +551,10 @@ export async function createEmployeeFull(
 
   if (training) {
     try {
-      await TrainingService.upsert(userId, {
-        trainingHistory: training.trainingHistory || null,
+      await TrainingService.create(userId, {
+        name: training.name,
+        organizer: training.organizer || null,
+        period: training.period || null,
       });
     } catch {
       warnings.push("Training");

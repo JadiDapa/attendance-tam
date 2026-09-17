@@ -12,6 +12,8 @@ import { WorkDayService } from "./setting.service";
 /** Satu baris "Rekap Absensi Karyawan" — persis kolom absensi di template Excel. */
 export type MonthlyAttendanceRow = {
   no: number;
+  userId: string;
+  profileImageUrl: string | null;
   nip: string;
   name: string;
   hadir: number;
@@ -144,6 +146,8 @@ export const MonthlyReportService = {
 
       return {
         no: index + 1,
+        userId: employee.id,
+        profileImageUrl: employee.profileImageUrl,
         nip: nipByUser.get(employee.id) ?? "",
         name: employee.name,
         wfh: 0,

@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/session";
 
 export default async function RiwayatKerjaPage() {
   const user = await requireUser();
-  const workHistory = await WorkHistoryService.getByUserId(user.id);
+  const workHistory = await WorkHistoryService.listByUserId(user.id);
 
   return <WorkHistoryForm initial={workHistory} />;
 }

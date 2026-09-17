@@ -222,6 +222,7 @@ export type ApiEmploymentData = {
 };
 
 export type ApiWorkHistory = {
+  id: string;
   previousCompany: string | null;
   previousPosition: string | null;
   previousDuration: string | null;
@@ -249,16 +250,21 @@ export type ApiPayroll = {
   bpjsKetenagakerjaanNumber: string | null;
 };
 
-export type ApiTraining = { trainingHistory: string | null };
+export type ApiTraining = {
+  id: string;
+  name: string;
+  organizer: string | null;
+  period: string | null;
+};
 
 export type ApiProfileData = {
   personalIdentity: ApiPersonalIdentity | null;
   contact: ApiContact | null;
   employmentData: ApiEmploymentData | null;
-  workHistory: ApiWorkHistory | null;
+  workHistory: ApiWorkHistory[];
   administrativeDocument: ApiAdministrativeDocument | null;
   payroll: ApiPayroll | null;
-  training: ApiTraining | null;
+  training: ApiTraining[];
 };
 
 export function useProfileDataQuery() {

@@ -11,9 +11,10 @@ import {
 } from "@/servers/services/employee-profile.service";
 
 /**
- * Semua tujuh bagian profil karyawan yang sedang login sekaligus — dipakai
- * mobile app buat tampilan Profil. Setiap bagian `null` kalau belum pernah
- * diisi (belum ada baris), bukan error.
+ * Semua bagian profil karyawan yang sedang login sekaligus — dipakai mobile
+ * app buat tampilan Profil. Setiap bagian `null` kalau belum pernah diisi
+ * (belum ada baris), bukan error. `workHistory`/`training` berupa array
+ * karena satu user bisa punya banyak baris.
  */
 export async function GET() {
   const auth = await requireApiUser();
@@ -34,10 +35,10 @@ export async function GET() {
     PersonalIdentityService.getByUserId(userId),
     ContactService.getByUserId(userId),
     EmploymentDataService.getByUserId(userId),
-    WorkHistoryService.getByUserId(userId),
+    WorkHistoryService.listByUserId(userId),
     AdministrativeDocumentService.getByUserId(userId),
     PayrollService.getByUserId(userId),
-    TrainingService.getByUserId(userId),
+    TrainingService.listByUserId(userId),
   ]);
 
   return NextResponse.json({

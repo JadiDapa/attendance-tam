@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/session";
 
 export default async function PelatihanPage() {
   const user = await requireUser();
-  const training = await TrainingService.getByUserId(user.id);
+  const training = await TrainingService.listByUserId(user.id);
 
   return <TrainingForm initial={training} />;
 }

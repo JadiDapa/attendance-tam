@@ -218,7 +218,7 @@ export async function upsertEmploymentData(
   return { ok: true, message: "Data kepegawaian disimpan" };
 }
 
-export async function upsertWorkHistory(
+export async function createWorkHistory(
   input: z.input<typeof WorkHistorySchema>,
   targetUserId?: string,
 ): Promise<EmployeeProfileResult> {
@@ -235,7 +235,7 @@ export async function upsertWorkHistory(
     };
   }
 
-  await WorkHistoryService.upsert(resolved.userId, {
+  await WorkHistoryService.create(resolved.userId, {
     previousCompany: parsed.data.previousCompany || null,
     previousPosition: parsed.data.previousPosition || null,
     previousDuration: parsed.data.previousDuration || null,
@@ -243,10 +243,58 @@ export async function upsertWorkHistory(
 
   revalidateProfilePaths(resolved.userId);
 
+  return { ok: true, message: "Riwayat pekerjaan ditambahkan" };
+}
+
+export async function updateWorkHistory(
+  id: string,
+  input: z.input<typeof WorkHistorySchema>,
+  targetUserId?: string,
+): Promise<EmployeeProfileResult> {
+  const resolved = await resolveTargetUserId(targetUserId);
+
+  if ("error" in resolved) return { ok: false, error: resolved.error };
+
+  const parsed = WorkHistorySchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Data riwayat pekerjaan tidak valid",
+    };
+  }
+
+  const updated = await WorkHistoryService.update(id, resolved.userId, {
+    previousCompany: parsed.data.previousCompany || null,
+    previousPosition: parsed.data.previousPosition || null,
+    previousDuration: parsed.data.previousDuration || null,
+  });
+
+  if (!updated) return { ok: false, error: "Riwayat pekerjaan tidak ditemukan" };
+
+  revalidateProfilePaths(resolved.userId);
+
   return { ok: true, message: "Riwayat pekerjaan disimpan" };
 }
 
-export async function upsertTraining(
+export async function deleteWorkHistory(
+  id: string,
+  targetUserId?: string,
+): Promise<EmployeeProfileResult> {
+  const resolved = await resolveTargetUserId(targetUserId);
+
+  if ("error" in resolved) return { ok: false, error: resolved.error };
+
+  const deleted = await WorkHistoryService.remove(id, resolved.userId);
+
+  if (!deleted) return { ok: false, error: "Riwayat pekerjaan tidak ditemukan" };
+
+  revalidateProfilePaths(resolved.userId);
+
+  return { ok: true, message: "Riwayat pekerjaan dihapus" };
+}
+
+export async function createTraining(
   input: z.input<typeof TrainingSchema>,
   targetUserId?: string,
 ): Promise<EmployeeProfileResult> {
@@ -259,17 +307,67 @@ export async function upsertTraining(
   if (!parsed.success) {
     return {
       ok: false,
-      error: parsed.error.issues[0]?.message ?? "Data training tidak valid",
+      error: parsed.error.issues[0]?.message ?? "Data pelatihan tidak valid",
     };
   }
 
-  await TrainingService.upsert(resolved.userId, {
-    trainingHistory: parsed.data.trainingHistory || null,
+  await TrainingService.create(resolved.userId, {
+    name: parsed.data.name,
+    organizer: parsed.data.organizer || null,
+    period: parsed.data.period || null,
   });
 
   revalidateProfilePaths(resolved.userId);
 
-  return { ok: true, message: "Riwayat training disimpan" };
+  return { ok: true, message: "Pelatihan ditambahkan" };
+}
+
+export async function updateTraining(
+  id: string,
+  input: z.input<typeof TrainingSchema>,
+  targetUserId?: string,
+): Promise<EmployeeProfileResult> {
+  const resolved = await resolveTargetUserId(targetUserId);
+
+  if ("error" in resolved) return { ok: false, error: resolved.error };
+
+  const parsed = TrainingSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Data pelatihan tidak valid",
+    };
+  }
+
+  const updated = await TrainingService.update(id, resolved.userId, {
+    name: parsed.data.name,
+    organizer: parsed.data.organizer || null,
+    period: parsed.data.period || null,
+  });
+
+  if (!updated) return { ok: false, error: "Pelatihan tidak ditemukan" };
+
+  revalidateProfilePaths(resolved.userId);
+
+  return { ok: true, message: "Pelatihan disimpan" };
+}
+
+export async function deleteTraining(
+  id: string,
+  targetUserId?: string,
+): Promise<EmployeeProfileResult> {
+  const resolved = await resolveTargetUserId(targetUserId);
+
+  if ("error" in resolved) return { ok: false, error: resolved.error };
+
+  const deleted = await TrainingService.remove(id, resolved.userId);
+
+  if (!deleted) return { ok: false, error: "Pelatihan tidak ditemukan" };
+
+  revalidateProfilePaths(resolved.userId);
+
+  return { ok: true, message: "Pelatihan dihapus" };
 }
 
 /**

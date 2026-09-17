@@ -75,7 +75,9 @@ type FormValues = {
   previousPosition: string;
   previousDuration: string;
 
-  trainingHistory: string;
+  trainingName: string;
+  trainingOrganizer: string;
+  trainingPeriod: string;
 
   baseSalary: string;
   allowance: string;
@@ -154,7 +156,9 @@ export default function CreateEmployeeForm() {
       previousCompany: "",
       previousPosition: "",
       previousDuration: "",
-      trainingHistory: "",
+      trainingName: "",
+      trainingOrganizer: "",
+      trainingPeriod: "",
       baseSalary: "",
       allowance: "",
       bonus: "",
@@ -213,7 +217,11 @@ export default function CreateEmployeeForm() {
         previousPosition: values.previousPosition,
         previousDuration: values.previousDuration,
       },
-      training: { trainingHistory: values.trainingHistory },
+      training: {
+        name: values.trainingName,
+        organizer: values.trainingOrganizer,
+        period: values.trainingPeriod,
+      },
       payroll: sections.payroll
         ? {
             baseSalary: values.baseSalary,
@@ -678,16 +686,35 @@ export default function CreateEmployeeForm() {
       </Panel>
 
       <Panel title="Pelatihan" icon={Reader} contentClassName="p-4 sm:p-5">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="trainingHistory">
-            Riwayat Training / Seminar / Sertifikasi
-          </Label>
-          <Textarea
-            id="trainingHistory"
-            rows={4}
-            placeholder="Contoh: Pelatihan K3 (2024), Sertifikasi Manajemen Proyek (2025)"
-            {...register("trainingHistory")}
-          />
+        <p className="text-muted-foreground mb-3 text-xs">
+          Opsional — satu pelatihan bisa diisi di sini, tambahan lainnya bisa
+          dilengkapi nanti lewat halaman profil pekerja ini.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="trainingName">Nama Pelatihan</Label>
+            <Input
+              id="trainingName"
+              placeholder="Contoh: Pelatihan K3"
+              {...register("trainingName")}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="trainingOrganizer">Penyelenggara</Label>
+            <Input
+              id="trainingOrganizer"
+              placeholder="Contoh: Kemnaker RI"
+              {...register("trainingOrganizer")}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="trainingPeriod">Tahun/Periode</Label>
+            <Input
+              id="trainingPeriod"
+              placeholder="Contoh: 2024"
+              {...register("trainingPeriod")}
+            />
+          </div>
         </div>
       </Panel>
 

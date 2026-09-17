@@ -116,10 +116,10 @@ export default async function EmployeeProfileDetailPage({
     PersonalIdentityService.getByUserId(id),
     ContactService.getByUserId(id),
     EmploymentDataService.getByUserId(id),
-    WorkHistoryService.getByUserId(id),
+    WorkHistoryService.listByUserId(id),
     AdministrativeDocumentService.getByUserId(id),
     PayrollService.getByUserId(id),
-    TrainingService.getByUserId(id),
+    TrainingService.listByUserId(id),
   ]);
 
   const today = getWorkDate();
@@ -324,26 +324,25 @@ export default async function EmployeeProfileDetailPage({
       <Panel
         title="Riwayat Pekerjaan"
         icon={Archive}
-        contentClassName="p-4 sm:p-5"
+        contentClassName="flex flex-col gap-4 p-4 sm:p-5"
       >
-        {workHistory &&
-        (workHistory.previousCompany ||
-          workHistory.previousPosition ||
-          workHistory.previousDuration) ? (
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field
-              label="Perusahaan Sebelumnya"
-              value={workHistory.previousCompany || "—"}
-            />
-            <Field
-              label="Posisi Sebelumnya"
-              value={workHistory.previousPosition || "—"}
-            />
-            <Field
-              label="Lama Bekerja"
-              value={workHistory.previousDuration || "—"}
-            />
-          </div>
+        {workHistory.length > 0 ? (
+          workHistory.map((entry) => (
+            <div key={entry.id} className="grid gap-4 border-b pb-4 last:border-b-0 last:pb-0 sm:grid-cols-3">
+              <Field
+                label="Perusahaan Sebelumnya"
+                value={entry.previousCompany || "—"}
+              />
+              <Field
+                label="Posisi Sebelumnya"
+                value={entry.previousPosition || "—"}
+              />
+              <Field
+                label="Lama Bekerja"
+                value={entry.previousDuration || "—"}
+              />
+            </div>
+          ))
         ) : (
           <EmptySection>Belum diisi.</EmptySection>
         )}
@@ -390,11 +389,19 @@ export default async function EmployeeProfileDetailPage({
         <PayrollView payroll={payroll} />
       </Panel>
 
-      <Panel title="Pelatihan" icon={Reader} contentClassName="p-4 sm:p-5">
-        {training?.trainingHistory ? (
-          <p className="text-sm whitespace-pre-line">
-            {training.trainingHistory}
-          </p>
+      <Panel
+        title="Pelatihan"
+        icon={Reader}
+        contentClassName="flex flex-col gap-4 p-4 sm:p-5"
+      >
+        {training.length > 0 ? (
+          training.map((entry) => (
+            <div key={entry.id} className="grid gap-4 border-b pb-4 last:border-b-0 last:pb-0 sm:grid-cols-3">
+              <Field label="Nama Pelatihan" value={entry.name} />
+              <Field label="Penyelenggara" value={entry.organizer || "—"} />
+              <Field label="Tahun/Periode" value={entry.period || "—"} />
+            </div>
+          ))
         ) : (
           <EmptySection>Belum diisi.</EmptySection>
         )}

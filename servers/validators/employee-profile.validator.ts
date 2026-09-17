@@ -76,12 +76,9 @@ export const WorkHistorySchema = z.object({
 });
 
 export const TrainingSchema = z.object({
-  trainingHistory: z
-    .string()
-    .trim()
-    .max(2000, "Riwayat training maksimal 2000 karakter")
-    .optional()
-    .or(z.literal("")),
+  name: z.string().trim().min(1, "Nama pelatihan wajib diisi").max(150),
+  organizer: z.string().trim().max(150).optional().or(z.literal("")),
+  period: z.string().trim().max(60).optional().or(z.literal("")),
 });
 
 /** ADMIN-only — karyawan tidak punya jalur mutasi apa pun untuk Payroll. */

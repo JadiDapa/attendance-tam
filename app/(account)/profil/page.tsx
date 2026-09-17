@@ -12,6 +12,7 @@ import {
 import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
 import ChangePasswordForm from "@/components/profile/ChangePasswordForm";
+import ProfileAvatarForm from "@/components/profile/ProfileAvatarForm";
 import ProfileContactForm from "@/components/profile/ProfileContactForm";
 import FaceEnrollmentCard from "@/components/profile/FaceEnrollmentCard";
 import PersonalIdentityForm from "@/components/profile/PersonalIdentityForm";
@@ -22,6 +23,7 @@ import AdministrativeDocumentsForm from "@/components/profile/AdministrativeDocu
 import TrainingForm from "@/components/profile/TrainingForm";
 import PayrollView from "@/components/profile/PayrollView";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { requireUser } from "@/lib/session";
 import { ROLE_LABEL } from "@/lib/role";
 import { formatWorkDate, getWorkDate, toDateInputValue } from "@/lib/date";
@@ -64,10 +66,10 @@ export default async function ProfilPage() {
     PersonalIdentityService.getByUserId(user.id),
     ContactService.getByUserId(user.id),
     EmploymentDataService.getByUserId(user.id),
-    WorkHistoryService.getByUserId(user.id),
+    WorkHistoryService.listByUserId(user.id),
     AdministrativeDocumentService.getByUserId(user.id),
     PayrollService.getByUserId(user.id),
-    TrainingService.getByUserId(user.id),
+    TrainingService.listByUserId(user.id),
   ]);
 
   return (
@@ -77,155 +79,169 @@ export default async function ProfilPage() {
         subtitle="Data akun, data pribadi, kepegawaian, dan keamanan login."
       />
 
-      <Panel
-        title="Data Akun"
-        icon={UserRound}
-        action={<Badge variant="outline">{ROLE_LABEL[user.role]}</Badge>}
-        contentClassName="grid gap-4 p-4 sm:grid-cols-2 sm:p-5"
-      >
-        <Field label="Nama" value={user.name} />
-        <Field label="Email" value={user.email} />
-        <Field label="Jabatan" value={user.position || "—"} />
-        <Field
-          label="Terdaftar sejak"
-          value={formatWorkDate(getWorkDate(user.createdAt))}
-        />
+      <Tabs defaultValue="akun">
+        <TabsList variant="line">
+          <TabsTrigger value="akun">Akun</TabsTrigger>
+          <TabsTrigger value="data-pribadi">Data Pribadi</TabsTrigger>
+          <TabsTrigger value="riwayat">Riwayat & Pelatihan</TabsTrigger>
+          <TabsTrigger value="dokumen">Dokumen & Penggajian</TabsTrigger>
+          <TabsTrigger value="keamanan">Wajah & Keamanan</TabsTrigger>
+        </TabsList>
 
-        <p className="text-muted-foreground text-xs sm:col-span-2">
-          Nama, email, dan jabatan dipakai di rekap serta laporan absensi, jadi
-          hanya admin yang bisa mengubahnya.
-        </p>
-      </Panel>
+        <TabsContent value="akun" className="flex flex-col gap-5">
+          <Panel
+            title="Data Akun"
+            icon={UserRound}
+            action={<Badge variant="outline">{ROLE_LABEL[user.role]}</Badge>}
+            contentClassName="grid gap-4 p-4 sm:grid-cols-2 sm:p-5"
+          >
+            <ProfileAvatarForm name={user.name} imageUrl={user.profileImageUrl} />
 
-      <Panel title="Kontak" icon={Phone} contentClassName="p-4 sm:p-5">
-        <ProfileContactForm phone={user.phone ?? ""} />
-      </Panel>
+            <Field label="Nama" value={user.name} />
+            <Field label="Email" value={user.email} />
+            <Field label="Jabatan" value={user.position || "—"} />
+            <Field
+              label="Terdaftar sejak"
+              value={formatWorkDate(getWorkDate(user.createdAt))}
+            />
 
-      <Panel
-        title="Identitas Pribadi"
-        icon={IdCard}
-        contentClassName="p-4 sm:p-5"
-      >
-        <PersonalIdentityForm
-          initial={{
-            nik: personalIdentity?.nik ?? "",
-            placeOfBirth: personalIdentity?.placeOfBirth ?? "",
-            dateOfBirth: personalIdentity
-              ? toDateInputValue(personalIdentity.dateOfBirth)
-              : "",
-            gender: personalIdentity?.gender ?? "",
-            religion: personalIdentity?.religion ?? "",
-            maritalStatus: personalIdentity?.maritalStatus ?? "",
-            nationality: personalIdentity?.nationality ?? "Indonesia",
-            ktpPhotoUrl: personalIdentity?.ktpPhotoUrl ?? null,
-          }}
-        />
-      </Panel>
+            <p className="text-muted-foreground text-xs sm:col-span-2">
+              Nama, email, dan jabatan dipakai di rekap serta laporan absensi, jadi
+              hanya admin yang bisa mengubahnya.
+            </p>
+          </Panel>
 
-      <Panel
-        title="Kontak Domisili & Darurat"
-        icon={Backpack}
-        contentClassName="p-4 sm:p-5"
-      >
-        <ContactForm
-          initial={{
-            domicileAddress: contact?.domicileAddress ?? "",
-            ktpAddress: contact?.ktpAddress ?? "",
-            emergencyContactName: contact?.emergencyContactName ?? "",
-            emergencyContactRelation: contact?.emergencyContactRelation ?? "",
-            emergencyContactPhone: contact?.emergencyContactPhone ?? "",
-          }}
-        />
-      </Panel>
+          <Panel title="Kontak" icon={Phone} contentClassName="p-4 sm:p-5">
+            <ProfileContactForm phone={user.phone ?? ""} />
+          </Panel>
+        </TabsContent>
 
-      <Panel
-        title="Data Kepegawaian"
-        icon={CardStack}
-        contentClassName="p-4 sm:p-5"
-      >
-        <EmploymentDataForm
-          initial={{
-            employeeNumber: employmentData?.employeeNumber ?? "",
-            workLocation: employmentData?.workLocation ?? "",
-            employmentStatus: employmentData?.employmentStatus ?? "",
-            startDate: employmentData
-              ? toDateInputValue(employmentData.startDate)
-              : "",
-            contractEndDate: employmentData?.contractEndDate
-              ? toDateInputValue(employmentData.contractEndDate)
-              : "",
-          }}
-        />
-      </Panel>
+        <TabsContent value="data-pribadi" className="flex flex-col gap-5">
+          <Panel
+            title="Identitas Pribadi"
+            icon={IdCard}
+            contentClassName="p-4 sm:p-5"
+          >
+            <PersonalIdentityForm
+              initial={{
+                nik: personalIdentity?.nik ?? "",
+                placeOfBirth: personalIdentity?.placeOfBirth ?? "",
+                dateOfBirth: personalIdentity
+                  ? toDateInputValue(personalIdentity.dateOfBirth)
+                  : "",
+                gender: personalIdentity?.gender ?? "",
+                religion: personalIdentity?.religion ?? "",
+                maritalStatus: personalIdentity?.maritalStatus ?? "",
+                nationality: personalIdentity?.nationality ?? "Indonesia",
+                ktpPhotoUrl: personalIdentity?.ktpPhotoUrl ?? null,
+              }}
+            />
+          </Panel>
 
-      <Panel
-        title="Riwayat Pekerjaan"
-        icon={Archive}
-        contentClassName="p-4 sm:p-5"
-      >
-        <WorkHistoryForm
-          initial={{
-            previousCompany: workHistory?.previousCompany ?? "",
-            previousPosition: workHistory?.previousPosition ?? "",
-            previousDuration: workHistory?.previousDuration ?? "",
-          }}
-        />
-      </Panel>
+          <Panel
+            title="Kontak Domisili & Darurat"
+            icon={Backpack}
+            contentClassName="p-4 sm:p-5"
+          >
+            <ContactForm
+              initial={{
+                domicileAddress: contact?.domicileAddress ?? "",
+                ktpAddress: contact?.ktpAddress ?? "",
+                emergencyContactName: contact?.emergencyContactName ?? "",
+                emergencyContactRelation: contact?.emergencyContactRelation ?? "",
+                emergencyContactPhone: contact?.emergencyContactPhone ?? "",
+              }}
+            />
+          </Panel>
 
-      <Panel
-        title="Dokumen Administrasi"
-        icon={Archive}
-        contentClassName="p-4 sm:p-5"
-      >
-        <AdministrativeDocumentsForm
-          initial={{
-            ktpUrl: administrativeDocument?.ktpUrl ?? null,
-            npwpUrl: administrativeDocument?.npwpUrl ?? null,
-            kkUrl: administrativeDocument?.kkUrl ?? null,
-            ijazahUrl: administrativeDocument?.ijazahUrl ?? null,
-            transkripUrl: administrativeDocument?.transkripUrl ?? null,
-            sertifikatUrl: administrativeDocument?.sertifikatUrl ?? null,
-            bankBookUrl: administrativeDocument?.bankBookUrl ?? null,
-            pasFotoUrl: administrativeDocument?.pasFotoUrl ?? null,
-            cvUrl: administrativeDocument?.cvUrl ?? null,
-          }}
-        />
-      </Panel>
+          <Panel
+            title="Data Kepegawaian"
+            icon={CardStack}
+            contentClassName="p-4 sm:p-5"
+          >
+            <EmploymentDataForm
+              initial={{
+                employeeNumber: employmentData?.employeeNumber ?? "",
+                workLocation: employmentData?.workLocation ?? "",
+                employmentStatus: employmentData?.employmentStatus ?? "",
+                startDate: employmentData
+                  ? toDateInputValue(employmentData.startDate)
+                  : "",
+                contractEndDate: employmentData?.contractEndDate
+                  ? toDateInputValue(employmentData.contractEndDate)
+                  : "",
+              }}
+            />
+          </Panel>
+        </TabsContent>
 
-      <Panel
-        title="Penggajian"
-        icon={CardStack}
-        contentClassName="p-4 sm:p-5"
-      >
-        <PayrollView payroll={payroll} />
-      </Panel>
+        <TabsContent value="riwayat" className="flex flex-col gap-5">
+          <Panel
+            title="Riwayat Pekerjaan"
+            icon={Archive}
+            contentClassName="p-4 sm:p-5"
+          >
+            <WorkHistoryForm entries={workHistory} />
+          </Panel>
 
-      <Panel title="Pelatihan" icon={Reader} contentClassName="p-4 sm:p-5">
-        <TrainingForm
-          initial={{ trainingHistory: training?.trainingHistory ?? "" }}
-        />
-      </Panel>
+          <Panel title="Pelatihan" icon={Reader} contentClassName="p-4 sm:p-5">
+            <TrainingForm entries={training} />
+          </Panel>
+        </TabsContent>
 
-      <Panel
-        title="Pendaftaran Wajah"
-        icon={ScanFace}
-        contentClassName="p-4 sm:p-5"
-      >
-        <FaceEnrollmentCard
-          totalPhotos={totalPhotos}
-          minRequired={FaceService.minEnrollmentPhotos}
-          recommendedPhotos={FaceService.recommendedEnrollmentPhotos}
-          maxPhotos={FaceService.maxEnrollmentPhotos}
-        />
-      </Panel>
+        <TabsContent value="dokumen" className="flex flex-col gap-5">
+          <Panel
+            title="Dokumen Administrasi"
+            icon={Archive}
+            contentClassName="p-4 sm:p-5"
+          >
+            <AdministrativeDocumentsForm
+              initial={{
+                ktpUrl: administrativeDocument?.ktpUrl ?? null,
+                npwpUrl: administrativeDocument?.npwpUrl ?? null,
+                kkUrl: administrativeDocument?.kkUrl ?? null,
+                ijazahUrl: administrativeDocument?.ijazahUrl ?? null,
+                transkripUrl: administrativeDocument?.transkripUrl ?? null,
+                sertifikatUrl: administrativeDocument?.sertifikatUrl ?? null,
+                bankBookUrl: administrativeDocument?.bankBookUrl ?? null,
+                pasFotoUrl: administrativeDocument?.pasFotoUrl ?? null,
+                cvUrl: administrativeDocument?.cvUrl ?? null,
+              }}
+            />
+          </Panel>
 
-      <Panel
-        title="Ganti Password"
-        icon={KeyRound}
-        contentClassName="p-4 sm:p-5"
-      >
-        <ChangePasswordForm />
-      </Panel>
+          <Panel
+            title="Penggajian"
+            icon={CardStack}
+            contentClassName="p-4 sm:p-5"
+          >
+            <PayrollView payroll={payroll} />
+          </Panel>
+        </TabsContent>
+
+        <TabsContent value="keamanan" className="flex flex-col gap-5">
+          <Panel
+            title="Pendaftaran Wajah"
+            icon={ScanFace}
+            contentClassName="p-4 sm:p-5"
+          >
+            <FaceEnrollmentCard
+              totalPhotos={totalPhotos}
+              minRequired={FaceService.minEnrollmentPhotos}
+              recommendedPhotos={FaceService.recommendedEnrollmentPhotos}
+              maxPhotos={FaceService.maxEnrollmentPhotos}
+            />
+          </Panel>
+
+          <Panel
+            title="Ganti Password"
+            icon={KeyRound}
+            contentClassName="p-4 sm:p-5"
+          >
+            <ChangePasswordForm />
+          </Panel>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
