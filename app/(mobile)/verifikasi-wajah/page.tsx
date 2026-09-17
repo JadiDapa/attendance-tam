@@ -1,10 +1,10 @@
-import { MobileComingSoon } from "@/components/mobile/coming-soon";
+import { FaceEnrollmentScreen } from "@/components/mobile/face-enrollment-screen";
+import { getFaceEnrollmentStatus } from "@/app/action/face.action";
 import { requireUser } from "@/lib/session";
 
-// TODO(mobile-parity): face enrollment camera flow, mirrors
-// `mobile/src/app/face-enrollment.tsx`. See MOBILE_PARITY.md build order.
 export default async function VerifikasiWajahPage() {
-  const user = await requireUser();
+  await requireUser();
+  const status = await getFaceEnrollmentStatus();
 
-  return <MobileComingSoon title="Verifikasi Wajah" role={user.role} />;
+  return <FaceEnrollmentScreen status={status} />;
 }

@@ -116,10 +116,9 @@ export function EmployeeDataScreen({ role }: { role: Role }) {
     ? `${data.employmentData.employeeNumber} · ${EMPLOYMENT_STATUS_LABEL[data.employmentData.employmentStatus as EmploymentStatus]}`
     : "Belum diisi";
 
+  const workHistoryCount = data.workHistory?.length ?? 0;
   const workHistorySubtitle =
-    data.workHistory.length > 0
-      ? `${data.workHistory.length} riwayat pekerjaan`
-      : "Belum diisi";
+    workHistoryCount > 0 ? `${workHistoryCount} riwayat pekerjaan` : "Belum diisi";
 
   const uploadedDocumentCount = data.administrativeDocument
     ? DOCUMENT_URL_FIELDS.filter((field) =>
@@ -128,10 +127,8 @@ export function EmployeeDataScreen({ role }: { role: Role }) {
     : 0;
   const documentsSubtitle = `${uploadedDocumentCount}/${DOCUMENT_URL_FIELDS.length} dokumen terunggah`;
 
-  const trainingSubtitle =
-    data.training.length > 0
-      ? `${data.training.length} pelatihan`
-      : "Belum diisi";
+  const trainingCount = data.training?.length ?? 0;
+  const trainingSubtitle = trainingCount > 0 ? `${trainingCount} pelatihan` : "Belum diisi";
 
   return shell(
     <div className="flex-1 overflow-y-auto pb-24">

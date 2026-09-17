@@ -29,10 +29,15 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { AttendanceType } from "@/generated/prisma";
 import { submitAttendance } from "@/app/action/attendance.action";
-import { formatDistance, haversineDistance } from "@/lib/geo";
+import {
+  formatDistance,
+  haversineDistance,
+  readAccuratePosition,
+  type GeoCoords,
+} from "@/lib/geo";
 import { cn } from "@/lib/utils";
 
-type Coords = { latitude: number; longitude: number; accuracy: number };
+type Coords = GeoCoords;
 
 /** Penjelasan sependek ini tidak bisa dinilai admin — samakan dengan server. */
 const MIN_DETAIL_LENGTH = 5;
@@ -53,80 +58,6 @@ type Props = {
   /** Pengganti tombol trigger default, mis. baris kartu yang bisa ditekan. */
   trigger?: ReactNode;
 };
-
-/** Fix GPS sesegar ini masih boleh dipakai ulang. Absensi tidak butuh presisi
- *  detik-detikan, sementara memaksa fix baru (maximumAge: 0) berarti menunggu
- *  perangkat mengunci satelit dari nol — 7-10 detik di HP. */
-const MAX_POSITION_AGE_MS = 30_000;
-
-/** Batas menunggu sebelum menyerah dan memakai pembacaan terbaik yang ada. */
-const POSITION_TIMEOUT_MS = 15_000;
-
-/**
- * Membaca lokasi lewat `watchPosition`, bukan `getCurrentPosition`.
- *
- * Perangkat mengirim fix kasar (jaringan/WiFi) dalam ~1 detik lalu
- * memperhalusnya dengan GPS. Karena yang kita butuhkan cuma akurasi di bawah
- * ambang absensi, pembacaan pertama yang sudah cukup akurat langsung dipakai —
- * tidak perlu menunggu perangkat mencapai akurasi terbaiknya.
- *
- * Kalau sampai batas waktu belum ada yang cukup akurat, pembacaan terbaik yang
- * sempat masuk tetap dikembalikan supaya UI bisa menampilkan angka akurasinya
- * beserta tombol baca ulang, bukan menggantung tanpa lokasi sama sekali.
- */
-function readPosition(acceptableAccuracy: number): Promise<Coords> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error("Perangkat tidak mendukung GPS"));
-      return;
-    }
-
-    let best: Coords | null = null;
-    let watchId = 0;
-    let settled = false;
-
-    const settle = (result: Coords | null, error?: Error) => {
-      if (settled) return;
-      settled = true;
-
-      clearTimeout(timer);
-      navigator.geolocation.clearWatch(watchId);
-
-      if (result) resolve(result);
-      else
-        reject(error ?? new Error("Gagal membaca lokasi. Pastikan GPS aktif."));
-    };
-
-    const timer = setTimeout(() => settle(best), POSITION_TIMEOUT_MS);
-
-    watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const coords: Coords = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-        };
-
-        if (!best || coords.accuracy < best.accuracy) best = coords;
-        if (coords.accuracy <= acceptableAccuracy) settle(coords);
-      },
-      (error) =>
-        settle(
-          best,
-          new Error(
-            error.code === error.PERMISSION_DENIED
-              ? "Izin lokasi ditolak. Aktifkan lokasi lalu coba lagi."
-              : "Gagal membaca lokasi. Pastikan GPS aktif.",
-          ),
-        ),
-      {
-        enableHighAccuracy: true,
-        timeout: POSITION_TIMEOUT_MS,
-        maximumAge: MAX_POSITION_AGE_MS,
-      },
-    );
-  });
-}
 
 export default function AttendanceDialog({
   type,
@@ -234,7 +165,7 @@ export default function AttendanceDialog({
 
     // `locating` sudah true dari nilai awal dan dikembalikan `resetState()`
     // tiap dialog ditutup, jadi tidak perlu di-set ulang di sini.
-    readPosition(maxAccuracyMeters)
+    readAccuratePosition(maxAccuracyMeters)
       .then((position) => {
         if (!cancelled) setCoords(position);
       })
@@ -353,7 +284,7 @@ export default function AttendanceDialog({
     setLocationError(null);
 
     try {
-      setCoords(await readPosition(maxAccuracyMeters));
+      setCoords(await readAccuratePosition(maxAccuracyMeters));
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Gagal membaca lokasi";

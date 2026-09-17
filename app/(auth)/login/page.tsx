@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import AuthCarousel from "@/components/auth/AuthCarousel";
 import AuthHeader from "@/components/auth/AuthHeader";
 import LoginForm from "@/components/auth/LoginForm";
@@ -31,8 +33,10 @@ export default async function LoginPage({
         />
         <LoginForm callbackUrl={safeCallbackUrl(callbackUrl)} />
         <p className="text-muted-foreground mt-4 text-center lg:mt-6">
-          Don&apos;t have an account? Contact your administrator to get one
-          created.
+          Belum punya akun?{" "}
+          <Link href="/request-account" className="text-primary font-medium">
+            Ajukan pembuatan akun
+          </Link>
         </p>
       </main>
       <AuthCarousel />
