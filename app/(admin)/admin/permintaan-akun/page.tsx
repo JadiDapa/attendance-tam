@@ -25,6 +25,7 @@ export default async function PermintaanAkunPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        back
         title="Permintaan Akun"
         subtitle="Pengajuan pembuatan akun dari karyawan yang belum terdaftar lewat mobile app. Tinjau datanya, lalu setujui (akun Clerk langsung dibuat) atau tolak."
       />

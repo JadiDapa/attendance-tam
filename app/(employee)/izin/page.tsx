@@ -13,15 +13,15 @@ import LeaveRequestForm from "@/components/employee/LeaveRequestForm";
 import LeaveRequestTable, {
   type LeaveRow,
 } from "@/components/employee/LeaveRequestTable";
-import { LeaveStatus, LeaveType, Role } from "@/generated/prisma";
-import { requireRole } from "@/lib/session";
+import { LeaveStatus, LeaveType } from "@/generated/prisma";
+import { requireUser } from "@/lib/session";
 import { formatWorkDate, getWorkDate, toDateInputValue } from "@/lib/date";
 import { LEAVE_TYPE_LABEL, countLeaveDays } from "@/lib/leave";
 import { LeaveService } from "@/servers/services/leave.service";
 import { IzinScreen } from "@/components/mobile/izin/izin-screen";
 
 export default async function IzinPage() {
-  const user = await requireRole(Role.EMPLOYEE);
+  const user = await requireUser();
   const requests = await LeaveService.list({ userId: user.id });
 
   const rows: LeaveRow[] = requests.map((request) => ({

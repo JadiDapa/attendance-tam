@@ -318,6 +318,34 @@ must be re-run shortly before each `compare`/`capture` if a session has gone
 stale (the scripts now retry+re-login automatically, but a session older
 than ~a minute may still need a fresh `parity:auth` run).
 
+**✅ Fixed (2026-09-17): core tabs were EMPLOYEE-only.** `app/(employee)/layout.tsx`
+enforced `requireRole(Role.EMPLOYEE)` for the entire route group, and each of
+`/dashboard`, `/riwayat`, `/izin`, `/izin/baru`, `/pengaturan`, `/lembur`
+independently re-checked the same thing — so ADMIN/SUPERVISOR/MANAGER got
+redirected away from every mobile-parity core tab, even though the RN app
+shows Beranda/Histori/Izin/Lembur to every role unconditionally and the
+backend already supports self-service leave/overtime for all four roles
+(`SELF_LEAVE_ROLES`, `SELF_OVERTIME_ROLES`). Relaxed the layout and all six
+pages to `requireUser()`. Verified working end-to-end for SUPERVISOR and
+ADMIN (all 4 tabs render real data, Review tab correctly still hidden for
+ADMIN) and confirmed zero regression on EMPLOYEE's and ADMIN's desktop views.
+
+**Known follow-up (not yet done):** hiding the desktop `Navbar`/sidebar
+below `md` for every role (needed to fix the SUPERVISOR/MANAGER Approval-tab
+navbar-duplication bug) also removed the *only* way to reach admin-only
+sidebar pages (`/admin/daftar-pekerja`, `/admin/hari-libur`, `/admin/lokasi`,
+etc. — 13 items with no RN-app equivalent) below `md`. Plan, not yet
+implemented:
+1. Add an ADMIN-only row to the Home menu grid (before "Lainnya") for
+   daily-use items: Kehadiran, Verifikasi Absensi, Pengajuan Izin, Pengajuan
+   Lembur, Dinas Luar, Permintaan Akun.
+2. Add an ADMIN-only "Manajemen Sistem" section to the Profile page for
+   less-frequent config/report items: Dashboard Admin, Daftar Pekerja,
+   Rekapan Kehadiran, Laporan, Lokasi Kantor, Waktu Kerja, Hari Libur.
+3. These 13 pages have no RN screen to clone — link straight to the existing
+   responsive desktop page (no redesign), with a small back-button header
+   since the sidebar/navbar stay hidden below `md`.
+
 **Decisions made autonomously (no response received — revisit if wrong):**
 
 1. Route names: `/absen` (attendance-capture), `/verifikasi-wajah`

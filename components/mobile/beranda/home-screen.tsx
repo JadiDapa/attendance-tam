@@ -336,7 +336,7 @@ export function HomeScreen({
             )}
           </div>
 
-          <MenuGrid />
+          <MenuGrid role={user.role} />
 
           <div className="flex flex-col gap-3">
             <SectionHeader

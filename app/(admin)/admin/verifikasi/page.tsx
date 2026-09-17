@@ -50,6 +50,7 @@ export default async function ApprovalAbsensiPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        back
         title="Verifikasi Absensi"
         subtitle="Pantau absensi di luar radius kantor — disetujui oleh supervisor atau manager pemiliknya, admin tidak lagi ikut memutuskan."
       />

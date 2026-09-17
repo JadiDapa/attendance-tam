@@ -17,7 +17,6 @@ import AttendanceViewToggle, {
   parseAttendanceView,
   type AttendanceView,
 } from "@/components/employee/attendance/AttendanceViewToggle";
-import { Role } from "@/generated/prisma";
 import {
   CALENDAR_STATUS_LABEL,
   DAY_STATUS_OPTIONS,
@@ -35,7 +34,7 @@ import {
   getWorkDate,
   toDateInputValue,
 } from "@/lib/date";
-import { requireRole } from "@/lib/session";
+import { requireUser } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { HistoriScreen } from "@/components/mobile/histori/histori-screen";
 import { ReportService } from "@/servers/services/report.service";
@@ -59,7 +58,7 @@ export default async function RiwayatPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const user = await requireRole(Role.EMPLOYEE);
+  const user = await requireUser();
 
   const params = await searchParams;
   const today = getWorkDate();

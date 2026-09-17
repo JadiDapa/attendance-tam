@@ -83,7 +83,10 @@ export default async function AdminDashboardPage({
     UserService.list({ role: Role.EMPLOYEE, isActive: true }),
     AttendanceService.listByDate(workDate),
     LeaveService.listApprovedOnDate(workDate),
-    LeaveService.list({ status: LeaveStatus.PENDING, stage: LeaveStage.SUPERVISOR }),
+    LeaveService.list({
+      status: LeaveStatus.PENDING,
+      stage: LeaveStage.SUPERVISOR,
+    }),
     LeaveService.listApprovedInRange({
       startDate: weekStart,
       endDate: addDays(weekStart, 6),
@@ -150,6 +153,7 @@ export default async function AdminDashboardPage({
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
+        back
         title={`Welcome, ${admin.name}`}
         subtitle="Ringkasan kehadiran karyawan dan pengajuan yang sedang berjalan."
         actions={
@@ -392,7 +396,9 @@ export default async function AdminDashboardPage({
                     <span className="tabular-nums">{day.getUTCDate()}</span>
                     <span
                       className={cn(
-                        isToday && !isSelected && "text-primary-subtle font-semibold",
+                        isToday &&
+                          !isSelected &&
+                          "text-primary-subtle font-semibold",
                       )}
                     >
                       {formatWeekday(day)}

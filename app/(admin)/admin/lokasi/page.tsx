@@ -12,6 +12,7 @@ export default async function LokasiPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        back
         title="Lokasi Kantor"
         subtitle="Titik pusat kantor dan radius yang dipakai untuk memvalidasi absensi karyawan."
       />

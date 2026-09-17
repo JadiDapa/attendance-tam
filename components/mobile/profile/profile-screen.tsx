@@ -19,6 +19,13 @@ import {
   FileText,
   Clipboard,
   Info,
+  LayoutDashboard,
+  Users,
+  BarChart,
+  Download,
+  MapPin,
+  Clock,
+  CalendarX,
   type LucideIcon,
 } from "lucide-react";
 import { Icon } from "@/components/mobile/icon";
@@ -296,6 +303,58 @@ export function ProfileScreen({ role }: { role: Role }) {
             />
           </div>
         </div>
+
+        {role === "ADMIN" && (
+          <div className="flex flex-col gap-2">
+            <span className="text-foreground text-sm font-bold">
+              Manajemen Sistem
+            </span>
+            <div className="bg-muted rounded-2xl px-3">
+              <SimpleRow
+                icon={LayoutDashboard}
+                label="Dashboard Admin"
+                onPress={() => router.push("/admin/dashboard")}
+                showBorder
+              />
+              <SimpleRow
+                icon={Users}
+                label="Daftar Pekerja"
+                onPress={() => router.push("/admin/daftar-pekerja")}
+                showBorder
+              />
+              <SimpleRow
+                icon={BarChart}
+                label="Rekapan Kehadiran"
+                onPress={() => router.push("/admin/rekapan-kehadiran")}
+                showBorder
+              />
+              <SimpleRow
+                icon={Download}
+                label="Laporan"
+                onPress={() => router.push("/admin/laporan")}
+                showBorder
+              />
+              <SimpleRow
+                icon={MapPin}
+                label="Lokasi Kantor"
+                onPress={() => router.push("/admin/lokasi")}
+                showBorder
+              />
+              <SimpleRow
+                icon={Clock}
+                label="Waktu Kerja"
+                onPress={() => router.push("/admin/waktu-kerja")}
+                showBorder
+              />
+              <SimpleRow
+                icon={CalendarX}
+                label="Hari Libur"
+                onPress={() => router.push("/admin/hari-libur")}
+                showBorder={false}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col gap-2">
           <span className="text-foreground text-sm font-bold">Lainnya</span>

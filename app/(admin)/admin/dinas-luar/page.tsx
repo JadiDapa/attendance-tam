@@ -19,7 +19,9 @@ export default async function AdminDinasLuarPage() {
 
   const rows: FieldAssignmentApprovalRow[] = requests.map((request) => ({
     id: request.id,
-    employeeNames: request.employees.map((employee) => employee.name).join(", "),
+    employeeNames: request.employees
+      .map((employee) => employee.name)
+      .join(", "),
     createdByName: request.createdBy.name,
     dateRange:
       request.startDate.getTime() === request.endDate.getTime()
@@ -46,6 +48,7 @@ export default async function AdminDinasLuarPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        back
         title="Pengajuan Dinas Luar"
         subtitle="Pantau penugasan dinas luar yang diajukan supervisor — disetujui oleh manager."
       />

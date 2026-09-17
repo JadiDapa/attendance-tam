@@ -19,6 +19,7 @@ export default async function WaktuKerjaPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        back
         title="Waktu Kerja"
         subtitle="Hari kerja dan jam masuk/pulang per hari — dasar penentuan terlambat dan hari libur."
       />

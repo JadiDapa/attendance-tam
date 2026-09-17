@@ -11,9 +11,7 @@ import Panel from "@/components/dashboard/Panel";
 import StatTile from "@/components/dashboard/StatTile";
 import WorkerRoleChart from "@/components/dashboard/WorkerRoleChart";
 import WorkerStatusChart from "@/components/dashboard/WorkerStatusChart";
-import WorkerTable, {
-  type WorkerRow,
-} from "@/components/admin/WorkerTable";
+import WorkerTable, { type WorkerRow } from "@/components/admin/WorkerTable";
 import { Button } from "@/components/ui/button";
 import { Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
@@ -54,6 +52,7 @@ export default async function DaftarPekerjaPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        back
         title="Daftar Pekerja"
         subtitle={`${activeCount} aktif dari ${rows.length} akun`}
         actions={

@@ -7,11 +7,10 @@ import Panel from "@/components/dashboard/Panel";
 import ThemeOptions from "@/components/settings/ThemeOptions";
 import SignOutButton from "@/components/settings/SignOutButton";
 import { ProfileScreen } from "@/components/mobile/profile/profile-screen";
-import { Role } from "@/generated/prisma";
-import { requireRole } from "@/lib/session";
+import { requireUser } from "@/lib/session";
 
 export default async function PengaturanPage() {
-  const user = await requireRole(Role.EMPLOYEE);
+  const user = await requireUser();
 
   return (
     <>

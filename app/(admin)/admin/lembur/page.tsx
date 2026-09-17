@@ -10,7 +10,12 @@ import OvertimeApprovalTable, {
 } from "@/components/overtime/OvertimeApprovalTable";
 import { AttendanceApproval, OvertimeStage, Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
-import { formatDuration, formatTime, formatWorkDate, getWorkDate } from "@/lib/date";
+import {
+  formatDuration,
+  formatTime,
+  formatWorkDate,
+  getWorkDate,
+} from "@/lib/date";
 import { OvertimeService } from "@/servers/services/overtime.service";
 
 export default async function AdminLemburPage() {
@@ -48,6 +53,7 @@ export default async function AdminLemburPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        back
         title="Pengajuan Lembur"
         subtitle="Pantau pengajuan lembur karyawan — disetujui oleh supervisor atau manager."
       />

@@ -91,6 +91,7 @@ export default async function AdminIzinPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        back
         title="Pengajuan Izin"
         subtitle="Pantau pengajuan izin, sakit, dan cuti karyawan — disetujui oleh supervisor atau manager."
         actions={

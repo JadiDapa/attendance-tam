@@ -110,6 +110,7 @@ export default async function LaporanPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        back
         title="Laporan Absensi"
         subtitle={`${formatWorkDate(query.startDate)} — ${formatWorkDate(query.endDate)}`}
       />

@@ -112,6 +112,7 @@ export default async function KehadiranPage({
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
+        back
         title="Rekap Kehadiran"
         subtitle={
           holiday

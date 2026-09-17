@@ -361,7 +361,10 @@ export default async function EmployeeProfileDetailPage({
             ] as string | null | undefined;
 
             return (
-              <div key={key} className="flex items-center justify-between gap-2">
+              <div
+                key={key}
+                className="flex items-center justify-between gap-2"
+              >
                 <span className="text-sm">{label}</span>
                 {url ? (
                   <a

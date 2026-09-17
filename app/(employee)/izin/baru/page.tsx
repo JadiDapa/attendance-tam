@@ -3,8 +3,7 @@ import {
   LeaveRequestFormBody,
   type LeaveFormType,
 } from "@/components/mobile/izin/leave-request-form-body";
-import { requireRole } from "@/lib/session";
-import { Role } from "@/generated/prisma";
+import { requireUser } from "@/lib/session";
 
 const TYPE_BY_PARAM: Record<
   string,
@@ -29,7 +28,7 @@ export default async function IzinBaruPage({
 }: {
   searchParams: Promise<{ type?: string }>;
 }) {
-  await requireRole(Role.EMPLOYEE);
+  await requireUser();
 
   const { type: typeParam } = await searchParams;
   const config = typeParam ? TYPE_BY_PARAM[typeParam] : undefined;

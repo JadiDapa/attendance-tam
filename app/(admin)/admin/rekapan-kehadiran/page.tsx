@@ -174,6 +174,7 @@ export default async function RekapanKehadiranPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        back
         title="Rekapan Kehadiran"
         subtitle={`Rekap kehadiran pekerja · ${rangeLabel}`}
         actions={
@@ -228,7 +229,10 @@ export default async function RekapanKehadiranPage({
           </span>
         }
       >
-        <AttendanceStatusChart total={statusChartTotal} data={statusChartData} />
+        <AttendanceStatusChart
+          total={statusChartTotal}
+          data={statusChartData}
+        />
       </Panel>
 
       <AttendanceSummaryTable rows={rows} />

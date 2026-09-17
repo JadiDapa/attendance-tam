@@ -218,8 +218,7 @@ export default async function EditEmployeeProfilePage({
             bankAccountNumber: payroll?.bankAccountNumber ?? "",
             bankAccountName: payroll?.bankAccountName ?? "",
             bpjsKesehatanNumber: payroll?.bpjsKesehatanNumber ?? "",
-            bpjsKetenagakerjaanNumber:
-              payroll?.bpjsKetenagakerjaanNumber ?? "",
+            bpjsKetenagakerjaanNumber: payroll?.bpjsKetenagakerjaanNumber ?? "",
           }}
         />
       </Panel>

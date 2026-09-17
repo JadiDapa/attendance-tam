@@ -41,6 +41,7 @@ export default async function HariLiburPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        back
         title="Hari Libur"
         subtitle="Tanggal merah, cuti bersama, dan libur internal — melengkapi pola hari kerja mingguan."
         actions={
