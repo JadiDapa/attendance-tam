@@ -52,9 +52,10 @@ type Props = {
   maxAccuracyMeters: number;
   /**
    * Titik kantor yang aktif. Jaraknya dihitung di sini juga supaya form alasan
-   * sudah muncul sebelum kirim — server tetap yang jadi penentu.
+   * sudah muncul sebelum kirim — server tetap yang jadi penentu. Hanya dipakai
+   * absen masuk; absen pulang tidak butuh lokasi, jadi boleh null.
    */
-  office: { latitude: number; longitude: number; radiusMeters: number };
+  office: { latitude: number; longitude: number; radiusMeters: number } | null;
   /** Pengganti tombol trigger default, mis. baris kartu yang bisa ditekan. */
   trigger?: ReactNode;
 };
@@ -69,6 +70,9 @@ export default function AttendanceDialog({
   trigger,
 }: Props) {
   const router = useRouter();
+  // Absen pulang cukup wajah saja — karyawan sering sudah tidak berada di
+  // kantor, jadi GPS tidak dibaca dan tidak dikirim.
+  const needsLocation = type === AttendanceType.CHECK_IN;
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -159,7 +163,7 @@ export default function AttendanceDialog({
   // mengambil foto sementara lokasi masih menyusul; tombol kirim tetap terkunci
   // sampai koordinatnya terbaca.
   useEffect(() => {
-    if (!open) return;
+    if (!open || !needsLocation) return;
 
     let cancelled = false;
 
@@ -183,7 +187,7 @@ export default function AttendanceDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, maxAccuracyMeters]);
+  }, [open, needsLocation, maxAccuracyMeters]);
 
   const resetState = () => {
     setPreparing(true);
@@ -259,20 +263,26 @@ export default function AttendanceDialog({
   // Pembacaan GPS yang kasar ditolak server, jadi lebih baik ketahuan di sini
   // selagi karyawan masih bisa pindah ke area terbuka lalu membaca ulang.
   const isAccurate = coords !== null && coords.accuracy <= maxAccuracyMeters;
+  // Absen pulang tidak menunggu lokasi sama sekali.
+  const locationReady = !needsLocation || isAccurate;
 
-  const distanceMeters = coords
-    ? haversineDistance(
-        coords.latitude,
-        coords.longitude,
-        office.latitude,
-        office.longitude,
-      )
-    : null;
+  const distanceMeters =
+    coords && office
+      ? haversineDistance(
+          coords.latitude,
+          coords.longitude,
+          office.latitude,
+          office.longitude,
+        )
+      : null;
 
   // Di luar radius kantor absensi tidak langsung sah: karyawan harus menulis
-  // alasannya, lalu admin yang menyetujuinya.
+  // alasannya, lalu admin yang menyetujuinya. Absen pulang tidak punya lokasi,
+  // jadi tidak pernah di luar radius.
   const isOutside =
-    distanceMeters !== null && distanceMeters > office.radiusMeters;
+    distanceMeters !== null &&
+    office !== null &&
+    distanceMeters > office.radiusMeters;
   const trimmedDetail = detail.trim();
   const isReasonComplete =
     !isOutside || trimmedDetail.length >= MIN_DETAIL_LENGTH;
@@ -297,16 +307,19 @@ export default function AttendanceDialog({
   };
 
   const handleSubmit = useCallback(async () => {
-    if (!photo || !coords) return;
+    if (!photo || (needsLocation && !coords)) return;
 
     setSubmitting(true);
 
     const formData = new FormData();
     formData.set("type", type);
-    formData.set("latitude", String(coords.latitude));
-    formData.set("longitude", String(coords.longitude));
-    formData.set("accuracy", String(coords.accuracy));
     formData.set("photo", photo.file);
+
+    if (needsLocation && coords) {
+      formData.set("latitude", String(coords.latitude));
+      formData.set("longitude", String(coords.longitude));
+      formData.set("accuracy", String(coords.accuracy));
+    }
 
     if (isOutside) {
       formData.set("workModeDetail", trimmedDetail);
@@ -330,7 +343,7 @@ export default function AttendanceDialog({
 
     handleOpenChange(false);
     router.refresh();
-  }, [photo, coords, type, isOutside, trimmedDetail, router]);
+  }, [photo, coords, type, needsLocation, isOutside, trimmedDetail, router]);
 
   // Karyawan tidak perlu menekan tombol kirim lagi setelah foto berhasil
   // diambil — begitu lokasi cukup akurat, absensi langsung terkirim sendiri.
@@ -340,8 +353,7 @@ export default function AttendanceDialog({
       !photo ||
       isOutside ||
       submitting ||
-      !coords ||
-      !isAccurate ||
+      !locationReady ||
       autoSubmitFailed
     )
       return;
@@ -351,15 +363,14 @@ export default function AttendanceDialog({
     queueMicrotask(() => handleSubmit());
   }, [
     photo,
-    coords,
-    isAccurate,
+    locationReady,
     isOutside,
     submitting,
     autoSubmitFailed,
     handleSubmit,
   ]);
 
-  const waitingForLocation = !isOutside && (!coords || !isAccurate);
+  const waitingForLocation = !isOutside && !locationReady;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -473,7 +484,7 @@ export default function AttendanceDialog({
                 </button>
               </DialogClose>
 
-              {coords ? (
+              {!needsLocation ? null : coords ? (
                 <span
                   className={cn(
                     "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium backdrop-blur-sm",
@@ -516,7 +527,7 @@ export default function AttendanceDialog({
 
             {!photo && (
               <>
-                {!coords && !locating && (
+                {needsLocation && !coords && !locating && (
                   <div className="flex flex-col gap-2 rounded-xl border border-red-500/30 bg-red-500/15 p-3 text-xs text-red-100">
                     <p>{locationError ?? "Lokasi belum terbaca"}</p>
                     <Button
@@ -559,14 +570,14 @@ export default function AttendanceDialog({
                   <button
                     type="button"
                     onClick={capturePhoto}
-                    disabled={preparing || !!error || !coords || !isAccurate}
+                    disabled={preparing || !!error || !locationReady}
                     aria-label="Ambil foto"
                     className="flex size-[72px] items-center justify-center rounded-full border-4 border-white/90 transition active:scale-95 disabled:cursor-not-allowed disabled:border-white/30"
                   >
                     <span
                       className={cn(
                         "size-[56px] rounded-full bg-white transition",
-                        (preparing || !!error || !coords || !isAccurate) &&
+                        (preparing || !!error || !locationReady) &&
                           "bg-white/40",
                       )}
                     />
@@ -595,7 +606,7 @@ export default function AttendanceDialog({
                   <Button
                     type="button"
                     onClick={handleSubmit}
-                    disabled={!coords || !isAccurate || submitting}
+                    disabled={!locationReady || submitting}
                     className="flex-1"
                   >
                     {submitting && <Spinner />}

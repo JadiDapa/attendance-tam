@@ -58,9 +58,12 @@ export default async function KehadiranPage({
     ? (params.status as DayStatus)
     : null;
 
-  const [employees, attendances, approvedLeaves, holiday, workDays] =
+  const [employees, allUsers, attendances, approvedLeaves, holiday, workDays] =
     await Promise.all([
       UserService.list({ role: Role.EMPLOYEE, isActive: true }),
+      // Penambahan absensi berlaku untuk semua pengguna aktif, bukan hanya
+      // karyawan yang tampil di rekap.
+      UserService.list({ isActive: true }),
       AttendanceService.listByDate(workDate),
       LeaveService.listApprovedOnDate(workDate),
       HolidayService.getByDate(workDate),
@@ -128,9 +131,12 @@ export default async function KehadiranPage({
               status={statusFilter}
             />
             <ManualAttendanceDialog
-              employees={employees.map((employee) => ({
-                id: employee.id,
-                name: employee.name,
+              employees={allUsers.map((user) => ({
+                id: user.id,
+                name:
+                  user.role === Role.EMPLOYEE
+                    ? user.name
+                    : `${user.name} (${user.role.toLowerCase()})`,
               }))}
               defaultDate={dateValue}
             />
@@ -274,7 +280,7 @@ export default async function KehadiranPage({
           ))}
         </div>
 
-        <AttendanceRecapTable rows={visibleRows} bare />
+        <AttendanceRecapTable rows={visibleRows} bare editDate={dateValue} />
       </Panel>
     </div>
   );

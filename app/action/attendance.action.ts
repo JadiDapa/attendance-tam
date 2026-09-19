@@ -13,6 +13,7 @@ import { requireAnyRole, requireRole, requireUser } from "@/lib/session";
 import { saveImage, deleteUpload } from "@/lib/storage";
 import { haversineDistance, formatDistance } from "@/lib/geo";
 import {
+  formatTime,
   formatWorkDate,
   fromDateInputValue,
   getMinutesOfDay,
@@ -25,11 +26,13 @@ import {
   ManualAttendanceSchema,
   ReviewAttendanceSchema,
   SubmitAttendanceSchema,
+  UpdateAttendanceTimeSchema,
 } from "@/servers/validators/attendance.validator";
 import { WORK_MODE_LABEL, isLateEligible } from "@/lib/work-mode";
 import {
   ATTENDANCE_TYPE_LABEL,
   canReviewAttendance,
+  effectiveWorkMode,
   ownerRolesForAttendanceReviewer,
   resolveAttendanceReviewerRole,
 } from "@/lib/attendance";
@@ -139,6 +142,111 @@ function resolveLateness(input: {
   };
 }
 
+/**
+ * Verifikasi 1:1 foto ke wajah pemilik akun (anti titip absen). Mengembalikan
+ * hasil gagal siap-kirim, atau `null` kalau wajahnya cocok.
+ */
+async function checkFaceMatch(
+  photo: File,
+  referenceVectors: number[][],
+): Promise<AttendanceResult | null> {
+  try {
+    const result = await verifyFace(photo, referenceVectors);
+
+    if (result.status !== "match") {
+      return {
+        ok: false,
+        error:
+          "Wajah tidak cocok dengan data yang terdaftar. Pastikan wajah terlihat jelas lalu coba lagi.",
+      };
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof FaceApiError
+          ? error.message
+          : "Gagal memverifikasi wajah, coba lagi",
+    };
+  }
+
+  return null;
+}
+
+/** Simpan foto lalu buat barisnya; foto dibersihkan lagi kalau barisnya gagal dibuat. */
+async function savePhotoAndCreate(
+  photo: File,
+  data: Omit<Parameters<typeof AttendanceService.create>[0], "photoUrl">,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  let photoUrl: string;
+
+  try {
+    photoUrl = await saveImage(photo);
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Gagal menyimpan foto",
+    };
+  }
+
+  try {
+    await AttendanceService.create({ ...data, photoUrl });
+  } catch (error) {
+    // Baris DB gagal dibuat — foto yang sudah ditulis ke disk jadi yatim,
+    // bersihkan supaya tidak menumpuk dari absen ganda/percobaan gagal.
+    await deleteUpload(photoUrl);
+
+    // Absen ganda tertangkap unique constraint (userId, workDate, type).
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return { ok: false, error: "Absensi untuk hari ini sudah tercatat" };
+    }
+    throw error;
+  }
+
+  return { ok: true };
+}
+
+/**
+ * Absen pulang: hanya wajah yang diverifikasi. Lokasi tidak diminta maupun
+ * direkam, jadi tidak ada radius, alasan luar radius, atau persetujuan —
+ * barisnya sah langsung, sama seperti absen di dalam radius.
+ */
+async function recordCheckOut(input: {
+  userId: string;
+  photo: File;
+  workDate: Date;
+  referenceVectors: number[][];
+}): Promise<AttendanceResult> {
+  const faceError = await checkFaceMatch(input.photo, input.referenceVectors);
+
+  if (faceError) return faceError;
+
+  const saved = await savePhotoAndCreate(input.photo, {
+    userId: input.userId,
+    type: AttendanceType.CHECK_OUT,
+    workDate: input.workDate,
+    latitude: null,
+    longitude: null,
+    distanceMeters: null,
+    accuracyMeters: null,
+    isWithinRadius: null,
+    isLate: false,
+    lateMinutes: 0,
+    workMode: WorkMode.HADIR_DIKANTOR,
+    workModeDetail: null,
+    approvalStatus: null,
+  });
+
+  if (!saved.ok) return saved;
+
+  revalidateAttendancePages();
+
+  return { ok: true, message: "Absen pulang tercatat" };
+}
+
 export async function submitAttendance(
   formData: FormData,
 ): Promise<AttendanceResult> {
@@ -166,7 +274,7 @@ export async function submitAttendance(
     return { ok: false, error: "Foto absensi wajib diambil" };
   }
 
-  const { type, latitude, longitude, accuracy } = parsed.data;
+  const type = parsed.data.type;
   const now = new Date();
   const workDate = getWorkDate(now);
 
@@ -229,6 +337,19 @@ export async function submitAttendance(
     }
   }
 
+  // Absen pulang cukup wajah saja: tanpa lokasi, radius, maupun persetujuan.
+  // Karyawan sering sudah berada di tempat lain saat pulang.
+  if (parsed.data.type === AttendanceType.CHECK_OUT) {
+    return recordCheckOut({
+      userId: user.id,
+      photo,
+      workDate,
+      referenceVectors: referenceEmbeddings.map((row) => row.vector),
+    });
+  }
+
+  const { latitude, longitude, accuracy } = parsed.data;
+
   if (!office) {
     return {
       ok: false,
@@ -285,28 +406,12 @@ export async function submitAttendance(
   // langkah yang makan waktu (round-trip ke layanan DeepFace, ~1-2 detik), jadi
   // penolakan yang murah — sudah absen, kantor belum diatur, akurasi GPS jelek,
   // alasan luar radius belum diisi — tidak perlu ikut menunggunya.
-  try {
-    const result = await verifyFace(
-      photo,
-      referenceEmbeddings.map((row) => row.vector),
-    );
+  const faceError = await checkFaceMatch(
+    photo,
+    referenceEmbeddings.map((row) => row.vector),
+  );
 
-    if (result.status !== "match") {
-      return {
-        ok: false,
-        error:
-          "Wajah tidak cocok dengan data yang terdaftar. Pastikan wajah terlihat jelas lalu coba lagi.",
-      };
-    }
-  } catch (error) {
-    return {
-      ok: false,
-      error:
-        error instanceof FaceApiError
-          ? error.message
-          : "Gagal memverifikasi wajah, coba lagi",
-    };
-  }
+  if (faceError) return faceError;
 
   const { isLate, lateMinutes } = resolveLateness({
     type,
@@ -318,17 +423,6 @@ export async function submitAttendance(
     isHoliday: holiday !== null,
   });
 
-  let photoUrl: string;
-
-  try {
-    photoUrl = await saveImage(photo);
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : "Gagal menyimpan foto",
-    };
-  }
-
   // Di luar radius, gilirannya ditentukan dari role pemohon (lihat
   // `resolveAttendanceReviewerRole`) — manager tidak punya siapa pun di
   // atasnya, jadi absensinya otomatis disetujui, tetap tercatat untuk
@@ -338,44 +432,30 @@ export async function submitAttendance(
     : resolveAttendanceReviewerRole(user.role);
   const autoApproved = !isWithinRadius && reviewerRole === null;
 
-  try {
-    await AttendanceService.create({
-      userId: user.id,
-      type,
-      workDate,
-      latitude,
-      longitude,
-      photoUrl,
-      distanceMeters,
-      accuracyMeters: accuracy,
-      isWithinRadius,
-      isLate,
-      lateMinutes,
-      workMode,
-      workModeDetail,
-      approvalStatus: isWithinRadius
-        ? null
-        : autoApproved
-          ? AttendanceApproval.APPROVED
-          : AttendanceApproval.PENDING,
-      approvedMode: autoApproved ? workMode : null,
-      reviewedAt: autoApproved ? new Date() : null,
-      reviewNote: autoApproved ? "Disetujui otomatis — absensi manager" : null,
-    });
-  } catch (error) {
-    // Baris DB gagal dibuat — foto yang sudah ditulis ke disk jadi yatim,
-    // bersihkan supaya tidak menumpuk dari absen ganda/percobaan gagal.
-    await deleteUpload(photoUrl);
+  const saved = await savePhotoAndCreate(photo, {
+    userId: user.id,
+    type,
+    workDate,
+    latitude,
+    longitude,
+    distanceMeters,
+    accuracyMeters: accuracy,
+    isWithinRadius,
+    isLate,
+    lateMinutes,
+    workMode,
+    workModeDetail,
+    approvalStatus: isWithinRadius
+      ? null
+      : autoApproved
+        ? AttendanceApproval.APPROVED
+        : AttendanceApproval.PENDING,
+    approvedMode: autoApproved ? workMode : null,
+    reviewedAt: autoApproved ? new Date() : null,
+    reviewNote: autoApproved ? "Disetujui otomatis — absensi manager" : null,
+  });
 
-    // Absen ganda tertangkap unique constraint (userId, workDate, type).
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      return { ok: false, error: "Absensi untuk hari ini sudah tercatat" };
-    }
-    throw error;
-  }
+  if (!saved.ok) return saved;
 
   revalidateAttendancePages();
 
@@ -565,10 +645,12 @@ export async function createManualAttendance(
     return { ok: false, error: "Jam absensi tidak valid" };
   }
 
+  // Semua pengguna aktif boleh dicatatkan — supervisor/manager/admin juga
+  // absen lewat aplikasi (`SELF_ATTENDANCE_ROLES`) dan bisa lupa absen.
   const employee = await UserService.getById(parsed.data.userId);
 
-  if (!employee || employee.role !== Role.EMPLOYEE) {
-    return { ok: false, error: "Karyawan tidak ditemukan" };
+  if (!employee || !employee.isActive) {
+    return { ok: false, error: "Pengguna tidak ditemukan atau nonaktif" };
   }
 
   // Baris yang sudah ada dari HP karyawan (foto+GPS asli, termasuk klaim yang
@@ -621,6 +703,110 @@ export async function createManualAttendance(
   return {
     ok: true,
     message: `${ATTENDANCE_TYPE_LABEL[parsed.data.type]} ${employee.name} pada ${formatWorkDate(workDate)} dicatat`,
+  };
+}
+
+/**
+ * Koreksi jam absensi (masuk/pulang) yang sudah tercatat, oleh admin — mis.
+ * karyawan absen tepat waktu tapi jamnya tercatat salah, atau absen pulang
+ * lupa dilakukan sampai sore. Berlaku untuk absensi dari HP karyawan maupun
+ * yang dicatat manual; foto/GPS/status approval tidak disentuh, jam aslinya
+ * disimpan di `originalTimestamp`, dan barisnya diberi label "Diubah admin".
+ *
+ * Terlambat dihitung ulang dari jam baru, memakai mode final absensinya
+ * (`effectiveWorkMode`) — sama seperti saat menyetujui absensi luar radius.
+ */
+export async function updateAttendanceTime(
+  attendanceId: string,
+  input: z.input<typeof UpdateAttendanceTimeSchema>,
+): Promise<ReviewAttendanceResult> {
+  const admin = await requireRole(Role.ADMIN);
+
+  const parsed = UpdateAttendanceTimeSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Data tidak valid",
+    };
+  }
+
+  const attendance = await AttendanceService.getById(attendanceId);
+
+  if (!attendance) return { ok: false, error: "Absensi tidak ditemukan" };
+
+  const timestamp = workDateTimeToUtc(attendance.workDate, parsed.data.time);
+  const minutesOfDay = parseTimeToMinutes(parsed.data.time);
+
+  if (!timestamp || minutesOfDay === null) {
+    return { ok: false, error: "Jam absensi tidak valid" };
+  }
+
+  if (timestamp.getTime() === attendance.timestamp.getTime()) {
+    return { ok: false, error: "Jamnya sama dengan yang sudah tercatat" };
+  }
+
+  if (timestamp.getTime() > Date.now()) {
+    return { ok: false, error: "Jam absensi tidak boleh di masa depan" };
+  }
+
+  // Absen pulang harus sesudah absen masuk hari yang sama, dan sebaliknya.
+  const counterpart = await AttendanceService.findByUserDateType(
+    attendance.userId,
+    attendance.workDate,
+    attendance.type === AttendanceType.CHECK_IN
+      ? AttendanceType.CHECK_OUT
+      : AttendanceType.CHECK_IN,
+  );
+
+  if (counterpart) {
+    const inOrder =
+      attendance.type === AttendanceType.CHECK_IN
+        ? timestamp.getTime() < counterpart.timestamp.getTime()
+        : timestamp.getTime() > counterpart.timestamp.getTime();
+
+    if (!inOrder) {
+      return {
+        ok: false,
+        error:
+          attendance.type === AttendanceType.CHECK_IN
+            ? `Absen masuk harus sebelum absen pulang (${formatTime(counterpart.timestamp)})`
+            : `Absen pulang harus sesudah absen masuk (${formatTime(counterpart.timestamp)})`,
+      };
+    }
+  }
+
+  const [schedule, workDays, holiday] = await Promise.all([
+    WorkScheduleService.getActive(),
+    WorkDayService.list(),
+    HolidayService.getByDate(attendance.workDate),
+  ]);
+
+  const { isLate, lateMinutes } = resolveLateness({
+    type: attendance.type,
+    mode: effectiveWorkMode(attendance),
+    workDate: attendance.workDate,
+    minutesOfDay,
+    workDays,
+    toleranceMinutes: schedule?.lateToleranceMinutes ?? 0,
+    isHoliday: holiday !== null,
+  });
+
+  await AttendanceService.updateTime(attendance.id, {
+    timestamp,
+    isLate,
+    lateMinutes,
+    editedById: admin.id,
+    editNote: parsed.data.editNote,
+    previousTimestamp: attendance.timestamp,
+    originalTimestamp: attendance.originalTimestamp,
+  });
+
+  revalidateAttendancePages();
+
+  return {
+    ok: true,
+    message: `${ATTENDANCE_TYPE_LABEL[attendance.type]} ${attendance.user.name} pada ${formatWorkDate(attendance.workDate)} diubah ke ${parsed.data.time}`,
   };
 }
 

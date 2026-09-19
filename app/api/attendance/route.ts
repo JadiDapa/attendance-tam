@@ -6,9 +6,10 @@ import { fromDateInputValue, getMonthRange, getWorkDate } from "@/lib/date";
 
 /**
  * Absen masuk/pulang dari mobile — payload sama persis dengan form web
- * (multipart: type, latitude, longitude, accuracy, photo, dan workMode +
- * workModeDetail kalau di luar radius). Semua validasi & business logic
- * (verifikasi wajah, radius, keterlambatan) tetap di `submitAttendance()`.
+ * (multipart: type, photo, dan untuk absen masuk: latitude, longitude,
+ * accuracy, plus workModeDetail kalau di luar radius; absen pulang cukup
+ * `type` + `photo`). Semua validasi & business logic (verifikasi wajah,
+ * radius, keterlambatan) tetap di `submitAttendance()`.
  */
 export async function POST(request: Request) {
   const auth = await requireApiUser();

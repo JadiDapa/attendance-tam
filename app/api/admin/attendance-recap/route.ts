@@ -5,6 +5,31 @@ import { resolveAdminRecapQuery } from "@/servers/validators/admin-recap.validat
 import { ReportService } from "@/servers/services/report.service";
 import { MonthlyReportService } from "@/servers/services/monthly-report.service";
 import { UserService } from "@/servers/services/user.service";
+import { OvertimeService } from "@/servers/services/overtime.service";
+import type { Attendance, Overtime } from "@/generated/prisma";
+
+/** Satu absensi untuk sheet koreksi admin di mobile — jam sebagai ISO string. */
+function toEntry(attendance: Attendance | null) {
+  if (!attendance) return null;
+
+  return {
+    id: attendance.id,
+    timestamp: attendance.timestamp.toISOString(),
+    addedByAdmin: attendance.createdByAdminId !== null,
+    editedByAdmin: attendance.editedById !== null,
+    originalTimestamp: attendance.originalTimestamp?.toISOString() ?? null,
+  };
+}
+
+function toOvertimeEntry(overtime: Overtime) {
+  return {
+    id: overtime.id,
+    startAt: overtime.startAt.toISOString(),
+    endAt: overtime.endAt?.toISOString() ?? null,
+    status: overtime.status,
+    editedByAdmin: overtime.editedById !== null,
+  };
+}
 
 const NOT_ATTEND_STATUSES = new Set(["ALFA", "IZIN", "SAKIT", "CUTI"]);
 const ATTEND_STATUSES = new Set(["HADIR_DIKANTOR", "LUAR_RADIUS", "DINAS_LUAR"]);
@@ -38,9 +63,10 @@ export async function GET(req: Request) {
   if (resolved.value.mode === "daily") {
     const { date } = resolved.value;
 
-    const [rows, employees] = await Promise.all([
+    const [rows, employees, overtimes] = await Promise.all([
       ReportService.buildRecap({ startDate: date, endDate: date }),
       UserService.list({ role: Role.EMPLOYEE, isActive: true }),
+      OvertimeService.listByWorkDate(date),
     ]);
     const avatarByUser = new Map(
       employees.map((employee) => [employee.id, employee.profileImageUrl]),
@@ -56,6 +82,13 @@ export async function GET(req: Request) {
         lateMinutes: row.checkIn?.lateMinutes ?? 0,
         checkInTime: row.checkIn ? row.checkIn.timestamp.toISOString() : null,
         checkOutTime: row.checkOut ? row.checkOut.timestamp.toISOString() : null,
+        // Detail per baris supaya admin bisa mengoreksi jam / menambah yang
+        // hilang dari layar yang sama (hanya ADMIN yang boleh, dicek server).
+        checkIn: toEntry(row.checkIn),
+        checkOut: toEntry(row.checkOut),
+        overtimes: overtimes
+          .filter((overtime) => overtime.userId === row.user.id)
+          .map(toOvertimeEntry),
       }))
       .sort((a, b) => sortKey(b.status, b.lateMinutes) - sortKey(a.status, a.lateMinutes));
 

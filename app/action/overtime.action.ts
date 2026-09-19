@@ -9,7 +9,7 @@ import {
   OvertimeStage,
   Role,
 } from "@/generated/prisma";
-import { requireAnyRole, requireUser } from "@/lib/session";
+import { requireAnyRole, requireRole, requireUser } from "@/lib/session";
 import { defaultRouteForRole } from "@/lib/role";
 import {
   addDays,
@@ -29,6 +29,7 @@ import {
   EndOvertimeSchema,
   ReviewOvertimeSchema,
   StartOvertimeSchema,
+  UpdateOvertimeTimeSchema,
 } from "@/servers/validators/overtime.validator";
 import { OvertimeService } from "@/servers/services/overtime.service";
 import { AttendanceService } from "@/servers/services/attendance.service";
@@ -48,6 +49,9 @@ const OVERTIME_PATHS = [
   "/supervisor/lembur-saya",
   "/manager/lembur",
   "/manager/lembur-saya",
+  // Lembur yang disetujui ikut terhitung di laporan bulanan.
+  "/admin/laporan",
+  "/admin/rekapan-kehadiran",
 ];
 
 /** Role yang boleh mengajukan lembur untuk diri sendiri. */
@@ -297,5 +301,94 @@ export async function reviewOvertime(
       finalStatus === AttendanceApproval.REJECTED
         ? "Pengajuan lembur ditolak"
         : "Pengajuan lembur disetujui",
+  };
+}
+
+/**
+ * Koreksi jam lembur oleh admin (mulai dan/atau selesai) — mis. karyawan lupa
+ * menyelesaikan lembur sampai jauh malam. Status approval tidak berubah, jam
+ * aslinya disimpan (`originalStartAt`/`originalEndAt`), dan durasi dihitung ulang.
+ *
+ * Aturan "mulai >= 18:00" sengaja tidak diberlakukan di sini: itu pembatas
+ * untuk karyawan yang memulai lembur, bukan untuk koreksi admin atas data
+ * yang sudah ada. `endTime` yang lebih awal dari `startTime` dianggap melewati
+ * tengah malam, sama seperti `endOvertime`.
+ */
+export async function updateOvertimeTime(
+  overtimeId: string,
+  input: z.input<typeof UpdateOvertimeTimeSchema>,
+): Promise<OvertimeResult> {
+  const admin = await requireRole(Role.ADMIN);
+
+  const parsed = UpdateOvertimeTimeSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Data tidak valid",
+    };
+  }
+
+  const overtime = await OvertimeService.getById(overtimeId);
+
+  if (!overtime) return { ok: false, error: "Lembur tidak ditemukan" };
+
+  const startMinutes = parseTimeToMinutes(parsed.data.startTime);
+  const startAt = workDateTimeToUtc(overtime.workDate, parsed.data.startTime);
+
+  if (startMinutes === null || !startAt) {
+    return { ok: false, error: "Jam mulai lembur tidak valid" };
+  }
+
+  const endTime = parsed.data.endTime?.trim();
+  let endAt: Date | null = overtime.endAt;
+
+  if (endTime) {
+    const endMinutes = parseTimeToMinutes(endTime);
+    const targetDate =
+      endMinutes !== null && endMinutes < startMinutes
+        ? addDays(overtime.workDate, 1)
+        : overtime.workDate;
+
+    endAt = workDateTimeToUtc(targetDate, endTime);
+
+    if (!endAt) return { ok: false, error: "Jam selesai tidak valid" };
+  }
+
+  if (endAt && endAt.getTime() <= startAt.getTime()) {
+    return { ok: false, error: "Jam selesai harus setelah jam mulai lembur" };
+  }
+
+  if (endAt && endAt.getTime() > Date.now()) {
+    return { ok: false, error: "Jam selesai tidak boleh di masa depan" };
+  }
+
+  const unchanged =
+    startAt.getTime() === overtime.startAt.getTime() &&
+    endAt?.getTime() === overtime.endAt?.getTime();
+
+  if (unchanged) {
+    return { ok: false, error: "Jamnya sama dengan yang sudah tercatat" };
+  }
+
+  await OvertimeService.updateTimes(overtime.id, {
+    startAt,
+    endAt,
+    durationMinutes: endAt
+      ? Math.round((endAt.getTime() - startAt.getTime()) / 60_000)
+      : null,
+    editedById: admin.id,
+    editNote: parsed.data.editNote,
+    originalStartAt: overtime.originalStartAt ?? overtime.startAt,
+    originalEndAt: overtime.originalStartAt
+      ? overtime.originalEndAt
+      : overtime.endAt,
+  });
+
+  revalidateOvertimePages();
+
+  return {
+    ok: true,
+    message: `Lembur ${overtime.user.name} diubah — ${formatTime(startAt)}${endAt ? ` — ${formatTime(endAt)}` : ""}`,
   };
 }

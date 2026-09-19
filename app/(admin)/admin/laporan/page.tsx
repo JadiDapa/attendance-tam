@@ -310,7 +310,9 @@ export default async function LaporanPage({
                     </TableCell>
                     <TableCell>
                       {row.checkIn?.isManual
-                        ? "Dicatat manual"
+                        ? row.checkIn.createdByAdminId
+                          ? "Ditambahkan admin"
+                          : "Dicatat manual"
                         : row.checkIn?.isWithinRadius === true
                           ? "Dalam radius"
                           : row.checkIn?.isWithinRadius === false

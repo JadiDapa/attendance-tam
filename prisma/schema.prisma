@@ -166,10 +166,13 @@ model User {
 
   attendances              Attendance[]      @relation("AttendanceOwner")
   reviewedAttendances      Attendance[]      @relation("AttendanceReviewer")
+  createdAttendances       Attendance[]      @relation("AttendanceCreator")
+  editedAttendances        Attendance[]      @relation("AttendanceEditor")
   leaveRequests            LeaveRequest[]    @relation("LeaveRequester")
   reviewedLeaves           LeaveRequest[]    @relation("LeaveReviewer")
   overtimes                Overtime[]        @relation("OvertimeOwner")
   reviewedOvertimes        Overtime[]        @relation("OvertimeReviewer")
+  editedOvertimes          Overtime[]        @relation("OvertimeEditor")
   createdFieldAssignments  FieldAssignment[] @relation("FieldAssignmentCreator")
   fieldAssignments         FieldAssignment[] @relation("FieldAssignmentEmployees")
   reviewedFieldAssignments FieldAssignment[] @relation("FieldAssignmentReviewer")
@@ -438,6 +441,20 @@ model Attendance {
   reviewedAt     DateTime?
   reviewNote     String?
 
+  /// Diisi kalau baris ini DITAMBAHKAN admin untuk karyawan (mis. lupa absen).
+  /// Beda dari `isManual`, yang juga menyala untuk konfirmasi absen pulang
+  /// yang dilakukan karyawan sendiri — inilah yang dipakai label "Ditambahkan admin".
+  createdByAdmin   User?   @relation("AttendanceCreator", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+  createdByAdminId String?
+
+  /// Jejak koreksi jam oleh admin. `originalTimestamp` = jam sebelum koreksi
+  /// PERTAMA (tidak tertimpa oleh koreksi berikutnya), `editNote` = alasannya.
+  editedBy          User?     @relation("AttendanceEditor", fields: [editedById], references: [id], onDelete: SetNull)
+  editedById        String?
+  editedAt          DateTime?
+  originalTimestamp DateTime?
+  editNote          String?
+
   createdAt DateTime @default(now())
 
   @@unique([userId, workDate, type])
@@ -479,6 +496,15 @@ model Overtime {
   reviewedById String?
   reviewedAt   DateTime?
   reviewNote   String?
+
+  /// Jejak koreksi jam lembur oleh admin — `originalStartAt`/`originalEndAt`
+  /// adalah jam sebelum koreksi PERTAMA, `editNote` alasannya.
+  editedBy        User?     @relation("OvertimeEditor", fields: [editedById], references: [id], onDelete: SetNull)
+  editedById      String?
+  editedAt        DateTime?
+  originalStartAt DateTime?
+  originalEndAt   DateTime?
+  editNote        String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

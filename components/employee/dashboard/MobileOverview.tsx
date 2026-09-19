@@ -77,11 +77,13 @@ function Row({
   maxAccuracyMeters: number;
 }) {
   const minutesLate = lateMinutes(entry, scheduled);
+  // Absen pulang cukup wajah saja, jadi tidak menunggu titik kantor.
+  const officeMissing = type === AttendanceType.CHECK_IN && !office;
 
   const row = (
     <button
       type="button"
-      disabled={disabled || !office}
+      disabled={disabled || officeMissing}
       title={disabled ? disabledReason : undefined}
       className="enabled:hover:bg-muted/30 flex w-full items-start justify-between gap-3 py-4 text-left transition-colors disabled:cursor-not-allowed"
     >
@@ -119,7 +121,7 @@ function Row({
     </button>
   );
 
-  if (!office || entry) return row;
+  if (officeMissing || entry) return row;
 
   return (
     <AttendanceDialog
@@ -150,9 +152,8 @@ export default function MobileOverview({
   faceEnrolled,
   checkInClosed,
 }: Props) {
-  const canAttend = office !== null && faceEnrolled;
-  const checkInDisabled = !canAttend || !!checkIn || checkInClosed;
-  const checkOutDisabled = !canAttend || !checkIn || !!checkOut;
+  const checkInDisabled = office === null || !faceEnrolled || !!checkIn || checkInClosed;
+  const checkOutDisabled = !faceEnrolled || !checkIn || !!checkOut;
 
   return (
     <div className="-mx-4 -mt-4 flex flex-col lg:hidden">

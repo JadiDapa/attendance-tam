@@ -33,6 +33,46 @@ export const OvertimeService = {
     });
   },
 
+  /** Semua lembur pada satu tanggal kerja (semua karyawan) — rekap harian admin. */
+  async listByWorkDate(workDate: Date) {
+    return prisma.overtime.findMany({
+      where: { workDate },
+      orderBy: { startAt: "asc" },
+    });
+  },
+
+  /**
+   * Koreksi jam lembur oleh admin. Status approval tidak disentuh — yang
+   * berubah hanya jam, durasi turunannya, dan jejaknya. `original*` diisi
+   * pemanggil dengan jam sebelum koreksi PERTAMA.
+   */
+  async updateTimes(
+    id: string,
+    data: {
+      startAt: Date;
+      endAt: Date | null;
+      durationMinutes: number | null;
+      editedById: string;
+      editNote: string;
+      originalStartAt: Date;
+      originalEndAt: Date | null;
+    },
+  ) {
+    return prisma.overtime.update({
+      where: { id },
+      data: {
+        startAt: data.startAt,
+        endAt: data.endAt,
+        durationMinutes: data.durationMinutes,
+        editedById: data.editedById,
+        editedAt: new Date(),
+        editNote: data.editNote,
+        originalStartAt: data.originalStartAt,
+        originalEndAt: data.originalEndAt,
+      },
+    });
+  },
+
   /** Sesi lembur milik user yang masih berjalan (`endAt` null), kalau ada. */
   async getOpenForUser(userId: string) {
     return prisma.overtime.findFirst({

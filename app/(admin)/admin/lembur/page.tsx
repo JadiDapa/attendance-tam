@@ -38,6 +38,13 @@ export default async function AdminLemburPage() {
     stage: request.stage,
     reviewNote: request.reviewNote,
     reviewedBy: request.reviewedBy?.name ?? null,
+    editedByAdmin: request.editedById !== null,
+    originalStartTime: request.originalStartAt
+      ? formatTime(request.originalStartAt)
+      : null,
+    originalEndTime: request.originalEndAt
+      ? formatTime(request.originalEndAt)
+      : null,
   }));
 
   const pending = requests.filter(
@@ -55,7 +62,7 @@ export default async function AdminLemburPage() {
       <PageHeader
         back
         title="Pengajuan Lembur"
-        subtitle="Pantau pengajuan lembur karyawan — disetujui oleh supervisor atau manager."
+        subtitle="Pantau pengajuan lembur karyawan — disetujui oleh supervisor atau manager. Admin dapat mengoreksi jam lembur yang salah."
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -85,6 +92,7 @@ export default async function AdminLemburPage() {
         rows={rows}
         viewerStage={OvertimeStage.DONE}
         detailBasePath="/admin/lembur"
+        canEdit
       />
     </div>
   );

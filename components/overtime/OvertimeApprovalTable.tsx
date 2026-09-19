@@ -6,6 +6,7 @@ import { EyeOpenIcon as Eye } from "@radix-ui/react-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import DataTable from "@/components/dashboard/DataTable";
+import EditOvertimeTimeDialog from "@/components/admin/EditOvertimeTimeDialog";
 import SearchDataTable from "@/components/dashboard/SearchDataTable";
 import SelectDataTable from "@/components/dashboard/SelectDataTable";
 import { AttendanceApproval, OvertimeStage } from "@/generated/prisma";
@@ -30,12 +31,19 @@ export type OvertimeApprovalRow = {
   stage: OvertimeStage;
   reviewNote: string | null;
   reviewedBy: string | null;
+  /** Jam lembur pernah dikoreksi admin — label "Diubah admin". */
+  editedByAdmin?: boolean;
+  /** Jam mulai sebelum koreksi pertama, "HH:mm". */
+  originalStartTime?: string | null;
+  /** Jam selesai sebelum koreksi pertama, "HH:mm". */
+  originalEndTime?: string | null;
 };
 
 export default function OvertimeApprovalTable({
   rows,
   viewerStage,
   detailBasePath,
+  canEdit = false,
 }: {
   rows: OvertimeApprovalRow[];
   /** Giliran approval milik reviewer yang sedang login — dipakai untuk
@@ -43,6 +51,8 @@ export default function OvertimeApprovalTable({
   viewerStage: OvertimeStage;
   /** Prefix rute halaman detail milik role ini, mis. "/admin/lembur". */
   detailBasePath: string;
+  /** Khusus admin — memunculkan tombol "Ubah Jam" di kolom aksi. */
+  canEdit?: boolean;
 }) {
   const columns: ColumnDef<OvertimeApprovalRow>[] = [
     {
@@ -75,6 +85,15 @@ export default function OvertimeApprovalTable({
             <p className="text-muted-foreground text-xs">
               {row.original.durationLabel}
             </p>
+          )}
+          {row.original.editedByAdmin && (
+            <Badge
+              variant="outline"
+              className="mt-0.5 text-[10px]"
+              title={`Jam asli ${row.original.originalStartTime ?? "?"} — ${row.original.originalEndTime ?? "berjalan"}`}
+            >
+              Diubah admin
+            </Badge>
           )}
         </div>
       ),
@@ -124,12 +143,22 @@ export default function OvertimeApprovalTable({
           row.original.stage === viewerStage;
 
         return (
-          <Button asChild variant={isMyTurn ? "default" : "ghost"} size="sm">
-            <Link href={`${detailBasePath}/${row.original.id}`}>
-              <Eye className="size-4" />
-              {isMyTurn ? "Tinjau" : "Detail"}
-            </Link>
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button asChild variant={isMyTurn ? "default" : "ghost"} size="sm">
+              <Link href={`${detailBasePath}/${row.original.id}`}>
+                <Eye className="size-4" />
+                {isMyTurn ? "Tinjau" : "Detail"}
+              </Link>
+            </Button>
+            {canEdit && (
+              <EditOvertimeTimeDialog
+                overtimeId={row.original.id}
+                employeeName={row.original.employeeName}
+                startTime={row.original.startTime}
+                endTime={row.original.endTime}
+              />
+            )}
+          </div>
         );
       },
     },

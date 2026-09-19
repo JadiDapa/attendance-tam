@@ -43,6 +43,9 @@ export function AttendanceCaptureScreen({
   maxAccuracyMeters: number;
 }) {
   const router = useRouter();
+  // Absen pulang cukup wajah saja — karyawan sering sudah tidak berada di
+  // kantor, jadi GPS tidak dibaca, tidak dikirim, dan titik kantor tidak wajib.
+  const needsLocation = type === AttendanceType.CHECK_IN;
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -59,7 +62,7 @@ export function AttendanceCaptureScreen({
   const [autoSubmitFailed, setAutoSubmitFailed] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
-  const canRunFlow = faceEnrolled && office !== null;
+  const canRunFlow = faceEnrolled && (!needsLocation || office !== null);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -135,7 +138,7 @@ export function AttendanceCaptureScreen({
   }, [maxAccuracyMeters]);
 
   useEffect(() => {
-    if (!canRunFlow) return;
+    if (!canRunFlow || !needsLocation) return;
 
     let cancelled = false;
 
@@ -147,9 +150,11 @@ export function AttendanceCaptureScreen({
     return () => {
       cancelled = true;
     };
-  }, [canRunFlow, startLocating]);
+  }, [canRunFlow, needsLocation, startLocating]);
 
   const isAccurate = coords !== null && coords.accuracy <= maxAccuracyMeters;
+  // Absen pulang tidak menunggu lokasi sama sekali.
+  const locationReady = !needsLocation || isAccurate;
 
   const distanceMeters =
     coords && office
@@ -215,16 +220,19 @@ export function AttendanceCaptureScreen({
   };
 
   const handleSubmit = useCallback(async () => {
-    if (!photo || !coords || submitting || hasSubmitted) return;
+    if (!photo || (needsLocation && !coords) || submitting || hasSubmitted) return;
 
     setSubmitting(true);
 
     const formData = new FormData();
     formData.set("type", type);
-    formData.set("latitude", String(coords.latitude));
-    formData.set("longitude", String(coords.longitude));
-    formData.set("accuracy", String(coords.accuracy));
     formData.set("photo", photo.file);
+
+    if (needsLocation && coords) {
+      formData.set("latitude", String(coords.latitude));
+      formData.set("longitude", String(coords.longitude));
+      formData.set("accuracy", String(coords.accuracy));
+    }
 
     if (isOutside) {
       formData.set("workModeDetail", trimmedDetail);
@@ -249,7 +257,7 @@ export function AttendanceCaptureScreen({
 
     router.back();
     router.refresh();
-  }, [photo, coords, type, isOutside, trimmedDetail, submitting, hasSubmitted, router]);
+  }, [photo, coords, type, needsLocation, isOutside, trimmedDetail, submitting, hasSubmitted, router]);
 
   // Di dalam radius: begitu foto & lokasi siap, absensi terkirim otomatis —
   // sama seperti `AttendanceDialog`.
@@ -258,8 +266,7 @@ export function AttendanceCaptureScreen({
       !photo ||
       isOutside ||
       submitting ||
-      !coords ||
-      !isAccurate ||
+      !locationReady ||
       autoSubmitFailed ||
       hasSubmitted
     )
@@ -268,8 +275,7 @@ export function AttendanceCaptureScreen({
     queueMicrotask(() => void handleSubmit());
   }, [
     photo,
-    coords,
-    isAccurate,
+    locationReady,
     isOutside,
     submitting,
     autoSubmitFailed,
@@ -298,7 +304,7 @@ export function AttendanceCaptureScreen({
     );
   }
 
-  if (!office) {
+  if (needsLocation && !office) {
     return (
       <div className="bg-background -mx-4 -mt-4 -mb-28 flex min-h-[calc(100dvh-3.5rem)] flex-col items-center justify-center gap-4 px-6 text-center md:hidden">
         <p className="text-foreground text-base">
@@ -315,8 +321,8 @@ export function AttendanceCaptureScreen({
     );
   }
 
-  const canCapture = !preparing && !cameraError && !!coords && isAccurate;
-  const waitingForLocation = !isOutside && (!coords || !isAccurate);
+  const canCapture = !preparing && !cameraError && locationReady;
+  const waitingForLocation = !isOutside && !locationReady;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
@@ -434,69 +440,73 @@ export function AttendanceCaptureScreen({
           className="absolute inset-x-0 bottom-0 z-10 flex flex-col items-center gap-4 px-4"
           style={{ paddingBottom: "max(2rem, calc(env(safe-area-inset-bottom) + 1rem))" }}
         >
-          <div className="flex w-full flex-col gap-2 rounded-2xl bg-black/55 p-3">
-            <div className="flex items-center gap-2">
-              <MapPin className="size-4 text-white" />
-              <span className="flex-1 text-xs font-medium text-white">
-                Lokasi Saat Ini
-              </span>
-              <button
-                type="button"
-                onClick={startLocating}
-                disabled={locating}
-                className="rounded-full bg-white/15 p-1.5 disabled:opacity-50"
-              >
-                <RefreshCw className="size-3.5 text-white" />
-              </button>
-            </div>
-
-            {locating && !coords ? (
+          {needsLocation && (
+            <div className="flex w-full flex-col gap-2 rounded-2xl bg-black/55 p-3">
               <div className="flex items-center gap-2">
-                <Spinner className="size-4 text-white" />
-                <span className="text-xs text-white/80">Membaca lokasi...</span>
+                <MapPin className="size-4 text-white" />
+                <span className="flex-1 text-xs font-medium text-white">
+                  Lokasi Saat Ini
+                </span>
+                <button
+                  type="button"
+                  onClick={startLocating}
+                  disabled={locating}
+                  className="rounded-full bg-white/15 p-1.5 disabled:opacity-50"
+                >
+                  <RefreshCw className="size-3.5 text-white" />
+                </button>
               </div>
-            ) : coords ? (
-              <>
-                <p className="line-clamp-2 text-xs text-white">
-                  {coords.latitude.toFixed(6)}, {coords.longitude.toFixed(6)}
-                </p>
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={cn(
-                      "size-1.5 rounded-full",
-                      isAccurate ? "bg-emerald-400" : "bg-red-400",
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      "text-xs",
-                      isAccurate ? "text-emerald-200" : "text-red-200",
-                    )}
-                  >
-                    Akurasi ±{Math.round(coords.accuracy)} m
-                    {!isAccurate ? ` (maks ±${maxAccuracyMeters} m)` : ""}
-                    {locating ? " · memperbarui" : ""}
-                  </span>
+
+              {locating && !coords ? (
+                <div className="flex items-center gap-2">
+                  <Spinner className="size-4 text-white" />
+                  <span className="text-xs text-white/80">Membaca lokasi...</span>
                 </div>
-                {!isAccurate && (
-                  <p className="text-[11px] text-white/70">
-                    Pindah ke area terbuka lalu baca ulang lokasi.
+              ) : coords ? (
+                <>
+                  <p className="line-clamp-2 text-xs text-white">
+                    {coords.latitude.toFixed(6)}, {coords.longitude.toFixed(6)}
                   </p>
-                )}
-              </>
-            ) : (
-              <p className="text-xs text-red-200">
-                {locationError ?? "Lokasi belum terbaca"}
-              </p>
-            )}
-          </div>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={cn(
+                        "size-1.5 rounded-full",
+                        isAccurate ? "bg-emerald-400" : "bg-red-400",
+                      )}
+                    />
+                    <span
+                      className={cn(
+                        "text-xs",
+                        isAccurate ? "text-emerald-200" : "text-red-200",
+                      )}
+                    >
+                      Akurasi ±{Math.round(coords.accuracy)} m
+                      {!isAccurate ? ` (maks ±${maxAccuracyMeters} m)` : ""}
+                      {locating ? " · memperbarui" : ""}
+                    </span>
+                  </div>
+                  {!isAccurate && (
+                    <p className="text-[11px] text-white/70">
+                      Pindah ke area terbuka lalu baca ulang lokasi.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-red-200">
+                  {locationError ?? "Lokasi belum terbaca"}
+                </p>
+              )}
+            </div>
+          )}
 
           <p className="text-xs text-white/80">
-            {coords && !isAccurate
-              ? "Akurasi lokasi kurang"
-              : !coords
-                ? "Menunggu lokasi..."
-                : "Posisikan wajah di dalam bingkai"}
+            {!needsLocation
+              ? "Posisikan wajah di dalam bingkai"
+              : coords && !isAccurate
+                ? "Akurasi lokasi kurang"
+                : !coords
+                  ? "Menunggu lokasi..."
+                  : "Posisikan wajah di dalam bingkai"}
           </p>
 
           <button
@@ -519,7 +529,7 @@ export function AttendanceCaptureScreen({
         >
           <p className="text-foreground text-center text-lg font-bold">{label}</p>
 
-          {coords && (
+          {needsLocation && coords && (
             <p className="text-muted-foreground text-center text-xs">
               {coords.latitude.toFixed(6)}, {coords.longitude.toFixed(6)}
             </p>

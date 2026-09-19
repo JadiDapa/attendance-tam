@@ -1,5 +1,9 @@
 import { Badge } from "@/components/ui/badge";
-import type { RecapEntry } from "@/lib/attendance";
+import {
+  ADMIN_ADDED_LABEL,
+  ADMIN_EDITED_LABEL,
+  type RecapEntry,
+} from "@/lib/attendance";
 import {
   APPROVAL_LABEL,
   APPROVAL_VARIANT,
@@ -38,7 +42,9 @@ export default function AttendanceEntryDetail({
         />
       ) : (
         <div className="bg-muted text-muted-foreground flex aspect-4/3 w-full items-center justify-center rounded-lg px-4 text-center text-xs">
-          Dicatat manual oleh admin — tidak ada foto absensi.
+          {entry.addedByAdmin
+            ? "Ditambahkan admin — tidak ada foto absensi."
+            : "Dicatat manual — tidak ada foto absensi."}
         </div>
       )}
 
@@ -46,7 +52,14 @@ export default function AttendanceEntryDetail({
         <Badge variant="secondary">
           {WORK_MODE_LABEL[entry.effectiveMode]}
         </Badge>
-        {entry.isManual && <Badge variant="outline">Dicatat manual</Badge>}
+        {entry.addedByAdmin ? (
+          <Badge variant="outline">{ADMIN_ADDED_LABEL}</Badge>
+        ) : (
+          entry.isManual && <Badge variant="outline">Dicatat manual</Badge>
+        )}
+        {entry.editedByAdmin && (
+          <Badge variant="outline">{ADMIN_EDITED_LABEL}</Badge>
+        )}
         {entry.isLate && <Badge variant="destructive">Terlambat</Badge>}
         {entry.isWithinRadius === true && (
           <Badge variant="outline">Dalam radius</Badge>
@@ -74,6 +87,14 @@ export default function AttendanceEntryDetail({
         <p className="text-muted-foreground text-xs">
           Diklaim sebagai {WORK_MODE_LABEL[entry.workMode]}, disetujui admin
           sebagai {WORK_MODE_LABEL[entry.effectiveMode]}.
+        </p>
+      )}
+
+      {entry.editedByAdmin && (
+        <p className="text-muted-foreground text-xs">
+          Jam diubah admin
+          {entry.originalTime ? ` dari ${entry.originalTime}` : ""}
+          {entry.editNote ? ` — ${entry.editNote}` : ""}
         </p>
       )}
 

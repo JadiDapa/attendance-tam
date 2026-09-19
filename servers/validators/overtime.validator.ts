@@ -33,6 +33,25 @@ export const ReviewOvertimeSchema = z.object({
     .or(z.literal("")),
 });
 
+/**
+ * Koreksi jam lembur oleh admin. `endTime` kosong = jam selesai tidak diubah
+ * (lembur yang masih berjalan tetap berjalan).
+ */
+export const UpdateOvertimeTimeSchema = z.object({
+  startTime: z.string().regex(TIME_INPUT, "Format jam mulai tidak valid"),
+  endTime: z
+    .string()
+    .regex(TIME_INPUT, "Format jam selesai tidak valid")
+    .optional()
+    .or(z.literal("")),
+  editNote: z
+    .string()
+    .trim()
+    .min(1, "Tulis alasan perubahan jam")
+    .max(300, "Alasan maksimal 300 karakter"),
+});
+
 export type StartOvertimeDTO = z.infer<typeof StartOvertimeSchema>;
+export type UpdateOvertimeTimeDTO = z.output<typeof UpdateOvertimeTimeSchema>;
 export type EndOvertimeDTO = z.infer<typeof EndOvertimeSchema>;
 export type ReviewOvertimeDTO = z.infer<typeof ReviewOvertimeSchema>;

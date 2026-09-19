@@ -58,7 +58,14 @@ function Slot({
             <Badge variant="secondary">
               {WORK_MODE_LABEL[entry.effectiveMode]}
             </Badge>
-            {entry.isManual && <Badge variant="outline">Dicatat manual</Badge>}
+            {entry.addedByAdmin ? (
+              <Badge variant="outline">Ditambahkan admin</Badge>
+            ) : (
+              entry.isManual && <Badge variant="outline">Dicatat manual</Badge>
+            )}
+            {entry.editedByAdmin && (
+              <Badge variant="outline">Diubah admin</Badge>
+            )}
             {entry.isLate && <Badge variant="destructive">Terlambat</Badge>}
             {entry.approvalStatus && (
               <Badge
@@ -94,7 +101,9 @@ export default function TodayAttendance({
   faceEnrolled,
   checkInClosed,
 }: Props) {
-  const canAttend = office !== null && faceEnrolled;
+  // Absen masuk butuh titik kantor (radius); absen pulang cukup wajah saja.
+  const canCheckIn = office !== null && faceEnrolled;
+  const canCheckOut = faceEnrolled;
 
   return (
     <Panel
@@ -110,11 +119,11 @@ export default function TodayAttendance({
       {!office && (
         <div className="border-destructive/40 bg-destructive/10 text-destructive flex items-start gap-2 rounded-lg border p-3 text-sm">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          Lokasi kantor belum diatur admin, absensi belum bisa dilakukan.
+          Lokasi kantor belum diatur admin, absen masuk belum bisa dilakukan.
         </div>
       )}
 
-      {office && !faceEnrolled && (
+      {!faceEnrolled && (
         <div className="border-destructive/40 bg-destructive/10 text-destructive flex items-start gap-2 rounded-lg border p-3 text-sm">
           <ScanFace className="mt-0.5 size-4 shrink-0" />
           <span>
@@ -140,42 +149,42 @@ export default function TodayAttendance({
         />
       </div>
 
-      {office && (
-        <div className="mt-2 grid gap-3 sm:grid-cols-2">
-          <AttendanceDialog
-            type={AttendanceType.CHECK_IN}
-            label="Absen Masuk"
-            disabled={!canAttend || !!checkIn || checkInClosed}
-            disabledReason={
-              !faceEnrolled
-                ? "Daftarkan wajah di Profil dulu"
+      <div className="mt-2 grid gap-3 sm:grid-cols-2">
+        <AttendanceDialog
+          type={AttendanceType.CHECK_IN}
+          label="Absen Masuk"
+          disabled={!canCheckIn || !!checkIn || checkInClosed}
+          disabledReason={
+            !faceEnrolled
+              ? "Daftarkan wajah di Profil dulu"
+              : !office
+                ? "Lokasi kantor belum diatur admin"
                 : checkIn
                   ? "Sudah absen masuk hari ini"
                   : checkInClosed
                     ? "Absen masuk sudah ditutup untuk hari ini"
                     : undefined
-            }
-            maxAccuracyMeters={maxAccuracyMeters}
-            office={office}
-          />
-          <AttendanceDialog
-            type={AttendanceType.CHECK_OUT}
-            label="Absen Pulang"
-            disabled={!canAttend || !checkIn || !!checkOut}
-            disabledReason={
-              !faceEnrolled
-                ? "Daftarkan wajah di Profil dulu"
-                : !checkIn
-                  ? "Absen masuk dulu"
-                  : checkOut
-                    ? "Sudah absen pulang hari ini"
-                    : undefined
-            }
-            maxAccuracyMeters={maxAccuracyMeters}
-            office={office}
-          />
-        </div>
-      )}
+          }
+          maxAccuracyMeters={maxAccuracyMeters}
+          office={office}
+        />
+        <AttendanceDialog
+          type={AttendanceType.CHECK_OUT}
+          label="Absen Pulang"
+          disabled={!canCheckOut || !checkIn || !!checkOut}
+          disabledReason={
+            !faceEnrolled
+              ? "Daftarkan wajah di Profil dulu"
+              : !checkIn
+                ? "Absen masuk dulu"
+                : checkOut
+                  ? "Sudah absen pulang hari ini"
+                  : undefined
+          }
+          maxAccuracyMeters={maxAccuracyMeters}
+          office={office}
+        />
+      </div>
     </Panel>
   );
 }

@@ -4,8 +4,14 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import DataTable from "@/components/dashboard/DataTable";
+import EditAttendanceTimeDialog from "@/components/admin/EditAttendanceTimeDialog";
+import ManualAttendanceDialog from "@/components/admin/ManualAttendanceDialog";
+import { AttendanceType } from "@/generated/prisma";
 import SearchDataTable from "@/components/dashboard/SearchDataTable";
 import {
+  ADMIN_ADDED_LABEL,
+  ADMIN_EDITED_LABEL,
+  ATTENDANCE_TYPE_LABEL,
   DAY_STATUS_LABEL,
   DAY_STATUS_VARIANT,
   type RecapRow,
@@ -13,27 +19,85 @@ import {
 import { cn } from "@/lib/utils";
 
 function AttendanceEntryCell({
-  entry,
+  row,
+  type,
+  edit,
 }: {
-  entry: RecapRow["checkIn"] | RecapRow["checkOut"];
+  row: RecapRow;
+  type: AttendanceType;
+  /** Diisi hanya untuk admin — memunculkan tombol ubah/tambah. */
+  edit?: { workDate: string };
 }) {
-  if (!entry) return <span className="text-muted-foreground">—</span>;
+  const entry = type === AttendanceType.CHECK_IN ? row.checkIn : row.checkOut;
+
+  if (!entry) {
+    return edit ? (
+      <div className="flex items-center gap-1">
+        <span className="text-muted-foreground">—</span>
+        <ManualAttendanceDialog
+          compact
+          employees={[{ id: row.userId, name: row.name }]}
+          defaultUserId={row.userId}
+          defaultDate={edit.workDate}
+          defaultType={type}
+        />
+      </div>
+    ) : (
+      <span className="text-muted-foreground">—</span>
+    );
+  }
 
   return (
     <div className="whitespace-nowrap">
-      <p
-        className={cn(
-          "font-medium tabular-nums",
-          entry.isLate && "text-destructive",
+      <div className="flex items-center gap-1">
+        <p
+          className={cn(
+            "font-medium tabular-nums",
+            entry.isLate && "text-destructive",
+          )}
+        >
+          {entry.time}
+          {entry.isLate && (
+            <span className="text-destructive ml-1.5 text-xs font-normal">
+              Telat
+            </span>
+          )}
+        </p>
+        {edit && (
+          <EditAttendanceTimeDialog
+            attendanceId={entry.id}
+            employeeName={row.name}
+            label={ATTENDANCE_TYPE_LABEL[type]}
+            time={entry.time}
+          />
         )}
-      >
-        {entry.time}
-        {entry.isLate && (
-          <span className="text-destructive ml-1.5 text-xs font-normal">
-            Telat
-          </span>
-        )}
-      </p>
+      </div>
+      {(entry.addedByAdmin || entry.editedByAdmin) && (
+        <div className="mt-0.5 flex flex-wrap gap-1">
+          {entry.addedByAdmin && (
+            <Badge variant="outline" className="text-[10px]">
+              {ADMIN_ADDED_LABEL}
+            </Badge>
+          )}
+          {entry.editedByAdmin && (
+            <Badge
+              variant="outline"
+              className="text-[10px]"
+              title={
+                [
+                  entry.originalTime ? `Jam asli ${entry.originalTime}` : null,
+                  entry.editNote,
+                ]
+                  .filter(Boolean)
+                  .join(" — ") || undefined
+              }
+            >
+              {ADMIN_EDITED_LABEL}
+              {entry.originalTime ? ` (asli ${entry.originalTime})` : ""}
+            </Badge>
+          )}
+        </div>
+      )}
       {entry.photoUrl && (
         <Button variant="link" size="sm" asChild className="h-auto p-0">
           <a href={entry.photoUrl} target="_blank" rel="noreferrer">
@@ -45,7 +109,8 @@ function AttendanceEntryCell({
   );
 }
 
-const columns: ColumnDef<RecapRow>[] = [
+function buildColumns(edit?: { workDate: string }): ColumnDef<RecapRow>[] {
+  return [
   {
     accessorKey: "name",
     header: "Karyawan",
@@ -83,25 +148,44 @@ const columns: ColumnDef<RecapRow>[] = [
   {
     id: "checkIn",
     header: "Absen Masuk",
-    cell: ({ row }) => <AttendanceEntryCell entry={row.original.checkIn} />,
+    cell: ({ row }) => (
+      <AttendanceEntryCell
+        row={row.original}
+        type={AttendanceType.CHECK_IN}
+        edit={edit}
+      />
+    ),
   },
   {
     id: "checkOut",
     header: "Absen Pulang",
-    cell: ({ row }) => <AttendanceEntryCell entry={row.original.checkOut} />,
+    cell: ({ row }) => (
+      <AttendanceEntryCell
+        row={row.original}
+        type={AttendanceType.CHECK_OUT}
+        edit={edit}
+      />
+    ),
   },
-];
+  ];
+}
 
 export default function AttendanceRecapTable({
   rows,
   bare = false,
+  editDate,
 }: {
   rows: RecapRow[];
   bare?: boolean;
+  /**
+   * "YYYY-MM-DD" — kalau diisi (khusus admin), tiap sel jam mendapat tombol
+   * ubah/tambah untuk tanggal ini.
+   */
+  editDate?: string;
 }) {
   return (
     <DataTable
-      columns={columns}
+      columns={buildColumns(editDate ? { workDate: editDate } : undefined)}
       data={rows}
       title="Cari"
       bare={bare}

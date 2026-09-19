@@ -13,12 +13,17 @@ import { ReportService } from "@/servers/services/report.service";
 function locationLabel(
   entry: {
     isManual: boolean;
+    createdByAdminId: string | null;
+    editedById: string | null;
     isWithinRadius: boolean | null;
     approvalStatus: AttendanceApproval | null;
   } | null,
 ) {
   if (!entry) return "";
-  if (entry.isManual) return "Dicatat manual";
+  const edited = entry.editedById ? " · jam diubah admin" : "";
+
+  if (entry.createdByAdminId) return `Ditambahkan admin${edited}`;
+  if (entry.isManual) return `Dicatat manual${edited}`;
   if (entry.isWithinRadius === true) return "Dalam radius";
   if (entry.isWithinRadius === false) {
     return entry.approvalStatus

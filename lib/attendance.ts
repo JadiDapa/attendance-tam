@@ -160,11 +160,17 @@ export const CALENDAR_STATUS_DOT: Record<CalendarStatus, string> = {
   KOSONG: "bg-border",
 };
 
+/** Label jejak admin pada satu absensi — dipakai tabel, dialog, dan kalender. */
+export const ADMIN_ADDED_LABEL = "Ditambahkan admin";
+export const ADMIN_EDITED_LABEL = "Diubah admin";
+
 /**
  * Foto, koordinat, dan status radius bernilai null untuk absensi yang dicatat
  * admin secara manual — saat itu karyawan memang tidak sedang memegang HP-nya.
  */
 export type RecapEntry = {
+  /** ID baris Attendance — dipakai admin untuk mengoreksi jamnya. */
+  id: string;
   label: string;
   time: string;
   isLate: boolean;
@@ -174,8 +180,16 @@ export type RecapEntry = {
   photoUrl: string | null;
   latitude: number | null;
   longitude: number | null;
-  /** Dicatat manual oleh admin, bukan absen langsung dengan foto + GPS. */
+  /** Dicatat manual, bukan absen langsung dengan foto + GPS (termasuk konfirmasi karyawan sendiri). */
   isManual: boolean;
+  /** Baris ini ditambahkan admin untuk karyawan — label "Ditambahkan admin". */
+  addedByAdmin: boolean;
+  /** Jam absensi ini pernah dikoreksi admin — label "Diubah admin". */
+  editedByAdmin: boolean;
+  /** Jam sebelum koreksi pertama (mis. "08:03") — null kalau tidak pernah dikoreksi. */
+  originalTime: string | null;
+  /** Alasan koreksi jam oleh admin. */
+  editNote: string | null;
   /** Mode yang diklaim karyawan saat absen. */
   workMode: WorkModeValue;
   /** Mode final setelah keputusan admin — `approvedMode ?? workMode`. */
@@ -260,6 +274,7 @@ export function toRecapEntry(
   attendance: Attendance,
 ): RecapEntry {
   return {
+    id: attendance.id,
     label,
     time: formatTime(attendance.timestamp),
     isLate: attendance.isLate,
@@ -276,6 +291,12 @@ export function toRecapEntry(
     latitude: attendance.latitude,
     longitude: attendance.longitude,
     isManual: attendance.isManual,
+    addedByAdmin: attendance.createdByAdminId !== null,
+    editedByAdmin: attendance.editedById !== null,
+    originalTime: attendance.originalTimestamp
+      ? formatTime(attendance.originalTimestamp)
+      : null,
+    editNote: attendance.editNote,
     workMode: attendance.workMode,
     effectiveMode: effectiveWorkMode(attendance),
     approvalStatus: attendance.approvalStatus,

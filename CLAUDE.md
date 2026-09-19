@@ -144,11 +144,36 @@ diperlakukan seolah tidak pernah ada.
 bukan status tersendiri: harinya tetap terbaca sebagai mode yang diklaim karyawan,
 dengan catatan bahwa admin belum memutuskan.
 
-**Pencatatan manual admin.** Fitur pengajuan koreksi absensi sudah dihapus.
-Penggantinya `createManualAttendance()` + `ManualAttendanceDialog` di
-`/admin/kehadiran`: admin mengisi sendiri jam absen yang terlewat, tanpa antrean
-review. Barisnya ditandai `isManual` dengan `photoUrl`/koordinat null dan alasan
-wajib di `reviewNote`. Karyawan tidak punya jalur pengajuan apa pun untuk ini —
+**Penambahan & koreksi absensi oleh admin.** Fitur pengajuan koreksi absensi sudah
+dihapus; penggantinya dua aksi khusus `ADMIN`, tanpa antrean review (admin yang
+melakukan bertanggung jawab, alasan selalu wajib):
+
+- `createManualAttendance()` + `ManualAttendanceDialog` — **menambah** absen
+  masuk/pulang untuk pengguna yang lupa absen. Berlaku untuk semua pengguna aktif
+  (bukan hanya `EMPLOYEE`). Barisnya ditandai `isManual` + `createdByAdminId`
+  (label **"Ditambahkan admin"**) dengan `photoUrl`/koordinat null dan alasan di
+  `reviewNote`. Menolak menimpa baris yang berasal dari HP karyawan.
+- `updateAttendanceTime()` + `EditAttendanceTimeDialog` — **mengoreksi jam** absensi
+  yang sudah ada (dari HP maupun manual). Foto/GPS/approval tidak disentuh; jam
+  sebelum koreksi **pertama** disimpan di `originalTimestamp` (tidak tertimpa koreksi
+  berikutnya), pelaku di `editedById`/`editedAt`, alasan di `editNote` (label
+  **"Diubah admin"**). `isLate`/`lateMinutes` dihitung ulang lewat `resolveLateness()`
+  dengan `effectiveWorkMode()`. Jam pulang harus sesudah jam masuk (dan sebaliknya),
+  dan tidak boleh di masa depan.
+- `updateOvertimeTime()` + `EditOvertimeTimeDialog` (di `/admin/lembur`) — mengoreksi
+  jam mulai/selesai lembur; status approval tidak berubah, durasi dihitung ulang,
+  jam asli di `originalStartAt`/`originalEndAt`. Aturan "mulai >= 18:00" sengaja
+  tidak berlaku untuk koreksi admin. Jam selesai < jam mulai = melewati tengah malam.
+
+`isManual` **bukan** penanda "dari admin": `selfConfirmCheckout()` (karyawan
+mengonfirmasi absen pulangnya sendiri) juga menyalakannya. Pakai `createdByAdminId`
+(`RecapEntry.addedByAdmin`) untuk label "Ditambahkan admin".
+
+Mobile memakai aksi yang sama lewat `POST /api/admin/attendance`,
+`PATCH /api/admin/attendance/[id]`, dan `PATCH /api/admin/overtime/[id]` (semua
+`requireApiRole(ADMIN)`); `GET /api/admin/attendance-recap?mode=daily` menyertakan
+id absensi + lembur per karyawan untuk sheet koreksi di `mobile/src/app/rekapan-absen.tsx`.
+Karyawan tidak punya jalur pengajuan apa pun untuk ini —
 konsekuensinya sidebar karyawan tidak punya badge notifikasi lagi
 (`NotificationService.forUser()` mengembalikan `{}` untuk `EMPLOYEE`).
 
@@ -157,10 +182,24 @@ akurasinya lebih buruk dari `WorkSchedule.maxAccuracyMeters` (default 100 m, dia
 admin di menu Waktu Kerja) — dicek di client supaya karyawan bisa membaca ulang
 lokasi, lalu dicek lagi di server sebagai penentu.
 
+**Absen pulang cukup wajah.** Absen pulang (`CHECK_OUT`) hanya memverifikasi wajah —
+tanpa GPS, radius, alasan luar radius, maupun approval, karena karyawan sering sudah
+berada di tempat lain saat pulang. `submitAttendance` bercabang ke `recordCheckOut()`
+begitu `type` = `CHECK_OUT`; baris yang tersimpan punya `latitude`/`longitude`/
+`isWithinRadius` null dan `approvalStatus` null (sah langsung). Ketiga UI absen
+(`AttendanceDialog`, `attendance-capture-screen`, dan `mobile/src/app/attendance-capture.tsx`)
+sengaja tidak membaca GPS untuk `CHECK_OUT`, dan tidak butuh titik kantor sudah diatur.
+
 **Absensi menggantung** (absen masuk ada, absen pulang tidak pernah tercatat)
-sengaja tidak ditutup oleh cron. Statusnya dihitung saat render lewat
-`isMissingCheckOut()`, jadi tidak pernah ada baris `CHECK_OUT` palsu di database —
-kalau jam pulangnya perlu ada, admin mencatatnya manual di `/admin/kehadiran`.
+tidak ditutup oleh cron. Hari itu terbaca lewat `isMissingCheckOut()` dan
+`AttendanceService.listUnresolvedCheckouts()`. Saat karyawan hendak absen masuk lagi,
+`submitAttendance` menolak sampai hari yang menggantung dikonfirmasi lewat
+`confirmMissedCheckout()`: karyawan menekan **"Otomatis pukul 17:00"** (jam pulang hari
+itu diisi 17:00 tanpa memilih jam — `time` dikosongkan, server memakai
+`DEFAULT_MISSED_CHECKOUT_TIME`) atau memilih jam sendiri. UI-nya `MissedCheckoutDialog`
+di web (dipasang di `SelfAttendanceDashboard`) dan `MissedCheckoutModal` di mobile.
+Baris hasilnya `isManual` tanpa foto/GPS. Admin tetap bisa mencatat manual di
+`/admin/kehadiran`.
 
 Format tanggal/jam selalu dilakukan di server lalu dikirim ke client sebagai string,
 supaya timezone tidak bergeser mengikuti perangkat karyawan.
@@ -182,7 +221,7 @@ Run `npm run db:generate` after any schema change. Migrations live in `prisma/mi
 - **OfficeLocation** — titik kantor (lat/long) + `radiusMeters`; dipakai untuk validasi jarak (haversine)
 - **WorkSchedule** — kebijakan global: `lateToleranceMinutes` (satu baris aktif)
 - **WorkDay** — selalu 7 baris, `dayOfWeek` unik (0 = Minggu … 6 = Sabtu, sama dengan `Date#getUTCDay()`) + `isWorkingDay` + jam masuk/pulang (`"HH:mm"`). Menentukan `isLate` dan hari libur — tidak ada lagi asumsi Sabtu/Minggu di kode
-- **Attendance** — satu baris per `CHECK_IN`/`CHECK_OUT`; unik per (`userId`, `workDate`, `type`) supaya tidak dobel; simpan foto, koordinat, `distanceMeters`, `isWithinRadius`, `isLate`, `workMode`, `workModeDetail`, `approvalStatus`, `approvedMode`. `photoUrl` / `latitude` / `longitude` / `isWithinRadius` **nullable** — absensi yang dicatat admin manual (`isManual`) memang tidak punya foto & GPS, jadi jangan perlakukan null sebagai "di luar radius"
+- **Attendance** — satu baris per `CHECK_IN`/`CHECK_OUT`; unik per (`userId`, `workDate`, `type`) supaya tidak dobel; simpan foto, koordinat, `distanceMeters`, `isWithinRadius`, `isLate`, `workMode`, `workModeDetail`, `approvalStatus`, `approvedMode`. `photoUrl` / `latitude` / `longitude` / `isWithinRadius` **nullable** — absensi yang dicatat manual (`isManual`) memang tidak punya foto & GPS, jadi jangan perlakukan null sebagai "di luar radius". Jejak admin: `createdByAdminId` (ditambahkan admin), `editedById`/`editedAt`/`originalTimestamp`/`editNote` (jam dikoreksi admin). `Overtime` punya jejak koreksi yang sama (`editedById`, `originalStartAt`, `originalEndAt`, `editNote`)
 - **LeaveRequest** — pengajuan izin/sakit/cuti; status `PENDING` → `APPROVED`/`REJECTED` beserta `reviewedBy` / `reviewedAt` / `reviewNote`. Satu-satunya jalur untuk `SAKIT`/`IZIN`/`CUTI`
 - **Holiday** — tanggal merah, cuti bersama, dan libur internal (`date` unik). Melengkapi `WorkDay` yang hanya mengatur pola mingguan
 

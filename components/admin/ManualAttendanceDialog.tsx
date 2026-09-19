@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Pencil1Icon as PencilLine } from "@radix-ui/react-icons";
+import {
+  Pencil1Icon as PencilLine,
+  PlusIcon as Plus,
+} from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -31,19 +34,25 @@ import { createManualAttendance } from "@/app/action/attendance.action";
 type Employee = { id: string; name: string };
 
 /**
- * Pencatatan absensi manual oleh admin — penggantinya fitur koreksi absensi.
- * Tidak ada antrean review: admin yang mencatat langsung bertanggung jawab,
- * jadi alasannya wajib diisi sebagai jejak.
+ * Admin menambahkan absen masuk/pulang untuk pengguna yang lupa absen atau
+ * HP-nya mati. Barisnya ditandai "Ditambahkan admin". Tidak ada antrean
+ * review: admin yang mencatat langsung bertanggung jawab, jadi alasannya wajib
+ * diisi sebagai jejak.
  */
 export default function ManualAttendanceDialog({
   employees,
   defaultDate,
   defaultUserId,
+  defaultType = AttendanceType.CHECK_IN,
+  compact = false,
 }: {
   employees: Employee[];
   /** "YYYY-MM-DD" — tanggal yang sedang dilihat di halaman kehadiran. */
   defaultDate: string;
   defaultUserId?: string;
+  defaultType?: AttendanceType;
+  /** Tombol kecil "Tambah" untuk dipakai di dalam baris tabel. */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -51,16 +60,18 @@ export default function ManualAttendanceDialog({
 
   const [userId, setUserId] = useState(defaultUserId ?? "");
   const [workDate, setWorkDate] = useState(defaultDate);
-  const [type, setType] = useState<AttendanceType>(AttendanceType.CHECK_IN);
-  const [time, setTime] = useState("08:00");
+  const [type, setType] = useState<AttendanceType>(defaultType);
+  const [time, setTime] = useState(
+    defaultType === AttendanceType.CHECK_OUT ? "17:00" : "08:00",
+  );
   const [workMode, setWorkMode] = useState<WorkModeValue>("HADIR_DIKANTOR");
   const [reviewNote, setReviewNote] = useState("");
 
   const resetState = () => {
     setUserId(defaultUserId ?? "");
     setWorkDate(defaultDate);
-    setType(AttendanceType.CHECK_IN);
-    setTime("08:00");
+    setType(defaultType);
+    setTime(defaultType === AttendanceType.CHECK_OUT ? "17:00" : "08:00");
     setWorkMode("HADIR_DIKANTOR");
     setReviewNote("");
   };
@@ -97,29 +108,37 @@ export default function ManualAttendanceDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline">
-          <PencilLine className="size-4" />
-          Catat Manual
-        </Button>
+        {compact ? (
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
+            <Plus className="size-3.5" />
+            Tambah
+          </Button>
+        ) : (
+          <Button variant="outline">
+            <PencilLine className="size-4" />
+            Tambah Absensi
+          </Button>
+        )}
       </DialogTrigger>
 
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Catat Absensi Manual</DialogTitle>
+          <DialogTitle>Tambah Absensi</DialogTitle>
           <DialogDescription>
-            Untuk karyawan yang lupa absen atau HP-nya mati. Tidak ada foto dan
-            GPS yang tersimpan — baris ini ditandai sebagai pencatatan manual.
+            Untuk pengguna yang lupa absen atau HP-nya mati. Tidak ada foto dan
+            GPS yang tersimpan — baris ini diberi label &quot;Ditambahkan
+            admin&quot;.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="manualUserId">Karyawan</Label>
+          <Label htmlFor="manualUserId">Pengguna</Label>
           <NativeSelect
             id="manualUserId"
             value={userId}
             onChange={(event) => setUserId(event.target.value)}
           >
-            <option value="">Pilih karyawan</option>
+            <option value="">Pilih pengguna</option>
             {employees.map((employee) => (
               <option key={employee.id} value={employee.id}>
                 {employee.name}
@@ -187,7 +206,7 @@ export default function ManualAttendanceDialog({
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="manualNote">Alasan pencatatan manual</Label>
+          <Label htmlFor="manualNote">Alasan penambahan</Label>
           <Textarea
             id="manualNote"
             rows={2}

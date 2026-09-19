@@ -238,6 +238,7 @@ export const AttendanceService = {
         isLate: data.isLate,
         lateMinutes: data.lateMinutes,
         isManual: true,
+        createdByAdminId: data.reviewedById,
         reviewedById: data.reviewedById,
         reviewNote: data.reviewNote,
         reviewedAt: new Date(),
@@ -258,11 +259,47 @@ export const AttendanceService = {
         isLate: data.isLate,
         lateMinutes: data.lateMinutes,
         isManual: true,
+        createdByAdminId: data.reviewedById,
         reviewedById: data.reviewedById,
         reviewNote: data.reviewNote,
         reviewedAt: new Date(),
         approvalStatus: null,
         approvedMode: null,
+      },
+    });
+  },
+
+  /**
+   * Koreksi jam satu absensi oleh admin. Foto, koordinat, dan status approval
+   * dibiarkan apa adanya — yang berubah cuma jam (dan keterlambatan yang
+   * diturunkan darinya) beserta jejaknya. `originalTimestamp` hanya diisi pada
+   * koreksi pertama supaya jam asli dari HP karyawan tidak hilang kalau
+   * dikoreksi berkali-kali.
+   */
+  async updateTime(
+    id: string,
+    data: {
+      timestamp: Date;
+      isLate: boolean;
+      lateMinutes: number;
+      editedById: string;
+      editNote: string;
+      /** Jam di database sebelum koreksi ini. */
+      previousTimestamp: Date;
+      /** `originalTimestamp` yang sudah tersimpan (null = belum pernah dikoreksi). */
+      originalTimestamp: Date | null;
+    },
+  ) {
+    return prisma.attendance.update({
+      where: { id },
+      data: {
+        timestamp: data.timestamp,
+        isLate: data.isLate,
+        lateMinutes: data.lateMinutes,
+        editedById: data.editedById,
+        editedAt: new Date(),
+        editNote: data.editNote,
+        originalTimestamp: data.originalTimestamp ?? data.previousTimestamp,
       },
     });
   },

@@ -29,8 +29,15 @@ export default function CheckOutCell({
             ditolak
           </span>
         )}
-        {!voided && entry.isManual && (
-          <span className="text-muted-foreground ml-1 text-xs">manual</span>
+        {!voided && (entry.addedByAdmin || entry.isManual) && (
+          <span className="text-muted-foreground ml-1 text-xs">
+            {entry.addedByAdmin ? "ditambahkan admin" : "manual"}
+          </span>
+        )}
+        {!voided && entry.editedByAdmin && (
+          <span className="text-muted-foreground ml-1 text-xs">
+            diubah admin
+          </span>
         )}
         {!voided && entry.approvalStatus === "PENDING" && (
           <span className="text-muted-foreground ml-1 text-xs">

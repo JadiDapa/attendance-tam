@@ -16,6 +16,7 @@ import AttendanceViewToggle, {
   parseAttendanceView,
   type AttendanceView,
 } from "@/components/employee/attendance/AttendanceViewToggle";
+import MissedCheckoutDialog from "@/components/employee/MissedCheckoutDialog";
 import ProfileCard from "@/components/employee/dashboard/ProfileCard";
 import TodayAttendance from "@/components/employee/dashboard/TodayAttendance";
 import MobileOverview from "@/components/employee/dashboard/MobileOverview";
@@ -36,6 +37,7 @@ import {
 import {
   addDays,
   formatCompactDate,
+  formatLongIndonesianDate,
   formatWeekday,
   formatWorkDate,
   getMinutesOfDay,
@@ -115,6 +117,7 @@ export default async function SelfAttendanceDashboard({
     rows,
     historyRows,
     faceEnrolled,
+    unresolvedCheckouts,
   ] = await Promise.all([
     AttendanceService.getTodayStatus(user.id, today),
     WorkScheduleService.getActive(),
@@ -131,6 +134,7 @@ export default async function SelfAttendanceDashboard({
       userId: user.id,
     }),
     FaceService.isEnrolled(user.id),
+    AttendanceService.listUnresolvedCheckouts(user.id, today),
   ]);
 
   const days = buildAttendanceDays({
@@ -219,6 +223,16 @@ export default async function SelfAttendanceDashboard({
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Satu-satunya tempat dialog ini dipasang: `/dashboard` selalu merender
+          komponen ini (disembunyikan di layar kecil, tapi dialognya tetap
+          muncul lewat portal), begitu juga halaman absensi role lain. */}
+      <MissedCheckoutDialog
+        days={unresolvedCheckouts.map((row) => ({
+          value: toDateInputValue(row.workDate),
+          label: formatLongIndonesianDate(row.workDate),
+        }))}
+      />
+
       <MobileOverview
         greeting={greeting(new Date())}
         name={user.name}
