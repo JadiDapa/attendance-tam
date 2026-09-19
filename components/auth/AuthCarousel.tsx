@@ -27,7 +27,7 @@ export default function AuthCarousel() {
   }, [images.length]);
 
   return (
-    <aside className="absolute -z-50 h-[95vh] w-full overflow-hidden p-4 opacity-40 lg:relative lg:z-0 lg:block lg:opacity-100">
+    <aside className="hidden h-[95vh] w-full overflow-hidden p-4 lg:relative lg:z-0 lg:block">
       <div className="relative h-full w-full overflow-hidden rounded-xl">
         {/* Logo */}
         <div className="bg-primary/50 absolute top-0 left-0 z-50 flex h-20 w-64 items-center justify-center rounded-br-3xl p-4">
