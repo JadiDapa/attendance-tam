@@ -13,6 +13,7 @@ import {
   Timer,
   Briefcase,
 } from "lucide-react";
+import { formatTime } from "@/lib/date";
 import { Avatar } from "@/components/mobile/avatar";
 import { Icon } from "@/components/mobile/icon";
 import { NotificationBadge } from "@/components/mobile/notification-badge";
@@ -423,7 +424,7 @@ export function HomeScreen({
 }
 
 function isoTime(iso: string) {
-  return iso.slice(11, 16);
+  return formatTime(new Date(iso));
 }
 
 function lateLabel(minutes: number) {

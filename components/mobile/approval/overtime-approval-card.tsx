@@ -10,6 +10,7 @@ import { StatColumn } from "@/components/mobile/stat-column";
 import { StatusBadge } from "@/components/mobile/status-badge";
 import { reviewOvertime } from "@/app/action/overtime.action";
 import type { ApiPendingOvertimeRequest } from "@/lib/mobile-queries";
+import { formatTime } from "@/lib/date";
 import type { RequestStatus } from "@/components/mobile/beranda/request-card";
 
 const API_STATUS_LABEL: Record<string, RequestStatus> = {
@@ -19,7 +20,7 @@ const API_STATUS_LABEL: Record<string, RequestStatus> = {
 };
 
 function isoTime(iso: string) {
-  return iso.slice(11, 16);
+  return formatTime(new Date(iso));
 }
 
 function durationLabel(fromIso: string, toIso: string | null) {

@@ -27,7 +27,12 @@ import {
   SubmitAttendanceSchema,
 } from "@/servers/validators/attendance.validator";
 import { WORK_MODE_LABEL, isLateEligible } from "@/lib/work-mode";
-import { ATTENDANCE_TYPE_LABEL, resolveAttendanceReviewerRole } from "@/lib/attendance";
+import {
+  ATTENDANCE_TYPE_LABEL,
+  canReviewAttendance,
+  ownerRolesForAttendanceReviewer,
+  resolveAttendanceReviewerRole,
+} from "@/lib/attendance";
 import { AttendanceService } from "@/servers/services/attendance.service";
 import {
   OfficeLocationService,
@@ -409,8 +414,9 @@ export async function submitAttendance(
  * dihitung Alfa, tapi barisnya tetap tersimpan sebagai jejak.
  *
  * Reviewer yang berhak ditentukan dari role pemilik absensi (lihat
- * `resolveAttendanceReviewerRole` di lib/attendance.ts) — karyawan/admin
- * direview SUPERVISOR, supervisor direview MANAGER.
+ * `canReviewAttendance` di lib/attendance.ts) — karyawan/admin direview
+ * SUPERVISOR, supervisor direview MANAGER, dan ADMIN boleh memutuskan yang mana
+ * pun selain absensinya sendiri.
  */
 export async function reviewAttendance(
   attendanceId: string,
@@ -433,11 +439,7 @@ export async function reviewAttendance(
     return { ok: false, error: "Absensi tidak ditemukan" };
   }
 
-  const requiredReviewerRole = resolveAttendanceReviewerRole(
-    attendance.user.role,
-  );
-
-  if (requiredReviewerRole === null || reviewer.role !== requiredReviewerRole) {
+  if (!canReviewAttendance(reviewer, attendance.user)) {
     return { ok: false, error: "Kamu tidak berhak memutuskan absensi ini" };
   }
 
@@ -491,6 +493,38 @@ export async function reviewAttendance(
     message: isApproved
       ? `Absensi disetujui sebagai ${WORK_MODE_LABEL[approvedMode!]}`
       : "Absensi ditolak — hari itu dihitung Alfa",
+  };
+}
+
+/**
+ * Setujui sekaligus semua absensi luar radius yang jadi giliran reviewer yang
+ * login (`ownerRolesForAttendanceReviewer`), sesuai klaim karyawan — tanpa
+ * menimpa mode. Yang butuh penilaian lain (mis. diubah jadi sakit) tetap
+ * lewat `reviewAttendance` satu per satu.
+ */
+export async function approveAllPendingAttendance(): Promise<ReviewAttendanceResult> {
+  const reviewer = await requireAnyRole([
+    Role.ADMIN,
+    Role.SUPERVISOR,
+    Role.MANAGER,
+  ]);
+
+  const approved = await AttendanceService.approveAllPending({
+    ownerRoles: ownerRolesForAttendanceReviewer(reviewer.role),
+    excludeUserId: reviewer.id,
+    reviewedById: reviewer.id,
+    reviewNote: "Disetujui massal",
+  });
+
+  if (approved === 0) {
+    return { ok: false, error: "Tidak ada absensi yang menunggu persetujuan" };
+  }
+
+  revalidateAttendancePages();
+
+  return {
+    ok: true,
+    message: `${approved} absensi disetujui`,
   };
 }
 

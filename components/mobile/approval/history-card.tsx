@@ -1,7 +1,7 @@
 import { FileText, Timer, Briefcase, type LucideIcon } from "lucide-react";
 import { Icon } from "@/components/mobile/icon";
 import { StatusBadge } from "@/components/mobile/status-badge";
-import { formatShortDateNoYear } from "@/lib/date";
+import { formatShortDateNoYear, formatTime as formatTimeOfDay } from "@/lib/date";
 import type { ApprovalLogEntry } from "@/lib/mobile-queries";
 import type { RequestStatus } from "@/components/mobile/beranda/request-card";
 
@@ -18,7 +18,7 @@ const HISTORY_TYPE_ICON: Record<ApprovalLogEntry["type"], LucideIcon> = {
 };
 
 function formatTime(iso: string) {
-  return iso.slice(11, 16);
+  return formatTimeOfDay(new Date(iso));
 }
 
 /** Mirrors mobile's `HistoryCard` — already-reviewed item in the merged Approval feed. */

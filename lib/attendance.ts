@@ -30,12 +30,31 @@ export function resolveAttendanceReviewerRole(ownerRole: Role): Role | null {
 
 /** Kebalikan dari `resolveAttendanceReviewerRole` — role pemilik absensi mana
  * saja yang jadi giliran seorang reviewer. Dipakai untuk memfilter antrean
- * approval milik SUPERVISOR/MANAGER. */
+ * approval. ADMIN boleh memutuskan absensi role mana pun (selain miliknya
+ * sendiri — lihat `canReviewAttendance`). */
 export function ownerRolesForAttendanceReviewer(reviewerRole: Role): Role[] {
+  if (reviewerRole === Role.ADMIN) {
+    return [Role.EMPLOYEE, Role.ADMIN, Role.SUPERVISOR, Role.MANAGER];
+  }
   if (reviewerRole === Role.SUPERVISOR) return [Role.EMPLOYEE, Role.ADMIN];
   if (reviewerRole === Role.MANAGER) return [Role.SUPERVISOR];
 
   return [];
+}
+
+/**
+ * Siapa yang boleh memutuskan absensi luar radius milik `owner`: reviewer pada
+ * jenjang pemiliknya (`resolveAttendanceReviewerRole`), atau ADMIN. Tidak ada
+ * yang boleh memutuskan absensinya sendiri.
+ */
+export function canReviewAttendance(
+  reviewer: { id: string; role: Role },
+  owner: { id: string; role: Role },
+): boolean {
+  if (reviewer.id === owner.id) return false;
+  if (reviewer.role === Role.ADMIN) return true;
+
+  return resolveAttendanceReviewerRole(owner.role) === reviewer.role;
 }
 
 export type AttendanceTypeValue = "CHECK_IN" | "CHECK_OUT";

@@ -16,7 +16,7 @@ import {
 } from "@/components/mobile/histori/attendance-card";
 import { MobilePageHeader } from "@/components/mobile/page-header";
 import { MobileTabBar } from "@/components/mobile/tab-bar";
-import { formatShortDateWithYear } from "@/lib/date";
+import { formatShortDateWithYear, formatTime } from "@/lib/date";
 import {
   useAttendanceHistoryQuery,
   useLeaveRequestsQuery,
@@ -64,7 +64,7 @@ function formatDurationBetween(fromIso: string, toIso: string) {
 }
 
 function formatHHmm(iso: string) {
-  return new Date(iso).toISOString().slice(11, 16);
+  return formatTime(new Date(iso));
 }
 
 export function HistoriScreen({

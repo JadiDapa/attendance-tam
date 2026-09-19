@@ -8,7 +8,7 @@ import {
   WorkDayService,
 } from "@/servers/services/setting.service";
 import { NotificationService } from "@/servers/services/notification.service";
-import { getMinutesOfDay, getWorkDate } from "@/lib/date";
+import { formatTime, getMinutesOfDay, getWorkDate } from "@/lib/date";
 import { getWorkDayFor, isCheckInClosed } from "@/lib/work-schedule";
 import { LEAVE_TYPE_LABEL } from "@/lib/leave";
 import { APPROVAL_STATUS_LABEL } from "@/lib/approval";
@@ -85,10 +85,10 @@ export async function MobileHome({ user }: { user: User }) {
           ? `${d.checkIn.lateMinutes}m`
           : null,
       checkIn: d.checkIn
-        ? d.checkIn.timestamp.toISOString().slice(11, 16)
+        ? formatTime(d.checkIn.timestamp)
         : null,
       checkOut: d.checkOut
-        ? d.checkOut.timestamp.toISOString().slice(11, 16)
+        ? formatTime(d.checkOut.timestamp)
         : null,
       totalHours:
         d.checkIn && d.checkOut
@@ -149,7 +149,7 @@ export async function MobileHome({ user }: { user: User }) {
       checkIn={
         todayStatus.checkIn
           ? {
-              time: todayStatus.checkIn.timestamp.toISOString().slice(11, 16),
+              time: formatTime(todayStatus.checkIn.timestamp),
               isLate: todayStatus.checkIn.isLate,
               lateMinutes: todayStatus.checkIn.lateMinutes,
             }
@@ -157,7 +157,7 @@ export async function MobileHome({ user }: { user: User }) {
       }
       checkOut={
         todayStatus.checkOut
-          ? { time: todayStatus.checkOut.timestamp.toISOString().slice(11, 16) }
+          ? { time: formatTime(todayStatus.checkOut.timestamp) }
           : null
       }
       checkInClosed={checkInClosed}

@@ -21,7 +21,7 @@ import { OvertimeStartDrawer } from "@/components/mobile/beranda/overtime-start-
 import { OvertimeEndDrawer } from "@/components/mobile/beranda/overtime-end-drawer";
 import { MobilePageHeader } from "@/components/mobile/page-header";
 import { MobileTabBar } from "@/components/mobile/tab-bar";
-import { formatShortDateWithYear } from "@/lib/date";
+import { formatShortDateWithYear, formatTime } from "@/lib/date";
 import { groupByMonthWithReviewGap } from "@/lib/group-by-month";
 import { useOvertimeHistoryQuery } from "@/lib/mobile-queries";
 import { startOvertime, endOvertime } from "@/app/action/overtime.action";
@@ -42,7 +42,7 @@ const API_STATUS_LABEL: Record<string, RequestStatus> = {
 };
 
 function isoTime(iso: string) {
-  return iso.slice(11, 16);
+  return formatTime(new Date(iso));
 }
 
 function durationLabel(fromIso: string, toIso: string | null) {

@@ -85,10 +85,13 @@ export const AttendanceService = {
     });
   },
 
-  /** Semua absensi luar radius yang menunggu keputusan siapa pun (terbaru dulu) — untuk oversight admin. */
-  async listPendingApproval() {
+  /** Semua absensi luar radius yang menunggu keputusan siapa pun (terbaru dulu) — antrean admin, tanpa absensi miliknya sendiri. */
+  async listPendingApproval(excludeUserId?: string) {
     return prisma.attendance.findMany({
-      where: { approvalStatus: AttendanceApproval.PENDING },
+      where: {
+        approvalStatus: AttendanceApproval.PENDING,
+        ...(excludeUserId && { userId: { not: excludeUserId } }),
+      },
       orderBy: [{ workDate: "desc" }, { timestamp: "desc" }],
       include: { user: true },
     });
@@ -108,9 +111,12 @@ export const AttendanceService = {
     });
   },
 
-  async countPendingApproval() {
+  async countPendingApproval(excludeUserId?: string) {
     return prisma.attendance.count({
-      where: { approvalStatus: AttendanceApproval.PENDING },
+      where: {
+        approvalStatus: AttendanceApproval.PENDING,
+        ...(excludeUserId && { userId: { not: excludeUserId } }),
+      },
     });
   },
 
@@ -158,6 +164,42 @@ export const AttendanceService = {
     });
 
     return count > 0;
+  },
+
+  /**
+   * Setujui sekaligus semua absensi luar radius yang masih PENDING milik
+   * `ownerRoles`, sesuai klaim karyawan (`approvedMode = workMode`). Hanya
+   * menyentuh klaim `LUAR_RADIUS` — satu-satunya mode yang pernah PENDING dan
+   * tidak butuh hitung ulang keterlambatan. Mengembalikan jumlah yang berhasil
+   * disetujui.
+   */
+  async approveAllPending(data: {
+    ownerRoles: Role[];
+    excludeUserId: string;
+    reviewedById: string;
+    reviewNote: string;
+  }): Promise<number> {
+    if (data.ownerRoles.length === 0) return 0;
+
+    const { count } = await prisma.attendance.updateMany({
+      where: {
+        approvalStatus: AttendanceApproval.PENDING,
+        workMode: WorkMode.LUAR_RADIUS,
+        user: { role: { in: data.ownerRoles } },
+        userId: { not: data.excludeUserId },
+      },
+      data: {
+        approvalStatus: AttendanceApproval.APPROVED,
+        approvedMode: WorkMode.LUAR_RADIUS,
+        isLate: false,
+        lateMinutes: 0,
+        reviewedById: data.reviewedById,
+        reviewNote: data.reviewNote,
+        reviewedAt: new Date(),
+      },
+    });
+
+    return count;
   },
 
   /**

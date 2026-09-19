@@ -13,10 +13,10 @@ import { AttendanceService } from "@/servers/services/attendance.service";
 import { OfficeLocationService } from "@/servers/services/setting.service";
 
 export default async function ApprovalAbsensiPage() {
-  await requireRole(Role.ADMIN);
+  const admin = await requireRole(Role.ADMIN);
 
   const [pending, office] = await Promise.all([
-    AttendanceService.listPendingApproval(),
+    AttendanceService.listPendingApproval(admin.id),
     OfficeLocationService.getActive(),
   ]);
 
@@ -52,7 +52,7 @@ export default async function ApprovalAbsensiPage() {
       <PageHeader
         back
         title="Verifikasi Absensi"
-        subtitle="Pantau absensi di luar radius kantor — disetujui oleh supervisor atau manager pemiliknya, admin tidak lagi ikut memutuskan."
+        subtitle="Absensi di luar radius kantor dari semua karyawan. Tinjau alasannya, lalu setujui atau tolak — atau setujui semuanya sekaligus."
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -61,10 +61,11 @@ export default async function ApprovalAbsensiPage() {
           icon={ShieldCheck}
           value={String(pending.length)}
           footerLabel={`Radius kantor ${radiusLabel}`}
+          highlighted={pending.length > 0}
         />
       </div>
 
-      <AttendanceApprovalTable rows={rows} readOnly />
+      <AttendanceApprovalTable rows={rows} />
     </div>
   );
 }

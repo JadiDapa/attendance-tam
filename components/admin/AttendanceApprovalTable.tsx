@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { BadgeIcon as ShieldCheck } from "@radix-ui/react-icons";
+import { CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,7 +28,10 @@ import {
   type WorkModeValue,
 } from "@/lib/work-mode";
 import { cn } from "@/lib/utils";
-import { reviewAttendance } from "@/app/action/attendance.action";
+import {
+  approveAllPendingAttendance,
+  reviewAttendance,
+} from "@/app/action/attendance.action";
 
 export type AttendanceApprovalRow = {
   id: string;
@@ -48,11 +52,8 @@ export type AttendanceApprovalRow = {
 
 export default function AttendanceApprovalTable({
   rows,
-  readOnly = false,
 }: {
   rows: AttendanceApprovalRow[];
-  /** True untuk halaman oversight admin — tidak ada aksi setujui/tolak. */
-  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [target, setTarget] = useState<AttendanceApprovalRow | null>(null);
@@ -61,6 +62,8 @@ export default function AttendanceApprovalTable({
   const [submitting, setSubmitting] = useState<"approve" | "reject" | null>(
     null,
   );
+  const [confirmAllOpen, setConfirmAllOpen] = useState(false);
+  const [approvingAll, setApprovingAll] = useState(false);
 
   const openDialog = (row: AttendanceApprovalRow) => {
     setTarget(row);
@@ -100,6 +103,23 @@ export default function AttendanceApprovalTable({
 
     toast.success(result.message);
     closeDialog();
+    router.refresh();
+  };
+
+  const approveAll = async () => {
+    setApprovingAll(true);
+
+    const result = await approveAllPendingAttendance();
+
+    setApprovingAll(false);
+
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+
+    toast.success(result.message);
+    setConfirmAllOpen(false);
     router.refresh();
   };
 
@@ -181,11 +201,11 @@ export default function AttendanceApprovalTable({
         <Button
           variant="ghost"
           size="sm"
-          title={readOnly ? "Detail" : "Tinjau"}
+          title="Tinjau"
           onClick={() => openDialog(row.original)}
         >
           <ShieldCheck className="size-4" />
-          {readOnly ? "Detail" : "Tinjau"}
+          Tinjau
         </Button>
       ),
     },
@@ -199,13 +219,53 @@ export default function AttendanceApprovalTable({
         title="Cari"
         emptyMessage="Tidak ada absensi yang menunggu persetujuan."
         filters={(instance) => (
-          <SearchDataTable
-            table={instance}
-            column="employeeName"
-            placeholder="Cari nama karyawan..."
-          />
+          <div className="flex w-full flex-wrap items-center justify-between gap-2">
+            <SearchDataTable
+              table={instance}
+              column="employeeName"
+              placeholder="Cari nama karyawan..."
+            />
+            <Button
+              onClick={() => setConfirmAllOpen(true)}
+              disabled={rows.length === 0}
+            >
+              <CheckCheck className="size-4" />
+              Setujui Semua ({rows.length})
+            </Button>
+          </div>
         )}
       />
+
+      <Dialog
+        open={confirmAllOpen}
+        onOpenChange={(open) => {
+          if (!approvingAll) setConfirmAllOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Setujui semua absensi?</DialogTitle>
+            <DialogDescription>
+              {rows.length} absensi luar radius akan disetujui sesuai klaim
+              karyawan (Luar Radius). Alasan masing-masing tidak ditinjau satu
+              per satu.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmAllOpen(false)}
+              disabled={approvingAll}
+            >
+              Batal
+            </Button>
+            <Button onClick={approveAll} disabled={approvingAll}>
+              {approvingAll && <Spinner />}
+              Setujui Semua
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={target !== null}
@@ -240,65 +300,63 @@ export default function AttendanceApprovalTable({
             </div>
           )}
 
-          {!readOnly && (
-            <>
-              <div className="flex flex-col gap-2">
-                <Label>Setujui sebagai</Label>
-                <div className="grid gap-2">
-                  {APPROVAL_MODES.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => setMode(option)}
-                      className={cn(
-                        "rounded-xl border p-3 text-left transition-colors",
-                        mode === option
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:bg-muted",
-                      )}
-                    >
-                      <p className="text-sm font-medium">
-                        {WORK_MODE_LABEL[option]}
-                      </p>
-                      <p className="text-muted-foreground text-xs">
-                        {WORK_MODE_HINT[option]}
-                      </p>
-                    </button>
-                  ))}
-                </div>
+          <>
+            <div className="flex flex-col gap-2">
+              <Label>Setujui sebagai</Label>
+              <div className="grid gap-2">
+                {APPROVAL_MODES.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setMode(option)}
+                    className={cn(
+                      "rounded-xl border p-3 text-left transition-colors",
+                      mode === option
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:bg-muted",
+                    )}
+                  >
+                    <p className="text-sm font-medium">
+                      {WORK_MODE_LABEL[option]}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      {WORK_MODE_HINT[option]}
+                    </p>
+                  </button>
+                ))}
               </div>
+            </div>
 
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="reviewNote">Catatan (opsional)</Label>
-                <Textarea
-                  id="reviewNote"
-                  rows={2}
-                  value={note}
-                  onChange={(event) => setNote(event.target.value)}
-                  maxLength={300}
-                  placeholder="Contoh: sudah dikonfirmasi atasan"
-                />
-              </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="reviewNote">Catatan (opsional)</Label>
+              <Textarea
+                id="reviewNote"
+                rows={2}
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                maxLength={300}
+                placeholder="Contoh: sudah dikonfirmasi atasan"
+              />
+            </div>
 
-              <DialogFooter className="gap-2 sm:justify-between">
-                <Button
-                  variant="destructive"
-                  onClick={() => decide(AttendanceApproval.REJECTED)}
-                  disabled={submitting !== null}
-                >
-                  {submitting === "reject" && <Spinner />}
-                  Tolak → Alfa
-                </Button>
-                <Button
-                  onClick={() => decide(AttendanceApproval.APPROVED)}
-                  disabled={submitting !== null}
-                >
-                  {submitting === "approve" && <Spinner />}
-                  Setujui
-                </Button>
-              </DialogFooter>
-            </>
-          )}
+            <DialogFooter className="gap-2 sm:justify-between">
+              <Button
+                variant="destructive"
+                onClick={() => decide(AttendanceApproval.REJECTED)}
+                disabled={submitting !== null}
+              >
+                {submitting === "reject" && <Spinner />}
+                Tolak → Alfa
+              </Button>
+              <Button
+                onClick={() => decide(AttendanceApproval.APPROVED)}
+                disabled={submitting !== null}
+              >
+                {submitting === "approve" && <Spinner />}
+                Setujui
+              </Button>
+            </DialogFooter>
+          </>
         </DialogContent>
       </Dialog>
     </>
