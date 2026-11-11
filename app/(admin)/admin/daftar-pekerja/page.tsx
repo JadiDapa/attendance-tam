@@ -17,11 +17,15 @@ import { Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import { formatWorkDate, getWorkDate } from "@/lib/date";
 import { UserService } from "@/servers/services/user.service";
+import { DivisionService } from "@/servers/services/division.service";
 
 export default async function DaftarPekerjaPage() {
   await requireRole(Role.ADMIN);
 
-  const users = await UserService.list();
+  const [users, divisions] = await Promise.all([
+    UserService.list(),
+    DivisionService.list(),
+  ]);
 
   const rows: WorkerRow[] = users.map((user) => ({
     id: user.id,
@@ -29,10 +33,31 @@ export default async function DaftarPekerjaPage() {
     email: user.email,
     role: user.role,
     phone: user.phone ?? "",
-    position: user.position ?? "",
+    position: user.jobPosition?.name ?? user.position ?? "",
+    divisionId: user.divisionId,
+    divisionName: user.division?.name ?? null,
+    positionId: user.positionId,
+    positionName: user.jobPosition?.name ?? user.position ?? null,
     profileImageUrl: user.profileImageUrl,
     isActive: user.isActive,
     joinedAt: formatWorkDate(getWorkDate(user.createdAt)),
+  }));
+
+  const divisionFilterOptions = divisions.map((d) => ({
+    value: d.name,
+    label: d.name,
+  }));
+
+  const allPositionNames = Array.from(
+    new Set([
+      ...divisions.flatMap((d) => d.positions.map((p) => p.name)),
+      ...rows.map((r) => r.position).filter(Boolean),
+    ]),
+  ).sort();
+
+  const positionFilterOptions = allPositionNames.map((name) => ({
+    value: name,
+    label: name,
   }));
 
   const activeCount = rows.filter((row) => row.isActive).length;
@@ -98,7 +123,11 @@ export default async function DaftarPekerjaPage() {
         </Panel>
       </div>
 
-      <WorkerTable rows={rows} />
+      <WorkerTable
+        rows={rows}
+        divisionOptions={divisionFilterOptions}
+        positionOptions={positionFilterOptions}
+      />
     </div>
   );
 }

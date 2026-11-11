@@ -181,7 +181,8 @@ export default async function EmployeeProfileDetailPage({
         </div>
         <Field label="Nama" value={employee.name} />
         <Field label="Email" value={employee.email} />
-        <Field label="Jabatan" value={employee.position || "—"} />
+        <Field label="Divisi" value={employee.division?.name || "—"} />
+        <Field label="Jabatan" value={employee.jobPosition?.name ?? employee.position ?? "—"} />
         <Field label="Nomor HP" value={employee.phone || "—"} />
         <Field
           label="Terdaftar sejak"

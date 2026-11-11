@@ -1,7 +1,6 @@
-import Link from "next/link";
-
 import AuthCarousel from "@/components/auth/AuthCarousel";
 import AuthHeader from "@/components/auth/AuthHeader";
+import ContactAdminDialog from "@/components/auth/ContactAdminDialog";
 import LoginForm from "@/components/auth/LoginForm";
 
 /**
@@ -34,9 +33,10 @@ export default async function LoginPage({
         <LoginForm callbackUrl={safeCallbackUrl(callbackUrl)} />
         <p className="text-muted-foreground mt-4 text-center lg:mt-6">
           Belum punya akun?{" "}
-          <Link href="/request-account" className="text-primary font-medium">
-            Ajukan pembuatan akun
-          </Link>
+          <ContactAdminDialog
+            triggerText="Hubungi admin"
+            triggerClassName="text-primary font-medium hover:underline inline cursor-pointer"
+          />
         </p>
       </main>
       <AuthCarousel />

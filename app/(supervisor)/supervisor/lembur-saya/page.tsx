@@ -8,7 +8,7 @@ export default async function SupervisorLemburSayaPage() {
   return (
     <SelfOvertimeDashboard
       user={user}
-      subtitle="Ajukan lembur untuk diri sendiri — otomatis disetujui."
+      subtitle="Ajukan lembur untuk diri sendiri — menunggu persetujuan manager."
     />
   );
 }

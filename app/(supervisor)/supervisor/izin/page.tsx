@@ -20,10 +20,13 @@ const REVIEWABLE_TYPES: LeaveType[] = [
 ];
 
 export default async function SupervisorIzinPage() {
-  await requireRole(Role.SUPERVISOR);
+  const user = await requireRole(Role.SUPERVISOR);
 
-  const requests = (await LeaveService.list()).filter((request) =>
-    REVIEWABLE_TYPES.includes(request.type),
+  const requests = (await LeaveService.list()).filter(
+    (request) =>
+      REVIEWABLE_TYPES.includes(request.type) &&
+      request.user.role === Role.EMPLOYEE &&
+      Boolean(user.divisionId && request.user.divisionId === user.divisionId),
   );
 
   const rows: LeaveApprovalRow[] = requests.map((request) => ({

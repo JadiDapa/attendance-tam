@@ -49,3 +49,11 @@ next-env.d.ts
 # mobile-parity visual verification pipeline
 /parity-output/
 /parity-auth/
+
+# server debug logs
+/errs_form_server/
+# Agent skills dependencies (bisa di-restore via skills-lock.json)
+/.claude/
+/.agents/
+AGENTS.md
+skills-lock.json

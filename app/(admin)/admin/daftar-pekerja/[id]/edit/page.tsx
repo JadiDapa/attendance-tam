@@ -23,6 +23,7 @@ import { Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import { toDateInputValue } from "@/lib/date";
 import { UserService } from "@/servers/services/user.service";
+import { DivisionService } from "@/servers/services/division.service";
 import {
   AdministrativeDocumentService,
   ContactService,
@@ -63,6 +64,7 @@ export default async function EditEmployeeProfilePage({
     administrativeDocument,
     payroll,
     training,
+    divisions,
   ] = await Promise.all([
     PersonalIdentityService.getByUserId(id),
     ContactService.getByUserId(id),
@@ -71,7 +73,17 @@ export default async function EditEmployeeProfilePage({
     AdministrativeDocumentService.getByUserId(id),
     PayrollService.getByUserId(id),
     TrainingService.listByUserId(id),
+    DivisionService.list(),
   ]);
+
+  const divisionOptions = divisions.map((d) => ({
+    id: d.id,
+    name: d.name,
+    positions: d.positions.map((p) => ({
+      id: p.id,
+      name: p.name,
+    })),
+  }));
 
   return (
     <div className="flex max-w-3xl flex-col gap-5">
@@ -108,7 +120,10 @@ export default async function EditEmployeeProfilePage({
             role: employee.role,
             phone: employee.phone ?? "",
             position: employee.position ?? "",
+            divisionId: employee.divisionId,
+            positionId: employee.positionId,
           }}
+          divisions={divisionOptions}
         />
       </Panel>
 

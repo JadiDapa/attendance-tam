@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { clerkClient } from "@clerk/nextjs/server";
 import { z } from "zod";
+import prisma from "@/lib/prisma";
 import { Prisma, Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import { fromDateInputValue } from "@/lib/date";
@@ -61,9 +62,15 @@ export async function createEmployee(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
   }
 
-  const { name, email, password, role, phone, position } = parsed.data;
+  const { name, email, password, role, phone, position, divisionId, positionId } = parsed.data;
   const normalizedEmail = email.toLowerCase();
   const client = await clerkClient();
+
+  let resolvedPositionName = optional(position);
+  if (positionId) {
+    const pos = await prisma.position.findUnique({ where: { id: positionId } });
+    if (pos) resolvedPositionName = pos.name;
+  }
 
   let clerkUserId: string;
 
@@ -85,7 +92,9 @@ export async function createEmployee(
       email: normalizedEmail,
       role,
       phone: optional(phone),
-      position: optional(position),
+      position: resolvedPositionName,
+      division: divisionId ? { connect: { id: divisionId } } : undefined,
+      jobPosition: positionId ? { connect: { id: positionId } } : undefined,
     });
   } catch (error) {
     // Rollback akun Clerk supaya tidak jadi akun yatim tanpa profil di database.
@@ -118,7 +127,7 @@ export async function updateEmployee(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
   }
 
-  const { name, email, password, role, phone, position } = parsed.data;
+  const { name, email, password, role, phone, position, divisionId, positionId } = parsed.data;
 
   if (admin.id === userId && role && role !== Role.ADMIN) {
     return { ok: false, error: "Tidak bisa mengubah role akun sendiri" };
@@ -159,7 +168,27 @@ export async function updateEmployee(
   if (normalizedEmail) data.email = normalizedEmail;
   if (role) data.role = role;
   if (phone !== undefined) data.phone = optional(phone);
-  if (position !== undefined) data.position = optional(position);
+
+  if (positionId !== undefined) {
+    if (positionId) {
+      const pos = await prisma.position.findUnique({ where: { id: positionId } });
+      data.jobPosition = { connect: { id: positionId } };
+      if (pos) data.position = pos.name;
+    } else {
+      data.jobPosition = { disconnect: true };
+      if (position !== undefined) data.position = optional(position);
+    }
+  } else if (position !== undefined) {
+    data.position = optional(position);
+  }
+
+  if (divisionId !== undefined) {
+    if (divisionId) {
+      data.division = { connect: { id: divisionId } };
+    } else {
+      data.division = { disconnect: true };
+    }
+  }
 
   try {
     await UserService.update(userId, data);
@@ -453,9 +482,15 @@ export async function createEmployeeFull(
       ? trainingParsed.data
       : undefined;
 
-  const { name, email, password, role, phone, position } = core.data;
+  const { name, email, password, role, phone, position, divisionId, positionId } = core.data;
   const normalizedEmail = email.toLowerCase();
   const client = await clerkClient();
+
+  let resolvedPositionName = optional(position);
+  if (positionId) {
+    const pos = await prisma.position.findUnique({ where: { id: positionId } });
+    if (pos) resolvedPositionName = pos.name;
+  }
 
   let clerkUserId: string;
 
@@ -479,7 +514,9 @@ export async function createEmployeeFull(
       email: normalizedEmail,
       role,
       phone: optional(phone),
-      position: optional(position),
+      position: resolvedPositionName,
+      division: divisionId ? { connect: { id: divisionId } } : undefined,
+      jobPosition: positionId ? { connect: { id: positionId } } : undefined,
     });
     userId = user.id;
   } catch (error) {

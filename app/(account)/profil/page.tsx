@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { requireUser } from "@/lib/session";
 import { ROLE_LABEL } from "@/lib/role";
 import { formatWorkDate, getWorkDate, toDateInputValue } from "@/lib/date";
+import { UserService } from "@/servers/services/user.service";
 import { FaceService } from "@/servers/services/face.service";
 import {
   AdministrativeDocumentService,
@@ -53,6 +54,7 @@ export default async function ProfilPage() {
   const user = await requireUser();
 
   const [
+    detailedUser,
     totalPhotos,
     personalIdentity,
     contact,
@@ -62,6 +64,7 @@ export default async function ProfilPage() {
     payroll,
     training,
   ] = await Promise.all([
+    UserService.getById(user.id),
     FaceService.countByUser(user.id),
     PersonalIdentityService.getByUserId(user.id),
     ContactService.getByUserId(user.id),
@@ -71,6 +74,10 @@ export default async function ProfilPage() {
     PayrollService.getByUserId(user.id),
     TrainingService.listByUserId(user.id),
   ]);
+
+  const divisionName = detailedUser?.division?.name || "-";
+  const positionName =
+    detailedUser?.jobPosition?.name ?? detailedUser?.position ?? user.position ?? "-";
 
   return (
     <div className="flex max-w-3xl flex-col gap-5">
@@ -99,14 +106,15 @@ export default async function ProfilPage() {
 
             <Field label="Nama" value={user.name} />
             <Field label="Email" value={user.email} />
-            <Field label="Jabatan" value={user.position || "—"} />
+            <Field label="Divisi" value={divisionName} />
+            <Field label="Jabatan" value={positionName} />
             <Field
               label="Terdaftar sejak"
               value={formatWorkDate(getWorkDate(user.createdAt))}
             />
 
             <p className="text-muted-foreground text-xs sm:col-span-2">
-              Nama, email, dan jabatan dipakai di rekap serta laporan absensi, jadi
+              Nama, email, divisi, dan jabatan dipakai di rekap serta laporan absensi, jadi
               hanya admin yang bisa mengubahnya.
             </p>
           </Panel>

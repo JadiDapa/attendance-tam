@@ -144,6 +144,7 @@ export async function createLeaveRequest(
 
   revalidatePath("/izin");
   revalidatePath("/supervisor/izin");
+  revalidatePath("/supervisor/izin-saya");
   revalidatePath("/manager/izin");
 
   return {
@@ -172,6 +173,7 @@ export async function cancelLeaveRequest(
 
   revalidatePath("/izin");
   revalidatePath("/supervisor/izin");
+  revalidatePath("/supervisor/izin-saya");
   revalidatePath("/manager/izin");
 
   return { ok: true, message: "Pengajuan izin dibatalkan" };
@@ -201,6 +203,36 @@ export async function reviewLeaveRequest(
   }
 
   const leave = await LeaveService.getById(leaveId);
+
+  if (!leave) {
+    return {
+      ok: false,
+      error: "Pengajuan tidak ditemukan atau sudah diproses lebih dulu",
+    };
+  }
+
+  // Pembatasan hak review: Role dan Divisi
+  if (reviewer.role === Role.SUPERVISOR) {
+    if (leave.user.role !== Role.EMPLOYEE) {
+      return {
+        ok: false,
+        error: "Supervisor hanya berwenang menyetujui pengajuan staf (Employee)",
+      };
+    }
+    if (!reviewer.divisionId || leave.user.divisionId !== reviewer.divisionId) {
+      return {
+        ok: false,
+        error: "Supervisor hanya berwenang menyetujui pengajuan staf di divisi yang sama",
+      };
+    }
+  } else if (reviewer.role === Role.MANAGER) {
+    if (leave.user.role !== Role.SUPERVISOR) {
+      return {
+        ok: false,
+        error: "Manager hanya berwenang menyetujui pengajuan supervisor",
+      };
+    }
+  }
 
   const updated = await LeaveService.review(leaveId, {
     stage,
@@ -234,6 +266,7 @@ export async function reviewLeaveRequest(
   revalidatePath("/admin/dashboard");
   revalidatePath("/admin/kehadiran");
   revalidatePath("/supervisor/izin");
+  revalidatePath("/supervisor/izin-saya");
   revalidatePath("/manager/izin");
   revalidatePath("/izin");
 

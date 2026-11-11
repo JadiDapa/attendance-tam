@@ -22,8 +22,10 @@ const REVIEWABLE_TYPES: LeaveType[] = [
 export default async function ManagerIzinPage() {
   await requireRole(Role.MANAGER);
 
-  const requests = (await LeaveService.list()).filter((request) =>
-    REVIEWABLE_TYPES.includes(request.type),
+  const requests = (await LeaveService.list()).filter(
+    (request) =>
+      REVIEWABLE_TYPES.includes(request.type) &&
+      request.user.role === Role.SUPERVISOR,
   );
 
   const rows: LeaveApprovalRow[] = requests.map((request) => ({
@@ -54,7 +56,7 @@ export default async function ManagerIzinPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Pengajuan Izin"
-        subtitle="Setujui atau tolak pengajuan izin, cuti & sakit milik supervisor — pengajuan karyawan lain sudah diputuskan supervisornya masing-masing."
+        subtitle="Setujui atau tolak pengajuan izin, cuti & sakit milik supervisor."
       />
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -69,7 +71,7 @@ export default async function ManagerIzinPage() {
           label="Total Izin & Cuti"
           icon={CheckCircle2}
           value={String(requests.length)}
-          footerLabel="Semua pengajuan izin & cuti"
+          footerLabel="Pengajuan dari supervisor"
         />
       </div>
 

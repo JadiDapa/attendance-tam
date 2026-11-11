@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   MoonIcon as Moon,
   SunIcon as Sun,
@@ -9,6 +8,7 @@ import {
 import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
+import { useMounted } from "@/hooks/use-mounted";
 
 const CYCLE = [
   { value: "light", label: "Terang", icon: Sun },
@@ -18,14 +18,24 @@ const CYCLE = [
 
 export function ToggleTheme() {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  if (!mounted) {
+    return (
+      <Button
+        variant="outline"
+        className="bg-muted/60 hover:bg-muted rounded-full border-none"
+        size="icon"
+        aria-label="Ganti tema"
+      >
+        <Monitor className="size-5" />
+        <span className="sr-only">Ganti tema</span>
+      </Button>
+    );
+  }
 
-  const index = CYCLE.findIndex((mode) => mode.value === theme);
-  const current = mounted ? (CYCLE[index] ?? CYCLE[2]) : CYCLE[2];
+  const index = Math.max(0, CYCLE.findIndex((mode) => mode.value === theme));
+  const current = CYCLE[index] ?? CYCLE[2];
   const next = CYCLE[(index + 1) % CYCLE.length] ?? CYCLE[0];
 
   return (
@@ -34,6 +44,7 @@ export function ToggleTheme() {
       className="bg-muted/60 hover:bg-muted rounded-full border-none"
       size="icon"
       onClick={() => setTheme(next.value)}
+      aria-label={`Ganti tema ke ${next.label}`}
     >
       <current.icon className="size-5" />
       <span className="sr-only">

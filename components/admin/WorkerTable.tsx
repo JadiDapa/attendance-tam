@@ -19,6 +19,10 @@ export type WorkerRow = {
   role: Role;
   phone: string;
   position: string;
+  divisionId?: string | null;
+  divisionName?: string | null;
+  positionId?: string | null;
+  positionName?: string | null;
   isActive: boolean;
   joinedAt: string;
   profileImageUrl: string | null;
@@ -47,9 +51,10 @@ const STATUS_OPTIONS = [
 const columns: ColumnDef<WorkerRow>[] = [
   {
     id: "search",
-    // Gabungan nama + nomor HP + email supaya satu kotak cari bisa dipakai
-    // untuk ketiganya — sortir tetap memakai "name" lewat kolom terpisah.
-    accessorFn: (row) => `${row.name} ${row.phone} ${row.email}`,
+    // Mengindeks nama, nomor HP, email, divisi, dan jabatan agar pencarian teks
+    // menemukan pekerja berdasarkan kata kunci identitas maupun penempatannya.
+    accessorFn: (row) =>
+      `${row.name} ${row.phone} ${row.email} ${row.divisionName || ""} ${row.position || ""}`,
     header: "Nama",
     cell: ({ row }) => (
       <div className="flex min-w-40 items-center gap-3">
@@ -62,19 +67,36 @@ const columns: ColumnDef<WorkerRow>[] = [
           )}
           <AvatarFallback>{initials(row.original.name)}</AvatarFallback>
         </Avatar>
-        <div>
-          <Link
-            href={`/admin/daftar-pekerja/${row.original.id}`}
-            className="font-medium hover:underline"
-          >
-            {row.original.name}
-          </Link>
-          <p className="text-muted-foreground text-xs">
-            {row.original.position || "Tanpa jabatan"}
-          </p>
-        </div>
+        <Link
+          href={`/admin/daftar-pekerja/${row.original.id}`}
+          className="font-medium hover:underline"
+        >
+          {row.original.name}
+        </Link>
       </div>
     ),
+  },
+  {
+    accessorKey: "divisionName",
+    header: "Divisi",
+    filterFn: "equalsString",
+    cell: ({ row }) =>
+      row.original.divisionName ? (
+        <Badge variant="outline">{row.original.divisionName}</Badge>
+      ) : (
+        <span className="text-muted-foreground text-xs">—</span>
+      ),
+  },
+  {
+    accessorKey: "position",
+    header: "Jabatan",
+    filterFn: "equalsString",
+    cell: ({ row }) =>
+      row.original.position ? (
+        <span className="text-sm font-medium">{row.original.position}</span>
+      ) : (
+        <span className="text-muted-foreground text-xs">—</span>
+      ),
   },
   {
     accessorKey: "email",
@@ -126,7 +148,15 @@ const columns: ColumnDef<WorkerRow>[] = [
   },
 ];
 
-export default function WorkerTable({ rows }: { rows: WorkerRow[] }) {
+export default function WorkerTable({
+  rows,
+  divisionOptions = [],
+  positionOptions = [],
+}: {
+  rows: WorkerRow[];
+  divisionOptions?: { value: string; label: string }[];
+  positionOptions?: { value: string; label: string }[];
+}) {
   return (
     <DataTable
       columns={columns}
@@ -139,9 +169,27 @@ export default function WorkerTable({ rows }: { rows: WorkerRow[] }) {
             <SearchDataTable
               table={instance}
               column="search"
-              placeholder="Cari nama, HP, atau email..."
+              placeholder="Cari nama, HP, email, posisi..."
             />
           </div>
+          {divisionOptions.length > 0 && (
+            <SelectDataTable
+              table={instance}
+              column="divisionName"
+              options={divisionOptions}
+              placeholder="Divisi"
+              allLabel="Semua Divisi"
+            />
+          )}
+          {positionOptions.length > 0 && (
+            <SelectDataTable
+              table={instance}
+              column="position"
+              options={positionOptions}
+              placeholder="Jabatan"
+              allLabel="Semua Jabatan"
+            />
+          )}
           <SelectDataTable
             table={instance}
             column="role"

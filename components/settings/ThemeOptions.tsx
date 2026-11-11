@@ -7,6 +7,7 @@ import {
 } from "@radix-ui/react-icons";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import { useMounted } from "@/hooks/use-mounted";
 
 const options = [
   { value: "light", label: "Terang", icon: Sun },
@@ -16,11 +17,12 @@ const options = [
 
 export default function ThemeOptions() {
   const { theme, setTheme } = useTheme();
+  const mounted = useMounted();
 
   return (
     <div className="grid grid-cols-3 gap-3">
       {options.map((option) => {
-        const active = theme === option.value;
+        const active = mounted && theme === option.value;
 
         return (
           <button

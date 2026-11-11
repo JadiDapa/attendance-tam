@@ -32,11 +32,21 @@ export const UserService = {
     return prisma.user.findMany({
       where: userWhere(opts),
       orderBy: [{ isActive: "desc" }, { name: "asc" }],
+      include: {
+        division: true,
+        jobPosition: true,
+      },
     });
   },
 
   async getById(id: string) {
-    return prisma.user.findUnique({ where: { id } });
+    return prisma.user.findUnique({
+      where: { id },
+      include: {
+        division: true,
+        jobPosition: true,
+      },
+    });
   },
 
   async getByEmail(email: string) {
