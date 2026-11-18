@@ -8,25 +8,45 @@ const adapter = new PrismaPg({
 
 const prisma = new PrismaClient({ adapter });
 
-const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@tarunagroup.co.id";
-const EMPLOYEE_EMAIL =
-  process.env.SEED_EMPLOYEE_EMAIL ?? "admin@tarunagroup.co.id";
-const SUPERVISOR_EMAIL =
-  process.env.SEED_SUPERVISOR_EMAIL ?? "infodwiky@tarunagroup.co.id";
-const MANAGER_EMAIL =
-  process.env.SEED_MANAGER_EMAIL ?? "reza@tarunagroup.co.id";
+const getSeedValue = (envVal: string | undefined, fallback: string) =>
+  envVal && envVal.trim() !== "" ? envVal.trim() : fallback;
 
-const ADMIN_CLERK_ID =
-  process.env.SEED_ADMIN_CLERK_ID ?? "user_3J8CoeZudtngPZFNVmeCG1nnZmt";
-const EMPLOYEE_CLERK_ID =
-  process.env.SEED_EMPLOYEE_CLERK_ID ?? "user_3J8Cu3tAD8Wpy5Lv0ng9SvrtuCq";
+const ADMIN_EMAIL = getSeedValue(
+  process.env.SEED_ADMIN_EMAIL,
+  "admin@tarunagroup.co.id",
+);
+const EMPLOYEE_EMAIL = getSeedValue(
+  process.env.SEED_EMPLOYEE_EMAIL,
+  "admin@tarunagroup.co.id",
+);
+const SUPERVISOR_EMAIL = getSeedValue(
+  process.env.SEED_SUPERVISOR_EMAIL,
+  "infodwiky@tarunagroup.co.id",
+);
+const MANAGER_EMAIL = getSeedValue(
+  process.env.SEED_MANAGER_EMAIL,
+  "reza@tarunagroup.co.id",
+);
+
+const ADMIN_CLERK_ID = getSeedValue(
+  process.env.SEED_ADMIN_CLERK_ID,
+  "user_3J8CoeZudtngPZFNVmeCG1nnZmt",
+);
+const EMPLOYEE_CLERK_ID = getSeedValue(
+  process.env.SEED_EMPLOYEE_CLERK_ID,
+  "user_3J8Cu3tAD8Wpy5Lv0ng9SvrtuCq",
+);
 // Placeholder — belum ada akun Clerk sungguhan di baliknya. Buat user di
 // Clerk Dashboard dengan email yang sama lalu isi SEED_SUPERVISOR_CLERK_ID /
 // SEED_MANAGER_CLERK_ID di .env supaya akunnya benar-benar bisa login.
-const SUPERVISOR_CLERK_ID =
-  process.env.SEED_SUPERVISOR_CLERK_ID ?? "user_3JJJjTC0aHAswmaItOGNuBOBzGo";
-const MANAGER_CLERK_ID =
-  process.env.SEED_MANAGER_CLERK_ID ?? "user_3JJJgxQDWIgiG5VUEjSI8cnchUZ";
+const SUPERVISOR_CLERK_ID = getSeedValue(
+  process.env.SEED_SUPERVISOR_CLERK_ID,
+  "user_3JJJjTC0aHAswmaItOGNuBOBzGo",
+);
+const MANAGER_CLERK_ID = getSeedValue(
+  process.env.SEED_MANAGER_CLERK_ID,
+  "user_3JJJgxQDWIgiG5VUEjSI8cnchUZ",
+);
 
 const HOLIDAYS_2026: { date: string; name: string; type: HolidayType }[] = [
   { date: "2026-01-01", name: "Tahun Baru Masehi", type: HolidayType.NASIONAL },
@@ -102,9 +122,88 @@ const HOLIDAYS_2026: { date: string; name: string; type: HolidayType }[] = [
 export async function main() {
   console.log("Seeding database...");
 
+  // Default Divisions (3 Divisi: Admin, Teknisi, General)
+  const adminDiv = await prisma.division.upsert({
+    where: { name: "Admin" },
+    update: {},
+    create: { name: "Admin" },
+  });
+
+  const teknisiDiv = await prisma.division.upsert({
+    where: { name: "Teknisi" },
+    update: {},
+    create: { name: "Teknisi" },
+  });
+
+  const generalDiv = await prisma.division.upsert({
+    where: { name: "General" },
+    update: {},
+    create: { name: "General" },
+  });
+
+  // Default Positions
+  const hrAdminPos = await prisma.position.upsert({
+    where: { divisionId_name: { divisionId: adminDiv.id, name: "HR Admin" } },
+    update: {},
+    create: { name: "HR Admin", divisionId: adminDiv.id },
+  });
+
+  await prisma.position.upsert({
+    where: { divisionId_name: { divisionId: adminDiv.id, name: "Admin" } },
+    update: {},
+    create: { name: "Admin", divisionId: adminDiv.id },
+  });
+
+  await prisma.position.upsert({
+    where: { divisionId_name: { divisionId: adminDiv.id, name: "Supervisor" } },
+    update: {},
+    create: { name: "Supervisor", divisionId: adminDiv.id },
+  });
+
+  const teknisiPos = await prisma.position.upsert({
+    where: { divisionId_name: { divisionId: teknisiDiv.id, name: "Teknisi" } },
+    update: {},
+    create: { name: "Teknisi", divisionId: teknisiDiv.id },
+  });
+
+  await prisma.position.upsert({
+    where: { divisionId_name: { divisionId: teknisiDiv.id, name: "End of Service" } },
+    update: {},
+    create: { name: "End of Service", divisionId: teknisiDiv.id },
+  });
+
+  const spvTeknisiPos = await prisma.position.upsert({
+    where: { divisionId_name: { divisionId: teknisiDiv.id, name: "Supervisor" } },
+    update: {},
+    create: { name: "Supervisor", divisionId: teknisiDiv.id },
+  });
+
+  await prisma.position.upsert({
+    where: { divisionId_name: { divisionId: teknisiDiv.id, name: "Programmer" } },
+    update: {},
+    create: { name: "Programmer", divisionId: teknisiDiv.id },
+  });
+
+  await prisma.position.upsert({
+    where: { divisionId_name: { divisionId: teknisiDiv.id, name: "Network Engineer" } },
+    update: {},
+    create: { name: "Network Engineer", divisionId: teknisiDiv.id },
+  });
+
+  const bdmPos = await prisma.position.upsert({
+    where: { divisionId_name: { divisionId: generalDiv.id, name: "Business Development Manager" } },
+    update: {},
+    create: { name: "Business Development Manager", divisionId: generalDiv.id },
+  });
+
   const admin = await prisma.user.upsert({
     where: { email: ADMIN_EMAIL },
-    update: {},
+    update: {
+      clerkId: ADMIN_CLERK_ID,
+      divisionId: adminDiv.id,
+      positionId: hrAdminPos.id,
+      position: "HR Admin",
+    },
     create: {
       clerkId: ADMIN_CLERK_ID,
       name: "Administrator",
@@ -112,25 +211,39 @@ export async function main() {
       role: Role.ADMIN,
       phone: "081200000000",
       position: "HR Admin",
+      divisionId: adminDiv.id,
+      positionId: hrAdminPos.id,
     },
   });
 
   const employee = await prisma.user.upsert({
     where: { email: EMPLOYEE_EMAIL },
-    update: {},
+    update: {
+      clerkId: EMPLOYEE_CLERK_ID,
+      divisionId: teknisiDiv.id,
+      positionId: teknisiPos.id,
+      position: "Teknisi",
+    },
     create: {
       clerkId: EMPLOYEE_CLERK_ID,
       name: "Karyawan Contoh",
       email: EMPLOYEE_EMAIL,
       role: Role.EMPLOYEE,
       phone: "081211112222",
-      position: "Staff",
+      position: "Teknisi",
+      divisionId: teknisiDiv.id,
+      positionId: teknisiPos.id,
     },
   });
 
   const supervisor = await prisma.user.upsert({
     where: { email: SUPERVISOR_EMAIL },
-    update: {},
+    update: {
+      clerkId: SUPERVISOR_CLERK_ID,
+      divisionId: teknisiDiv.id,
+      positionId: spvTeknisiPos.id,
+      position: "Supervisor",
+    },
     create: {
       clerkId: SUPERVISOR_CLERK_ID,
       name: "Dwiky Wahyudi",
@@ -138,19 +251,28 @@ export async function main() {
       role: Role.SUPERVISOR,
       phone: "081233334444",
       position: "Supervisor",
+      divisionId: teknisiDiv.id,
+      positionId: spvTeknisiPos.id,
     },
   });
 
   const manager = await prisma.user.upsert({
     where: { email: MANAGER_EMAIL },
-    update: {},
+    update: {
+      clerkId: MANAGER_CLERK_ID,
+      divisionId: generalDiv.id,
+      positionId: bdmPos.id,
+      position: "Business Development Manager",
+    },
     create: {
       clerkId: MANAGER_CLERK_ID,
       name: "Reza Maulana",
       email: MANAGER_EMAIL,
       role: Role.MANAGER,
       phone: "081255556666",
-      position: "Manager",
+      position: "Business Development Manager",
+      divisionId: generalDiv.id,
+      positionId: bdmPos.id,
     },
   });
 

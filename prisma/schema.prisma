@@ -147,6 +147,28 @@ model AccountRequest {
   @@index([status])
 }
 
+model Division {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  positions Position[]
+  users     User[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Position {
+  id         String   @id @default(cuid())
+  name       String
+  divisionId String
+  division   Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  users      User[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([divisionId, name])
+  @@index([divisionId])
+}
+
 model User {
   id        String   @id @default(cuid())
   /// ID user di Clerk — sumber kebenaran identitas & password ada di Clerk,
@@ -156,7 +178,11 @@ model User {
   email     String   @unique
   role      Role     @default(EMPLOYEE)
   phone     String?
-  position  String?
+  position        String?
+  divisionId      String?
+  division        Division?         @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  positionId      String?
+  jobPosition     Position?         @relation(fields: [positionId], references: [id], onDelete: SetNull)
   /// URL foto profil (`/api/images/<file>`), diisi otomatis dari foto
   /// pendaftaran wajah pertama — lihat app/action/face.action.ts.
   profileImageUrl String?

@@ -14,6 +14,7 @@ import {
   BadgeIcon as ShieldCheck,
   GearIcon as Settings,
   PersonIcon as UserPlus,
+  LayersIcon as Layers,
 } from "@radix-ui/react-icons";
 
 type Icon = ComponentType<{ className?: string }>;
@@ -179,6 +180,13 @@ export const overviewItems: MenuItem[] = [
     group: "general",
   },
   {
+    title: "Izin Saya",
+    url: "/supervisor/izin-saya",
+    icon: FileText,
+    roles: ["SUPERVISOR"],
+    group: "general",
+  },
+  {
     title: "Pengajuan Izin",
     url: "/manager/izin",
     icon: ClipboardCheck,
@@ -245,6 +253,12 @@ export const settingsItems: MenuItem[] = [
     title: "Hari Libur",
     url: "/admin/hari-libur",
     icon: CalendarOff,
+    roles: ["ADMIN"],
+  },
+  {
+    title: "Divisi & Jabatan",
+    url: "/admin/divisi-jabatan",
+    icon: Layers,
     roles: ["ADMIN"],
   },
 ];

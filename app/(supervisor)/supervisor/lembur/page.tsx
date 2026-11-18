@@ -13,9 +13,14 @@ import { formatDuration, formatTime, formatWorkDate, getWorkDate } from "@/lib/d
 import { OvertimeService } from "@/servers/services/overtime.service";
 
 export default async function SupervisorLemburPage() {
-  await requireRole(Role.SUPERVISOR);
+  const user = await requireRole(Role.SUPERVISOR);
 
-  const requests = await OvertimeService.list();
+  const allRequests = await OvertimeService.list();
+  const requests = allRequests.filter(
+    (request) =>
+      request.user.role === Role.EMPLOYEE &&
+      Boolean(user.divisionId && request.user.divisionId === user.divisionId),
+  );
 
   const rows: OvertimeApprovalRow[] = requests.map((request) => ({
     id: request.id,

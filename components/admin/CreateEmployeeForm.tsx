@@ -50,6 +50,8 @@ type FormValues = {
   role: Role;
   phone: string;
   position: string;
+  divisionId: string;
+  positionId: string;
 
   nik: string;
   placeOfBirth: string;
@@ -109,7 +111,17 @@ function SectionToggle({
   );
 }
 
-export default function CreateEmployeeForm() {
+export type DivisionOption = {
+  id: string;
+  name: string;
+  positions: { id: string; name: string }[];
+};
+
+export default function CreateEmployeeForm({
+  divisions = [],
+}: {
+  divisions?: DivisionOption[];
+}) {
   const router = useRouter();
   const [sections, setSections] = useState<Record<ToggleKey, boolean>>({
     identity: false,
@@ -126,6 +138,8 @@ export default function CreateEmployeeForm() {
     register,
     handleSubmit,
     setError,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     defaultValues: {
@@ -136,6 +150,8 @@ export default function CreateEmployeeForm() {
       role: Role.EMPLOYEE,
       phone: "",
       position: "",
+      divisionId: "",
+      positionId: "",
       nik: "",
       placeOfBirth: "",
       dateOfBirth: "",
@@ -183,6 +199,8 @@ export default function CreateEmployeeForm() {
       role: values.role,
       phone: values.phone,
       position: values.position,
+      divisionId: values.divisionId || undefined,
+      positionId: values.positionId || undefined,
       personalIdentity: sections.identity
         ? {
             nik: values.nik,
@@ -244,6 +262,8 @@ export default function CreateEmployeeForm() {
     router.push("/admin/daftar-pekerja");
     router.refresh();
   });
+
+  const watchedDivisionId = watch("divisionId");
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-5">
@@ -310,10 +330,79 @@ export default function CreateEmployeeForm() {
                 )}
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="divisionId">Divisi</Label>
+              <Controller
+                name="divisionId"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value || undefined}
+                    onValueChange={(val) => {
+                      field.onChange(val);
+                      setValue("positionId", "");
+                      setValue("position", "");
+                    }}
+                  >
+                    <SelectTrigger id="divisionId" className="w-full">
+                      <SelectValue placeholder="Pilih Divisi" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {divisions.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="position">Jabatan</Label>
-              <Input id="position" placeholder="Staff" {...register("position")} />
+              <Label htmlFor="positionId">Jabatan</Label>
+              <Controller
+                name="positionId"
+                control={control}
+                render={({ field }) => {
+                  const currentDiv = divisions.find((d) => d.id === watchedDivisionId);
+                  const availablePositions = currentDiv?.positions ?? [];
+
+                  return (
+                    <Select
+                      value={field.value || undefined}
+                      onValueChange={(val) => {
+                        field.onChange(val);
+                        const pos = availablePositions.find((p) => p.id === val);
+                        if (pos) setValue("position", pos.name);
+                      }}
+                      disabled={!watchedDivisionId || availablePositions.length === 0}
+                    >
+                      <SelectTrigger id="positionId" className="w-full">
+                        <SelectValue
+                          placeholder={
+                            !watchedDivisionId
+                              ? "Pilih divisi dahulu"
+                              : availablePositions.length === 0
+                              ? "Belum ada jabatan"
+                              : "Pilih Jabatan"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availablePositions.map((pos) => (
+                          <SelectItem key={pos.id} value={pos.id}>
+                            {pos.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  );
+                }}
+              />
             </div>
           </div>
 

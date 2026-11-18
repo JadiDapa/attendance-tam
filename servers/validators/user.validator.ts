@@ -19,6 +19,8 @@ export const CreateUserSchema = z.object({
     .optional()
     .or(z.literal("")),
   position: z.string().trim().max(60).optional().or(z.literal("")),
+  divisionId: z.string().optional().or(z.literal("")),
+  positionId: z.string().optional().or(z.literal("")),
 });
 
 /**

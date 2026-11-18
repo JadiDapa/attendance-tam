@@ -21,7 +21,10 @@ import { OvertimeService } from "@/servers/services/overtime.service";
 export default async function ManagerLemburPage() {
   await requireRole(Role.MANAGER);
 
-  const requests = await OvertimeService.list();
+  const allRequests = await OvertimeService.list();
+  const requests = allRequests.filter(
+    (request) => request.user.role === Role.SUPERVISOR,
+  );
 
   const rows: OvertimeApprovalRow[] = requests.map((request) => ({
     id: request.id,
@@ -50,7 +53,7 @@ export default async function ManagerLemburPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Pengajuan Lembur"
-        subtitle="Setujui atau tolak pengajuan lembur milik supervisor — pengajuan karyawan lain sudah diputuskan supervisornya masing-masing."
+        subtitle="Setujui atau tolak pengajuan lembur milik supervisor."
       />
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -65,7 +68,7 @@ export default async function ManagerLemburPage() {
           label="Total Lembur"
           icon={CheckCircle2}
           value={String(requests.length)}
-          footerLabel="Semua pengajuan lembur"
+          footerLabel="Pengajuan lembur dari supervisor"
         />
       </div>
 

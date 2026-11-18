@@ -247,6 +247,36 @@ export async function reviewOvertime(
 
   const current = await OvertimeService.getById(overtimeId);
 
+  if (!current) {
+    return {
+      ok: false,
+      error: "Pengajuan tidak ditemukan atau sudah diproses lebih dulu",
+    };
+  }
+
+  // Pembatasan hak review: Role dan Divisi
+  if (reviewer.role === Role.SUPERVISOR) {
+    if (current.user.role !== Role.EMPLOYEE) {
+      return {
+        ok: false,
+        error: "Supervisor hanya berwenang menyetujui pengajuan staf (Employee)",
+      };
+    }
+    if (!reviewer.divisionId || current.user.divisionId !== reviewer.divisionId) {
+      return {
+        ok: false,
+        error: "Supervisor hanya berwenang menyetujui pengajuan staf di divisi yang sama",
+      };
+    }
+  } else if (reviewer.role === Role.MANAGER) {
+    if (current.user.role !== Role.SUPERVISOR) {
+      return {
+        ok: false,
+        error: "Manager hanya berwenang menyetujui pengajuan supervisor",
+      };
+    }
+  }
+
   // Ditolak sambil lembur masih berjalan (endAt null) — tutup sesinya
   // sekalian, kalau tidak akan menggantung selamanya dan memblokir
   // karyawan mulai lembur berikutnya (lihat getOpenForUser).
