@@ -11,7 +11,6 @@ import {
   ReviewFieldAssignmentSchema,
 } from "@/servers/validators/field-assignment.validator";
 import { FieldAssignmentService } from "@/servers/services/field-assignment.service";
-import { UserService } from "@/servers/services/user.service";
 import { ApprovalLogService } from "@/servers/services/approval-log.service";
 
 export type FieldAssignmentResult =
@@ -74,21 +73,16 @@ export async function createFieldAssignment(
     return { ok: false, error: "Tanggal tidak valid" };
   }
 
-  // Karyawan yang dipilih harus benar-benar EMPLOYEE aktif — dicek di server,
-  // bukan cuma dipercaya dari pilihan client.
+  // Karyawan yang dipilih harus EMPLOYEE aktif di Divisi Supervisor ini —
+  // dicek di server, bukan cuma dipercaya dari pilihan client. Satu-satunya
+  // tempat id dobel dibuang; dipakai untuk validasi dan penyimpanan.
   const uniqueIds = [...new Set(parsed.data.employeeIds)];
-  const employees = await Promise.all(
-    uniqueIds.map((id) => UserService.getById(id)),
-  );
-  const invalid = employees.some(
-    (employee) =>
-      !employee || employee.role !== Role.EMPLOYEE || !employee.isActive,
-  );
 
-  if (invalid) {
+  if (!(await FieldAssignmentService.areAssignable(user, uniqueIds))) {
     return {
       ok: false,
-      error: "Salah satu karyawan yang dipilih tidak valid atau tidak aktif",
+      error:
+        "Salah satu karyawan yang dipilih tidak aktif atau di luar Divisi Anda",
     };
   }
 

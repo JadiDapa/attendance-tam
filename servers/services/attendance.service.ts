@@ -3,9 +3,13 @@ import {
   Attendance,
   AttendanceApproval,
   AttendanceType,
-  Role,
   WorkMode,
 } from "@/generated/prisma";
+import type { ApprovalScope } from "@/lib/approval-routing";
+import {
+  buildAttendanceWhereForScope,
+  type AttendanceScope,
+} from "./approval-routing.service";
 import { CreateAttendanceDTO } from "../validators/attendance.validator";
 
 export type DailyAttendance = {
@@ -30,7 +34,7 @@ export const AttendanceService = {
   async getById(id: string) {
     return prisma.attendance.findUnique({
       where: { id },
-      include: { user: true },
+      include: { user: { include: { jobPosition: true } } },
     });
   },
 
@@ -97,15 +101,10 @@ export const AttendanceService = {
     });
   },
 
-  /** Absensi luar radius yang menunggu giliran reviewer tertentu (SUPERVISOR/MANAGER) — lihat `ownerRolesForAttendanceReviewer`. */
-  async listPendingApprovalForOwnerRoles(ownerRoles: Role[]) {
-    if (ownerRoles.length === 0) return [];
-
+  /** Absensi luar radius yang menunggu giliran reviewer (SUPERVISOR/MANAGER) sesuai cakupan Divisinya — lihat `buildAttendanceWhereForScope`. */
+  async listPendingApprovalForScope(scope: ApprovalScope) {
     return prisma.attendance.findMany({
-      where: {
-        approvalStatus: AttendanceApproval.PENDING,
-        user: { role: { in: ownerRoles } },
-      },
+      where: buildAttendanceWhereForScope(scope),
       orderBy: [{ workDate: "desc" }, { timestamp: "desc" }],
       include: { user: true },
     });
@@ -120,15 +119,10 @@ export const AttendanceService = {
     });
   },
 
-  /** Sama seperti `listPendingApprovalForOwnerRoles`, tapi cuma jumlahnya — untuk badge sidebar. */
-  async countPendingApprovalForOwnerRoles(ownerRoles: Role[]) {
-    if (ownerRoles.length === 0) return 0;
-
+  /** Sama seperti `listPendingApprovalForScope`, tapi cuma jumlahnya — untuk badge sidebar. */
+  async countPendingApprovalForScope(scope: ApprovalScope) {
     return prisma.attendance.count({
-      where: {
-        approvalStatus: AttendanceApproval.PENDING,
-        user: { role: { in: ownerRoles } },
-      },
+      where: buildAttendanceWhereForScope(scope),
     });
   },
 
@@ -167,26 +161,27 @@ export const AttendanceService = {
   },
 
   /**
-   * Setujui sekaligus semua absensi luar radius yang masih PENDING milik
-   * `ownerRoles`, sesuai klaim karyawan (`approvedMode = workMode`). Hanya
-   * menyentuh klaim `LUAR_RADIUS` — satu-satunya mode yang pernah PENDING dan
-   * tidak butuh hitung ulang keterlambatan. Mengembalikan jumlah yang berhasil
-   * disetujui.
+   * Setujui sekaligus semua absensi luar radius yang masih PENDING dalam
+   * cakupan reviewer (`ApprovalRoutingService.getAttendanceScopeForReviewer`),
+   * sesuai klaim karyawan (`approvedMode = workMode`). Hanya menyentuh klaim
+   * `LUAR_RADIUS` — satu-satunya mode yang pernah PENDING dan tidak butuh
+   * hitung ulang keterlambatan. Mengembalikan jumlah yang berhasil disetujui.
    */
   async approveAllPending(data: {
-    ownerRoles: Role[];
+    scope: AttendanceScope;
     excludeUserId: string;
     reviewedById: string;
     reviewNote: string;
   }): Promise<number> {
-    if (data.ownerRoles.length === 0) return 0;
-
     const { count } = await prisma.attendance.updateMany({
       where: {
-        approvalStatus: AttendanceApproval.PENDING,
-        workMode: WorkMode.LUAR_RADIUS,
-        user: { role: { in: data.ownerRoles } },
-        userId: { not: data.excludeUserId },
+        AND: [
+          buildAttendanceWhereForScope(data.scope),
+          {
+            workMode: WorkMode.LUAR_RADIUS,
+            userId: { not: data.excludeUserId },
+          },
+        ],
       },
       data: {
         approvalStatus: AttendanceApproval.APPROVED,

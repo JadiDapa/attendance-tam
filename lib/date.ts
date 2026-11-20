@@ -58,6 +58,14 @@ const longDateFormatter = new Intl.DateTimeFormat("id-ID", {
   year: "numeric",
 });
 
+/** Nama hari lengkap + bulan singkat tanpa tahun, mis. "Sabtu, 14 Nov". */
+const dayShortDateFormatter = new Intl.DateTimeFormat("id-ID", {
+  timeZone: "UTC",
+  weekday: "long",
+  day: "numeric",
+  month: "short",
+});
+
 const compactDateFormatter = new Intl.DateTimeFormat("id-ID", {
   timeZone: "UTC",
   day: "numeric",
@@ -173,6 +181,11 @@ export function formatWeekday(date: Date): string {
 /** Label lengkap, mis. "Senin, 14 September 2026". Input harus kolom `date`. */
 export function formatLongIndonesianDate(date: Date): string {
   return longDateFormatter.format(date);
+}
+
+/** Nama hari + tanggal singkat, mis. "Sabtu, 14 Nov". Input harus kolom `date`. */
+export function formatDayShortDate(date: Date): string {
+  return dayShortDateFormatter.format(date);
 }
 
 /** "2j 5m" kalau >= 1 jam, "45m" kalau tidak — durasi keterlambatan dalam menit. */

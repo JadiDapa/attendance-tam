@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
 import { Role } from "@/generated/prisma";
 import { requireApiRole } from "@/lib/api-auth";
-import { UserService } from "@/servers/services/user.service";
+import { FieldAssignmentService } from "@/servers/services/field-assignment.service";
 
-/** Daftar karyawan aktif — dipakai pemilihan karyawan saat supervisor membuat penugasan dinas luar. */
+/**
+ * Daftar karyawan yang boleh dipilih Supervisor saat membuat Dinas luar:
+ * karyawan aktif di Divisinya (semua kalau Supervisor belum punya Jabatan).
+ * Bentuk respons tetap, jadi mobile 1.1.0 tidak perlu berubah.
+ */
 export async function GET() {
   const auth = await requireApiRole(Role.SUPERVISOR);
 
   if (!auth.user) return auth.response;
 
-  const employees = await UserService.list({
-    role: Role.EMPLOYEE,
-    isActive: true,
-  });
+  const employees = await FieldAssignmentService.listAssignableEmployees(
+    auth.user,
+  );
 
   return NextResponse.json({
     items: employees.map((employee) => ({

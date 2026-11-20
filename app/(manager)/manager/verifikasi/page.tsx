@@ -8,22 +8,22 @@ import { Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import { formatTime, formatWorkDate } from "@/lib/date";
 import { formatDistance } from "@/lib/geo";
-import { ATTENDANCE_TYPE_LABEL, ownerRolesForAttendanceReviewer } from "@/lib/attendance";
+import { ATTENDANCE_TYPE_LABEL } from "@/lib/attendance";
+import { ApprovalRoutingService } from "@/servers/services/approval-routing.service";
 import { AttendanceService } from "@/servers/services/attendance.service";
 import { OfficeLocationService } from "@/servers/services/setting.service";
 
 /**
- * Verifikasi absensi milik supervisor — manager cuma kebagian giliran ini
- * (absensi karyawan/admin sudah diputuskan supervisor masing-masing, lihat
- * `ownerRolesForAttendanceReviewer` di lib/attendance.ts).
+ * Verifikasi absensi milik supervisor, plus absensi karyawan/admin di Divisi
+ * yang tidak punya Supervisor Divisi aktif (cakupan dari
+ * `ApprovalRoutingService.getScopeForReviewer`, ADR 0002).
  */
 export default async function ManagerVerifikasiPage() {
-  await requireRole(Role.MANAGER);
+  const reviewer = await requireRole(Role.MANAGER);
+  const scope = await ApprovalRoutingService.getScopeForReviewer(reviewer);
 
   const [pending, office] = await Promise.all([
-    AttendanceService.listPendingApprovalForOwnerRoles(
-      ownerRolesForAttendanceReviewer(Role.MANAGER),
-    ),
+    AttendanceService.listPendingApprovalForScope(scope),
     OfficeLocationService.getActive(),
   ]);
 

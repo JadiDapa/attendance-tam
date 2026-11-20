@@ -6,6 +6,7 @@ import { z } from "zod";
 import { Prisma, Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import { fromDateInputValue } from "@/lib/date";
+import { canHavePosition } from "@/lib/division";
 import {
   CreateUserSchema,
   UpdateUserSchema,
@@ -25,6 +26,7 @@ import {
   type WorkHistoryInput,
 } from "@/servers/validators/employee-profile.validator";
 import { UserService } from "@/servers/services/user.service";
+import { DivisionService } from "@/servers/services/division.service";
 import {
   ContactService,
   EmploymentDataService,
@@ -61,7 +63,13 @@ export async function createEmployee(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
   }
 
-  const { name, email, password, role, phone, position } = parsed.data;
+  const { name, email, password, role, phone, position, positionId } =
+    parsed.data;
+
+  if (!canHavePosition(role) && positionId) {
+    return { ok: false, error: "Manager tidak punya Jabatan maupun Divisi" };
+  }
+
   const normalizedEmail = email.toLowerCase();
   const client = await clerkClient();
 
@@ -78,8 +86,10 @@ export async function createEmployee(
     return { ok: false, error: GENERIC_CLERK_ERROR };
   }
 
+  let user: { id: string };
+
   try {
-    await UserService.create({
+    user = await UserService.create({
       clerkId: clerkUserId,
       name,
       email: normalizedEmail,
@@ -100,7 +110,19 @@ export async function createEmployee(
     throw error;
   }
 
+  if (positionId && canHavePosition(role)) {
+    try {
+      await DivisionService.assignPosition({
+        userId: user.id,
+        positionId,
+      });
+    } catch {
+      // Gagal set jabatan tidak membatalkan akun yang sudah jadi
+    }
+  }
+
   revalidatePath("/admin/daftar-pekerja");
+  revalidatePath("/admin/divisi");
   revalidatePath("/admin/rekapan-kehadiran");
 
   return { ok: true, message: `Akun ${name} berhasil dibuat` };
@@ -118,7 +140,8 @@ export async function updateEmployee(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
   }
 
-  const { name, email, password, role, phone, position } = parsed.data;
+  const { name, email, password, role, phone, position, positionId } =
+    parsed.data;
 
   if (admin.id === userId && role && role !== Role.ADMIN) {
     return { ok: false, error: "Tidak bisa mengubah role akun sendiri" };
@@ -128,6 +151,11 @@ export async function updateEmployee(
 
   if (!target) {
     return { ok: false, error: "Karyawan tidak ditemukan" };
+  }
+
+  const effectiveRole = role ?? target.role;
+  if (!canHavePosition(effectiveRole) && positionId) {
+    return { ok: false, error: "Manager tidak punya Jabatan maupun Divisi" };
   }
 
   const client = await clerkClient();
@@ -153,27 +181,45 @@ export async function updateEmployee(
     return { ok: false, error: GENERIC_CLERK_ERROR };
   }
 
+  const targetPositionId = !canHavePosition(effectiveRole) ? null : positionId;
+
   const data: Prisma.UserUpdateInput = {};
 
   if (name) data.name = name;
   if (normalizedEmail) data.email = normalizedEmail;
   if (role) data.role = role;
   if (phone !== undefined) data.phone = optional(phone);
-  if (position !== undefined) data.position = optional(position);
+  if (position !== undefined && targetPositionId === undefined) {
+    data.position = optional(position);
+  }
 
-  try {
-    await UserService.update(userId, data);
-  } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      return { ok: false, error: DUPLICATE_EMAIL };
+  if (Object.keys(data).length > 0) {
+    try {
+      await UserService.update(userId, data);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        return { ok: false, error: DUPLICATE_EMAIL };
+      }
+      throw error;
     }
-    throw error;
+  }
+
+  if (targetPositionId !== undefined && targetPositionId !== target.positionId) {
+    try {
+      await DivisionService.assignPosition({
+        userId,
+        positionId: targetPositionId,
+      });
+    } catch {
+      return { ok: false, error: "Jabatan tidak ditemukan atau sudah dihapus" };
+    }
   }
 
   revalidatePath("/admin/daftar-pekerja");
+  revalidatePath("/admin/divisi");
   revalidatePath(`/admin/daftar-pekerja/${userId}`);
   revalidatePath("/admin/rekapan-kehadiran");
 
@@ -208,6 +254,7 @@ export async function setEmployeeActive(
   await UserService.setActive(userId, isActive);
 
   revalidatePath("/admin/daftar-pekerja");
+  revalidatePath("/admin/divisi");
   revalidatePath(`/admin/daftar-pekerja/${userId}`);
   revalidatePath("/admin/rekapan-kehadiran");
 
@@ -453,7 +500,13 @@ export async function createEmployeeFull(
       ? trainingParsed.data
       : undefined;
 
-  const { name, email, password, role, phone, position } = core.data;
+  const { name, email, password, role, phone, position, positionId } =
+    core.data;
+
+  if (!canHavePosition(role) && positionId) {
+    return { ok: false, error: "Manager tidak punya Jabatan maupun Divisi" };
+  }
+
   const normalizedEmail = email.toLowerCase();
   const client = await clerkClient();
 
@@ -492,6 +545,17 @@ export async function createEmployeeFull(
       return { ok: false, error: DUPLICATE_EMAIL };
     }
     throw error;
+  }
+
+  if (positionId && canHavePosition(role)) {
+    try {
+      await DivisionService.assignPosition({
+        userId,
+        positionId,
+      });
+    } catch {
+      // Gagal set jabatan tidak membatalkan akun yang sudah jadi
+    }
   }
 
   // Akun intinya sudah jadi — bagian profil di bawah ini best-effort supaya
@@ -578,6 +642,7 @@ export async function createEmployeeFull(
   }
 
   revalidatePath("/admin/daftar-pekerja");
+  revalidatePath("/admin/divisi");
   revalidatePath(`/admin/daftar-pekerja/${userId}`);
   revalidatePath("/admin/rekapan-kehadiran");
 

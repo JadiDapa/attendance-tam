@@ -30,8 +30,28 @@ import {
   type WorkModeValue,
 } from "@/lib/work-mode";
 import { createManualAttendance } from "@/app/action/attendance.action";
+import { fromDateInputValue, getWorkDate } from "@/lib/date";
+import { autoCheckOutTimeFor, type WorkDayConfig } from "@/lib/work-schedule";
 
 type Employee = { id: string; name: string };
+
+/**
+ * Jam bawaan form: absen pulang = Jam Pulang Hari Kerja tanggal yang dipilih
+ * (Sabtu 14:00, hari biasa 17:00), absen masuk 08:00.
+ */
+function defaultTimeFor(
+  type: AttendanceType,
+  workDate: string,
+  workDays: WorkDayConfig[],
+): string {
+  if (type !== AttendanceType.CHECK_OUT) return "08:00";
+
+  // Tanggal kosong/tidak valid (input sedang dihapus): pakai hari ini di
+  // APP_TIMEZONE, bukan `new Date()` yang harinya ikut UTC.
+  const date = fromDateInputValue(workDate) ?? getWorkDate();
+
+  return autoCheckOutTimeFor(date, workDays);
+}
 
 /**
  * Admin menambahkan absen masuk/pulang untuk pengguna yang lupa absen atau
@@ -41,12 +61,15 @@ type Employee = { id: string; name: string };
  */
 export default function ManualAttendanceDialog({
   employees,
+  workDays,
   defaultDate,
   defaultUserId,
   defaultType = AttendanceType.CHECK_IN,
   compact = false,
 }: {
   employees: Employee[];
+  /** Hari Kerja mingguan — menentukan jam bawaan absen pulang. */
+  workDays: WorkDayConfig[];
   /** "YYYY-MM-DD" — tanggal yang sedang dilihat di halaman kehadiran. */
   defaultDate: string;
   defaultUserId?: string;
@@ -61,9 +84,9 @@ export default function ManualAttendanceDialog({
   const [userId, setUserId] = useState(defaultUserId ?? "");
   const [workDate, setWorkDate] = useState(defaultDate);
   const [type, setType] = useState<AttendanceType>(defaultType);
-  const [time, setTime] = useState(
-    defaultType === AttendanceType.CHECK_OUT ? "17:00" : "08:00",
-  );
+  /** null = belum diubah admin, ikut jam bawaan jenis + tanggal terpilih. */
+  const [pickedTime, setPickedTime] = useState<string | null>(null);
+  const time = pickedTime ?? defaultTimeFor(type, workDate, workDays);
   const [workMode, setWorkMode] = useState<WorkModeValue>("HADIR_DIKANTOR");
   const [reviewNote, setReviewNote] = useState("");
 
@@ -71,7 +94,7 @@ export default function ManualAttendanceDialog({
     setUserId(defaultUserId ?? "");
     setWorkDate(defaultDate);
     setType(defaultType);
-    setTime(defaultType === AttendanceType.CHECK_OUT ? "17:00" : "08:00");
+    setPickedTime(null);
     setWorkMode("HADIR_DIKANTOR");
     setReviewNote("");
   };
@@ -164,7 +187,7 @@ export default function ManualAttendanceDialog({
               id="manualTime"
               type="time"
               value={time}
-              onChange={(event) => setTime(event.target.value)}
+              onChange={(event) => setPickedTime(event.target.value)}
             />
           </div>
         </div>

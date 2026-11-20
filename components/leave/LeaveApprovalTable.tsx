@@ -45,6 +45,7 @@ export type LeaveApprovalRow = {
   reviewedBy: string | null;
   attachmentUrl: string | null;
   createdAt: string;
+  isMyTurn?: boolean;
 };
 
 export default function LeaveApprovalTable({
@@ -153,8 +154,9 @@ export default function LeaveApprovalTable({
       header: "Aksi",
       cell: ({ row }) => {
         const isMyTurn =
-          row.original.status === LeaveStatus.PENDING &&
-          row.original.stage === viewerStage;
+          row.original.isMyTurn ??
+          (row.original.status === LeaveStatus.PENDING &&
+            row.original.stage === viewerStage);
 
         return (
           <Button asChild variant={isMyTurn ? "default" : "ghost"} size="sm">

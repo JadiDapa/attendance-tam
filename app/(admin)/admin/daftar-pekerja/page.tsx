@@ -30,6 +30,7 @@ export default async function DaftarPekerjaPage() {
     role: user.role,
     phone: user.phone ?? "",
     position: user.position ?? "",
+    division: user.jobPosition?.division.name ?? null,
     profileImageUrl: user.profileImageUrl,
     isActive: user.isActive,
     joinedAt: formatWorkDate(getWorkDate(user.createdAt)),

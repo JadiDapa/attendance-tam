@@ -23,6 +23,7 @@ import { Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import { toDateInputValue } from "@/lib/date";
 import { UserService } from "@/servers/services/user.service";
+import { DivisionService } from "@/servers/services/division.service";
 import {
   AdministrativeDocumentService,
   ContactService,
@@ -51,7 +52,10 @@ export default async function EditEmployeeProfilePage({
   await requireRole(Role.ADMIN);
 
   const { id } = await params;
-  const employee = await UserService.getById(id);
+  const [employee, positionGroups] = await Promise.all([
+    UserService.getById(id),
+    DivisionService.listPositionGroups(),
+  ]);
 
   if (!employee) notFound();
 
@@ -108,7 +112,9 @@ export default async function EditEmployeeProfilePage({
             role: employee.role,
             phone: employee.phone ?? "",
             position: employee.position ?? "",
+            positionId: employee.positionId,
           }}
+          positionGroups={positionGroups}
         />
       </Panel>
 

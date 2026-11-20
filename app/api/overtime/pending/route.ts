@@ -1,20 +1,17 @@
 import { NextResponse } from "next/server";
-import { AttendanceApproval, Role } from "@/generated/prisma";
+import { Role } from "@/generated/prisma";
 import { requireApiAnyRole } from "@/lib/api-auth";
-import { OVERTIME_REVIEWER_STAGE } from "@/lib/overtime";
+import { ApprovalRoutingService } from "@/servers/services/approval-routing.service";
 import { OvertimeService } from "@/servers/services/overtime.service";
 
-/** Pengajuan lembur yang menunggu giliran reviewer yang login (supervisor/manager). */
+/** Pengajuan lembur yang menunggu giliran reviewer yang login (supervisor/manager) sesuai cakupan Divisi. */
 export async function GET() {
   const auth = await requireApiAnyRole([Role.SUPERVISOR, Role.MANAGER]);
 
   if (!auth.user) return auth.response;
 
-  const stage = OVERTIME_REVIEWER_STAGE[auth.user.role];
-  const items = await OvertimeService.list({
-    status: AttendanceApproval.PENDING,
-    stage,
-  });
+  const scope = await ApprovalRoutingService.getScopeForReviewer(auth.user);
+  const items = await OvertimeService.listPendingForScope(scope);
 
   return NextResponse.json({ items });
 }

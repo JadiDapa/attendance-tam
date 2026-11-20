@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { hasValidOvertimeStart } from "@/lib/work-schedule";
 
 const timeField = z
   .string()
@@ -27,11 +28,16 @@ export const WorkDaySchema = z
     isWorkingDay: z.boolean(),
     checkInTime: timeField,
     checkOutTime: timeField,
+    overtimeStartTime: timeField,
   })
   // Hari libur tetap menyimpan jamnya, jadi jam lama kembali saat diaktifkan.
   .refine((day) => !day.isWorkingDay || day.checkOutTime > day.checkInTime, {
     message: "Jam pulang harus setelah jam masuk",
     path: ["checkOutTime"],
+  })
+  .refine(hasValidOvertimeStart, {
+    message: "Jam mulai lembur tidak boleh sebelum jam pulang",
+    path: ["overtimeStartTime"],
   });
 
 export const WorkScheduleSchema = z

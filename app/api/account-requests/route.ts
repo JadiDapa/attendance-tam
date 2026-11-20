@@ -1,63 +1,15 @@
 import { NextResponse } from "next/server";
-import { encryptSecret } from "@/lib/crypto";
-import { CreateAccountRequestSchema } from "@/servers/validators/account-request.validator";
-import { AccountRequestService } from "@/servers/services/account-request.service";
-import { UserService } from "@/servers/services/user.service";
+import { ACCOUNT_REQUEST_CLOSED_MESSAGE } from "@/lib/contact-admin";
 
 /**
- * Endpoint publik (tanpa auth) — dipanggil mobile app sebelum user punya
- * sesi Clerk sama sekali, dari layar "Ajukan pembuatan akun". Admin yang
- * memutuskan approve/reject lewat dashboard (app/action/account-request.action.ts).
+ * Pendaftaran mandiri ditutup — akun hanya dibuat admin. Endpoint ini tetap ada
+ * karena mobile 1.1.0 masih memanggilnya dari layar "Ajukan pembuatan akun";
+ * 410 + `{ error }` (bentuk error API yang sudah dibaca mobile) ditampilkan
+ * apa adanya ke pengguna. Body tidak dibaca sama sekali.
  */
-export async function POST(request: Request) {
-  const body = await request.json().catch(() => null);
-
-  if (!body) {
-    return NextResponse.json({ error: "Body tidak valid" }, { status: 400 });
-  }
-
-  const parsed = CreateAccountRequestSchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? "Data tidak valid" },
-      { status: 400 },
-    );
-  }
-
-  const { name, phone, password } = parsed.data;
-  const email = parsed.data.email.toLowerCase();
-
-  const existingUser = await UserService.getByEmail(email);
-
-  if (existingUser) {
-    return NextResponse.json(
-      { error: "Email sudah terdaftar. Silakan masuk." },
-      { status: 409 },
-    );
-  }
-
-  const pendingRequest = await AccountRequestService.findPendingByEmail(email);
-
-  if (pendingRequest) {
-    return NextResponse.json(
-      {
-        error:
-          "Permintaan pembuatan akun untuk email ini masih menunggu persetujuan admin.",
-      },
-      { status: 409 },
-    );
-  }
-
-  await AccountRequestService.create({
-    name,
-    email,
-    phone: phone ? phone.trim() : null,
-    passwordEncrypted: encryptSecret(password),
-  });
-
+export function POST() {
   return NextResponse.json(
-    { message: "Permintaan berhasil dikirim, menunggu persetujuan admin." },
-    { status: 201 },
+    { error: ACCOUNT_REQUEST_CLOSED_MESSAGE },
+    { status: 410 },
   );
 }

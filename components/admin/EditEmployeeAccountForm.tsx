@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,13 +10,21 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Role } from "@/generated/prisma";
 import { ROLE_LABEL } from "@/lib/role";
+import {
+  NO_POSITION,
+  canHavePosition,
+  normalizePositionId,
+  type PositionGroup,
+} from "@/lib/division";
 import { updateEmployee } from "@/app/action/user.action";
 import {
   EmployeeFormSchema,
@@ -31,12 +39,15 @@ export type EmployeeAccountValues = {
   role: Role;
   phone: string;
   position: string;
+  positionId?: string | null;
 };
 
 export default function EditEmployeeAccountForm({
   employee,
+  positionGroups = [],
 }: {
   employee: EmployeeAccountValues;
+  positionGroups?: PositionGroup[];
 }) {
   const router = useRouter();
 
@@ -54,11 +65,19 @@ export default function EditEmployeeAccountForm({
       role: employee.role,
       phone: employee.phone,
       position: employee.position,
+      positionId: employee.positionId ?? NO_POSITION,
     },
   });
 
+  const watchRole = useWatch({ control, name: "role" });
+
   const onSubmit = handleSubmit(async (values) => {
-    const result = await updateEmployee(employee.id, values);
+    const result = await updateEmployee(employee.id, {
+      ...values,
+      positionId: !canHavePosition(values.role)
+        ? null
+        : normalizePositionId(values.positionId),
+    });
 
     if (!result.ok) {
       toast.error(result.error);
@@ -129,7 +148,44 @@ export default function EditEmployeeAccountForm({
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="position">Jabatan</Label>
-          <Input id="position" placeholder="Staff" {...register("position")} />
+          <Controller
+            control={control}
+            name="positionId"
+            render={({ field }) => (
+              <Select
+                value={
+                  !canHavePosition(watchRole)
+                    ? NO_POSITION
+                    : (field.value || NO_POSITION)
+                }
+                onValueChange={field.onChange}
+                disabled={!canHavePosition(watchRole)}
+              >
+                <SelectTrigger id="position" className="w-full">
+                  <SelectValue placeholder="Pilih Jabatan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_POSITION}>
+                    {!canHavePosition(watchRole)
+                      ? "Manager tidak punya Jabatan"
+                      : "Kosongkan Jabatan"}
+                  </SelectItem>
+                  {positionGroups
+                    .filter((group) => group.positions.length > 0)
+                    .map((group) => (
+                      <SelectGroup key={group.divisionId}>
+                        <SelectLabel>Divisi {group.divisionName}</SelectLabel>
+                        {group.positions.map((pos) => (
+                          <SelectItem key={pos.id} value={pos.id}>
+                            {pos.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
         </div>
       </div>
 

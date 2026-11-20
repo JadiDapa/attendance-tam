@@ -63,6 +63,7 @@ export function HomeScreen({
   checkIn,
   checkOut,
   checkInClosed,
+  overtimeStartTime,
   faceEnrolled,
   runningOvertime,
   completedOvertimeToday,
@@ -77,6 +78,8 @@ export function HomeScreen({
   checkIn: CheckEntry | null;
   checkOut: CheckOutEntry | null;
   checkInClosed: boolean;
+  /** Jam Mulai Lembur Hari Kerja hari ini ("HH:mm"). */
+  overtimeStartTime: string;
   faceEnrolled: boolean;
   runningOvertime: { id: string; startAtIso: string } | null;
   completedOvertimeToday: {
@@ -405,6 +408,7 @@ export function HomeScreen({
 
       <OvertimeStartDrawer
         open={startDrawerOpen}
+        overtimeStartTime={overtimeStartTime}
         onClose={() => setStartDrawerOpen(false)}
         onStart={handleStartOvertime}
         submitting={isPending}

@@ -2,8 +2,8 @@ import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 
 /**
  * Enkripsi simetris (AES-256-GCM) untuk password mentah yang ditulis pemohon
- * di form "Ajukan pembuatan akun" (mobile) — perlu bisa didekripsi lagi saat
- * admin menyetujui (dipakai membuat akun Clerk), jadi tidak bisa di-hash
+ * di form "Ajukan pembuatan akun" (sudah ditutup; yang tersisa hanya pengajuan
+ * lama yang masih PENDING) — perlu bisa didekripsi lagi saat admin menyetujui (dipakai membuat akun Clerk), jadi tidak bisa di-hash
  * satu arah seperti password login biasa. Lihat `AccountRequest.passwordEncrypted`.
  */
 

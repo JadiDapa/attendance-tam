@@ -11,6 +11,8 @@ import { LeaveStage, LeaveType, Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import { formatWorkDate, getWorkDate } from "@/lib/date";
 import { countLeaveDays, LEAVE_TYPE_LABEL } from "@/lib/leave";
+import { isTurnToReview } from "@/lib/approval-routing";
+import { ApprovalRoutingService } from "@/servers/services/approval-routing.service";
 import { LeaveService } from "@/servers/services/leave.service";
 
 const REVIEWABLE_TYPES: LeaveType[] = [
@@ -20,9 +22,14 @@ const REVIEWABLE_TYPES: LeaveType[] = [
 ];
 
 export default async function ManagerIzinPage() {
-  await requireRole(Role.MANAGER);
+  const user = await requireRole(Role.MANAGER);
 
-  const requests = (await LeaveService.list()).filter((request) =>
+  const [allRequests, scope] = await Promise.all([
+    LeaveService.list(),
+    ApprovalRoutingService.getScopeForReviewer(user),
+  ]);
+
+  const requests = allRequests.filter((request) =>
     REVIEWABLE_TYPES.includes(request.type),
   );
 
@@ -44,11 +51,17 @@ export default async function ManagerIzinPage() {
     reviewedBy: request.reviewedBy?.name ?? null,
     attachmentUrl: request.attachmentUrl,
     createdAt: formatWorkDate(getWorkDate(request.createdAt)),
+    isMyTurn: isTurnToReview({
+      scope,
+      target: {
+        status: request.status,
+        stage: request.stage,
+        requesterDivisionId: request.user.jobPosition?.divisionId ?? null,
+      },
+    }),
   }));
 
-  const myTurn = requests.filter(
-    (request) => request.status === "PENDING" && request.stage === LeaveStage.MANAGER,
-  ).length;
+  const myTurn = await LeaveService.countPendingForScope(scope);
 
   return (
     <div className="flex flex-col gap-6">

@@ -11,7 +11,9 @@ import SelfOvertimeTable, {
 } from "@/components/overtime/SelfOvertimeTable";
 import { AttendanceApproval, type User } from "@/generated/prisma";
 import { formatDuration, formatTime, formatWorkDate, getWorkDate } from "@/lib/date";
+import { getWorkDayFor } from "@/lib/work-schedule";
 import { OvertimeService } from "@/servers/services/overtime.service";
+import { WorkDayService } from "@/servers/services/setting.service";
 
 /**
  * Dashboard lembur diri sendiri — dipakai admin di `/admin/lembur-saya` dan
@@ -28,7 +30,11 @@ export default async function SelfOvertimeDashboard({
   user: User;
   subtitle: string;
 }) {
-  const requests = await OvertimeService.list({ userId: user.id });
+  const [requests, workDays] = await Promise.all([
+    OvertimeService.list({ userId: user.id }),
+    WorkDayService.list(),
+  ]);
+  const { overtimeStartTime } = getWorkDayFor(getWorkDate(), workDays);
   const open = requests.find((request) => !request.endAt) ?? null;
 
   const rows: SelfOvertimeRow[] = requests.map((request) => ({
@@ -57,7 +63,7 @@ export default async function SelfOvertimeDashboard({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <PageHeader title="Lembur Saya" subtitle={subtitle} />
-        {!open && <SelfOvertimeForm />}
+        {!open && <SelfOvertimeForm overtimeStartTime={overtimeStartTime} />}
       </div>
 
       {open && (

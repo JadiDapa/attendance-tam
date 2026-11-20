@@ -53,6 +53,7 @@ export default function WorkScheduleForm({
       isWorkingDay: Boolean(day.isWorkingDay),
       checkInTime: day.checkInTime,
       checkOutTime: day.checkOutTime,
+      overtimeStartTime: day.overtimeStartTime,
     })),
   );
 
@@ -74,10 +75,13 @@ export default function WorkScheduleForm({
       setValue(`days.${index}.checkOutTime`, source.checkOutTime, {
         shouldValidate: true,
       });
+      setValue(`days.${index}.overtimeStartTime`, source.overtimeStartTime, {
+        shouldValidate: true,
+      });
     });
 
     toast.success(
-      `Semua hari kerja disamakan ke ${source.checkInTime}–${source.checkOutTime}`,
+      `Semua hari kerja disamakan ke ${source.checkInTime}–${source.checkOutTime}, lembur mulai ${source.overtimeStartTime}`,
     );
   };
 
@@ -165,15 +169,27 @@ export default function WorkScheduleForm({
                         aria-label="Jam pulang"
                         {...register(`days.${index}.checkOutTime`)}
                       />
+                      <span className="text-muted-foreground ml-2 text-sm">
+                        Lembur mulai
+                      </span>
+                      <Input
+                        type="time"
+                        className="w-32"
+                        aria-label="Jam mulai lembur"
+                        {...register(`days.${index}.overtimeStartTime`)}
+                      />
                     </div>
                   ) : (
                     <span className="text-muted-foreground text-sm">Libur</span>
                   )}
 
-                  {(dayError?.checkInTime || dayError?.checkOutTime) && (
+                  {(dayError?.checkInTime ||
+                    dayError?.checkOutTime ||
+                    dayError?.overtimeStartTime) && (
                     <p className="text-destructive w-full text-sm">
                       {dayError.checkOutTime?.message ??
-                        dayError.checkInTime?.message}
+                        dayError.checkInTime?.message ??
+                        dayError.overtimeStartTime?.message}
                     </p>
                   )}
                 </div>

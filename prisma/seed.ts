@@ -196,6 +196,7 @@ export async function main() {
         isWorkingDay: dayOfWeek >= 1 && dayOfWeek <= 5,
         checkInTime: "08:00",
         checkOutTime: "17:00",
+        overtimeStartTime: "18:00",
       },
     });
   }

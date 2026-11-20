@@ -11,6 +11,7 @@ import SearchDataTable from "@/components/dashboard/SearchDataTable";
 import SelectDataTable from "@/components/dashboard/SelectDataTable";
 import { Role } from "@/generated/prisma";
 import { ROLE_LABEL } from "@/lib/role";
+import { formatWorkerPosition } from "@/lib/division";
 
 export type WorkerRow = {
   id: string;
@@ -19,6 +20,7 @@ export type WorkerRow = {
   role: Role;
   phone: string;
   position: string;
+  division?: string | null;
   isActive: boolean;
   joinedAt: string;
   profileImageUrl: string | null;
@@ -70,7 +72,7 @@ const columns: ColumnDef<WorkerRow>[] = [
             {row.original.name}
           </Link>
           <p className="text-muted-foreground text-xs">
-            {row.original.position || "Tanpa jabatan"}
+            {formatWorkerPosition(row.original.position, row.original.division)}
           </p>
         </div>
       </div>

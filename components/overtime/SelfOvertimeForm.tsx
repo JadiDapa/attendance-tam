@@ -21,12 +21,19 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { startOvertime } from "@/app/action/overtime.action";
+import { parseTimeToMinutes } from "@/lib/date";
+import { canStartOvertimeAt } from "@/lib/work-schedule";
 import {
   StartOvertimeSchema,
   type StartOvertimeDTO,
 } from "@/servers/validators/overtime.validator";
 
-export default function SelfOvertimeForm() {
+/** `overtimeStartTime` = Jam Mulai Lembur Hari Kerja hari ini ("HH:mm"). */
+export default function SelfOvertimeForm({
+  overtimeStartTime,
+}: {
+  overtimeStartTime: string;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
@@ -34,13 +41,27 @@ export default function SelfOvertimeForm() {
     register,
     handleSubmit,
     reset,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<StartOvertimeDTO>({
     resolver: zodResolver(StartOvertimeSchema),
-    defaultValues: { startTime: "18:00", reason: "" },
+    defaultValues: { startTime: overtimeStartTime, reason: "" },
   });
 
   const onSubmit = handleSubmit(async (values) => {
+    // Cek awal saja — server tetap menentukan lewat aturan yang sama.
+    const minutes = parseTimeToMinutes(values.startTime);
+
+    if (
+      minutes === null ||
+      !canStartOvertimeAt(minutes, { overtimeStartTime })
+    ) {
+      setError("startTime", {
+        message: `Lembur hari ini baru bisa dimulai pukul ${overtimeStartTime}`,
+      });
+      return;
+    }
+
     const result = await startOvertime(values);
 
     if (!result.ok) {
@@ -72,8 +93,8 @@ export default function SelfOvertimeForm() {
         <DialogHeader>
           <DialogTitle>Mulai Lembur</DialogTitle>
           <DialogDescription>
-            Absen pulang hari ini harus sudah tercatat. Lembur hanya bisa
-            dimulai pukul 18:00 atau lebih larut.
+            Absen pulang hari ini harus sudah tercatat. Lembur hari ini bisa
+            dimulai pukul {overtimeStartTime} atau lebih larut.
           </DialogDescription>
         </DialogHeader>
 
@@ -83,7 +104,7 @@ export default function SelfOvertimeForm() {
             <Input
               id="startTime"
               type="time"
-              min="18:00"
+              min={overtimeStartTime}
               max="23:59"
               {...register("startTime")}
             />

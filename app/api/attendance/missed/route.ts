@@ -2,21 +2,30 @@ import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/api-auth";
 import { confirmMissedCheckout } from "@/app/action/attendance.action";
 import { AttendanceService } from "@/servers/services/attendance.service";
+import { WorkDayService } from "@/servers/services/setting.service";
 import { getWorkDate, toDateInputValue } from "@/lib/date";
+import { describeMissedCheckout } from "@/lib/missed-checkout";
 
-/** Hari-hari yang absen masuknya ada tapi absen pulangnya belum dikonfirmasi. */
+/**
+ * Hari-hari yang absen masuknya ada tapi absen pulangnya belum dikonfirmasi.
+ *
+ * - `days` — "YYYY-MM-DD" saja. Dipertahankan apa adanya untuk mobile 1.1.0.
+ * - `missedDays` — per hari: label hari + tanggal, jam masuk, dan jam pulang
+ *   otomatis (Jam Pulang Hari Kerja itu), semuanya sudah diformat di server.
+ */
 export async function GET() {
   const auth = await requireApiUser();
 
   if (!auth.user) return auth.response;
 
-  const unresolved = await AttendanceService.listUnresolvedCheckouts(
-    auth.user.id,
-    getWorkDate(),
-  );
+  const [unresolved, workDays] = await Promise.all([
+    AttendanceService.listUnresolvedCheckouts(auth.user.id, getWorkDate()),
+    WorkDayService.list(),
+  ]);
 
   return NextResponse.json({
     days: unresolved.map((row) => toDateInputValue(row.workDate)),
+    missedDays: unresolved.map((row) => describeMissedCheckout(row, workDays)),
   });
 }
 

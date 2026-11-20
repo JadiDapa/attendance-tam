@@ -2,22 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
+import { parseTimeToMinutes } from "@/lib/date";
 import { cn } from "@/lib/utils";
-
-const MIN_HOUR = 18; // overtime can only be started from 18:00 onward
+import { canStartOvertimeAt } from "@/lib/work-schedule";
 
 function formatTime(date: Date) {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
-/** Mirrors mobile's `OvertimeStartDrawer`. */
+/**
+ * Mirrors mobile's `OvertimeStartDrawer`. `overtimeStartTime` = Jam Mulai
+ * Lembur Hari Kerja hari ini ("HH:mm"), dari server.
+ */
 export function OvertimeStartDrawer({
   open,
+  overtimeStartTime,
   onClose,
   onStart,
   submitting,
 }: {
   open: boolean;
+  overtimeStartTime: string;
   onClose: () => void;
   onStart: (startTime: string, reason: string) => void;
   submitting: boolean;
@@ -38,8 +43,10 @@ export function OvertimeStartDrawer({
 
   const startTimeLabel =
     useCustomTime && customTime ? customTime : formatTime(now);
-  const startHour = Number(startTimeLabel.split(":")[0]);
-  const isTooEarly = Number.isNaN(startHour) || startHour < MIN_HOUR;
+  const startMinutes = parseTimeToMinutes(startTimeLabel);
+  const isTooEarly =
+    startMinutes === null ||
+    !canStartOvertimeAt(startMinutes, { overtimeStartTime });
 
   function resetForm() {
     setUseCustomTime(false);
@@ -72,7 +79,7 @@ export function OvertimeStartDrawer({
             Mulai Lembur
           </h2>
           <p className="text-muted-foreground text-center text-sm">
-            Jam mulai lembur harus pukul 18:00 atau lebih larut.
+            Jam mulai lembur harus pukul {overtimeStartTime} atau lebih larut.
           </p>
 
           <div className="flex flex-col gap-1.5">
@@ -95,7 +102,7 @@ export function OvertimeStartDrawer({
 
             {isTooEarly && (
               <span className="text-xs text-red-600 dark:text-red-400">
-                Jam mulai harus pukul 18:00 atau lebih larut
+                Jam mulai harus pukul {overtimeStartTime} atau lebih larut
               </span>
             )}
 

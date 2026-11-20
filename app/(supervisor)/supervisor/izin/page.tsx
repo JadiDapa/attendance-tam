@@ -11,6 +11,7 @@ import { LeaveStage, LeaveType, Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import { formatWorkDate, getWorkDate } from "@/lib/date";
 import { countLeaveDays, LEAVE_TYPE_LABEL } from "@/lib/leave";
+import { ApprovalRoutingService } from "@/servers/services/approval-routing.service";
 import { LeaveService } from "@/servers/services/leave.service";
 
 const REVIEWABLE_TYPES: LeaveType[] = [
@@ -20,13 +21,18 @@ const REVIEWABLE_TYPES: LeaveType[] = [
 ];
 
 export default async function SupervisorIzinPage() {
-  await requireRole(Role.SUPERVISOR);
+  const user = await requireRole(Role.SUPERVISOR);
 
-  const requests = (await LeaveService.list()).filter((request) =>
+  const [requests, scope] = await Promise.all([
+    LeaveService.listForViewer(user),
+    ApprovalRoutingService.getScopeForReviewer(user),
+  ]);
+
+  const filteredRequests = requests.filter((request) =>
     REVIEWABLE_TYPES.includes(request.type),
   );
 
-  const rows: LeaveApprovalRow[] = requests.map((request) => ({
+  const rows: LeaveApprovalRow[] = filteredRequests.map((request) => ({
     id: request.id,
     employeeName: request.user.name,
     employeePosition: request.user.position ?? "",
@@ -46,9 +52,7 @@ export default async function SupervisorIzinPage() {
     createdAt: formatWorkDate(getWorkDate(request.createdAt)),
   }));
 
-  const myTurn = requests.filter(
-    (request) => request.status === "PENDING" && request.stage === LeaveStage.SUPERVISOR,
-  ).length;
+  const myTurn = await LeaveService.countPendingForScope(scope);
 
   return (
     <div className="flex flex-col gap-6">
@@ -68,7 +72,7 @@ export default async function SupervisorIzinPage() {
         <StatTile
           label="Total Izin & Cuti"
           icon={CheckCircle2}
-          value={String(requests.length)}
+          value={String(filteredRequests.length)}
           footerLabel="Semua pengajuan izin & cuti"
         />
       </div>

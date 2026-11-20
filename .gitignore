@@ -49,3 +49,8 @@ next-env.d.ts
 # mobile-parity visual verification pipeline
 /parity-output/
 /parity-auth/
+
+# file pemetaan Divisi asli (data pribadi karyawan, tiket 14) — hanya contoh rekaan yang di-commit
+pemetaan-divisi*.csv
+pemetaan-divisi*.json
+!scripts/pemetaan-divisi.example.csv

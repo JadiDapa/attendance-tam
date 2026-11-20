@@ -17,6 +17,14 @@ import {
   type RecapRow,
 } from "@/lib/attendance";
 import { cn } from "@/lib/utils";
+import type { WorkDayConfig } from "@/lib/work-schedule";
+
+/** Mode admin: tanggal yang sedang dilihat + Hari Kerja untuk jam bawaan. */
+type AttendanceEdit = {
+  /** "YYYY-MM-DD" */
+  workDate: string;
+  workDays: WorkDayConfig[];
+};
 
 function AttendanceEntryCell({
   row,
@@ -26,7 +34,7 @@ function AttendanceEntryCell({
   row: RecapRow;
   type: AttendanceType;
   /** Diisi hanya untuk admin — memunculkan tombol ubah/tambah. */
-  edit?: { workDate: string };
+  edit?: AttendanceEdit;
 }) {
   const entry = type === AttendanceType.CHECK_IN ? row.checkIn : row.checkOut;
 
@@ -37,6 +45,7 @@ function AttendanceEntryCell({
         <ManualAttendanceDialog
           compact
           employees={[{ id: row.userId, name: row.name }]}
+          workDays={edit.workDays}
           defaultUserId={row.userId}
           defaultDate={edit.workDate}
           defaultType={type}
@@ -109,7 +118,7 @@ function AttendanceEntryCell({
   );
 }
 
-function buildColumns(edit?: { workDate: string }): ColumnDef<RecapRow>[] {
+function buildColumns(edit?: AttendanceEdit): ColumnDef<RecapRow>[] {
   return [
   {
     accessorKey: "name",
@@ -173,19 +182,19 @@ function buildColumns(edit?: { workDate: string }): ColumnDef<RecapRow>[] {
 export default function AttendanceRecapTable({
   rows,
   bare = false,
-  editDate,
+  edit,
 }: {
   rows: RecapRow[];
   bare?: boolean;
   /**
-   * "YYYY-MM-DD" — kalau diisi (khusus admin), tiap sel jam mendapat tombol
-   * ubah/tambah untuk tanggal ini.
+   * Kalau diisi (khusus admin), tiap sel jam mendapat tombol ubah/tambah untuk
+   * tanggal ini.
    */
-  editDate?: string;
+  edit?: AttendanceEdit;
 }) {
   return (
     <DataTable
-      columns={buildColumns(editDate ? { workDate: editDate } : undefined)}
+      columns={buildColumns(edit)}
       data={rows}
       title="Cari"
       bare={bare}

@@ -1,5 +1,11 @@
 import prisma from "@/lib/prisma";
-import { AttendanceApproval, TransportationType } from "@/generated/prisma";
+import {
+  AttendanceApproval,
+  Prisma,
+  Role,
+  TransportationType,
+} from "@/generated/prisma";
+import { ApprovalRoutingService } from "./approval-routing.service";
 
 export type FieldAssignmentListOptions = {
   createdById?: string;
@@ -18,7 +24,60 @@ function fieldAssignmentWhere(opts: FieldAssignmentListOptions) {
   return and.length ? { AND: and } : {};
 }
 
+/** Supervisor pembuat Dinas luar — Divisinya dibaca lewat Jabatan (ADR 0001). */
+export type FieldAssignmentCreator = { positionId: string | null };
+
+/**
+ * Karyawan yang boleh ditugaskan seorang Supervisor: EMPLOYEE aktif di Divisi
+ * Supervisor itu. Supervisor tanpa Jabatan boleh memilih semua karyawan
+ * (spec §2 Dinas luar). Satu filter untuk pemilih dan validasi server.
+ * Jabatan yang tidak ditemukan (mis. dihapus setelah sesi dimuat) → gagal
+ * tertutup: tidak ada yang bisa ditugaskan.
+ */
+async function assignableWhere(
+  creator: FieldAssignmentCreator,
+): Promise<Prisma.UserWhereInput> {
+  const base: Prisma.UserWhereInput = { role: Role.EMPLOYEE, isActive: true };
+
+  if (!creator.positionId) return base;
+
+  const divisionId = await ApprovalRoutingService.getUserDivisionId({
+    positionId: creator.positionId,
+  });
+
+  if (!divisionId) return { id: { in: [] } };
+
+  return { ...base, jobPosition: { divisionId } };
+}
+
 export const FieldAssignmentService = {
+  /** Pilihan karyawan saat Supervisor membuat Dinas luar (form web & `GET /api/users`). */
+  async listAssignableEmployees(creator: FieldAssignmentCreator) {
+    return prisma.user.findMany({
+      where: await assignableWhere(creator),
+      select: { id: true, name: true, position: true },
+      orderBy: { name: "asc" },
+    });
+  },
+
+  /**
+   * True kalau semua id termasuk karyawan yang boleh ditugaskan Supervisor ini.
+   * `employeeIds` harus sudah tanpa duplikat (dibuang action pemanggil) — id
+   * dobel membuat hasilnya false.
+   */
+  async areAssignable(
+    creator: FieldAssignmentCreator,
+    employeeIds: string[],
+  ): Promise<boolean> {
+    const count = await prisma.user.count({
+      where: {
+        AND: [await assignableWhere(creator), { id: { in: employeeIds } }],
+      },
+    });
+
+    return count === employeeIds.length;
+  },
+
   async list(opts: FieldAssignmentListOptions = {}) {
     return prisma.fieldAssignment.findMany({
       where: fieldAssignmentWhere(opts),

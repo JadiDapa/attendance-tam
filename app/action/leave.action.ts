@@ -3,14 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { ApprovalLogType, Role } from "@/generated/prisma";
 import { requireAnyRole, requireUser } from "@/lib/session";
-import { defaultRouteForRole } from "@/lib/role";
 import {
-  LEAVE_REVIEWER_STAGE,
   LEAVE_TYPE_LABEL,
   LEAVE_TYPES_REQUIRING_ATTACHMENT,
   resolveInitialLeaveStage,
 } from "@/lib/leave";
-import { redirect } from "next/navigation";
 import { saveAttachment, deleteUpload } from "@/lib/storage";
 import { formatWorkDate, fromDateInputValue } from "@/lib/date";
 import {
@@ -18,6 +15,7 @@ import {
   ReviewLeaveSchema,
 } from "@/servers/validators/leave.validator";
 import { LeaveService } from "@/servers/services/leave.service";
+import { ApprovalRoutingService } from "@/servers/services/approval-routing.service";
 import { ApprovalLogService } from "@/servers/services/approval-log.service";
 import { LeaveStatus } from "@/generated/prisma";
 import { z } from "zod";
@@ -187,9 +185,6 @@ export async function reviewLeaveRequest(
   input: z.input<typeof ReviewLeaveSchema>,
 ): Promise<LeaveResult> {
   const reviewer = await requireUser();
-  const stage = LEAVE_REVIEWER_STAGE[reviewer.role];
-
-  if (!stage) redirect(defaultRouteForRole(reviewer.role));
 
   const parsed = ReviewLeaveSchema.safeParse(input);
 
@@ -202,8 +197,31 @@ export async function reviewLeaveRequest(
 
   const leave = await LeaveService.getById(leaveId);
 
+  if (!leave) {
+    return {
+      ok: false,
+      error: "Pengajuan tidak ditemukan",
+    };
+  }
+
+  if (leave.status !== LeaveStatus.PENDING) {
+    return {
+      ok: false,
+      error: "Pengajuan tidak ditemukan atau sudah diproses lebih dulu",
+    };
+  }
+
+  const canReview = await ApprovalRoutingService.canReviewLeave(reviewer, leave);
+
+  if (!canReview) {
+    return {
+      ok: false,
+      error: "Anda tidak memiliki wewenang untuk meninjau pengajuan ini",
+    };
+  }
+
   const updated = await LeaveService.review(leaveId, {
-    stage,
+    stage: leave.stage,
     status: parsed.data.status,
     reviewedById: reviewer.id,
     reviewNote: parsed.data.reviewNote?.trim() || null,

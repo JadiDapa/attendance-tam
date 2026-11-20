@@ -58,7 +58,7 @@ Copy `.env.example` to `.env` and fill in the values:
 | `SEED_EMPLOYEE_EMAIL` / `SEED_EMPLOYEE_CLERK_ID` | Default employee seed account |
 | `SEED_SUPERVISOR_EMAIL` / `SEED_SUPERVISOR_CLERK_ID` | Default supervisor seed account |
 | `SEED_MANAGER_EMAIL` / `SEED_MANAGER_CLERK_ID` | Default manager seed account |
-| `ACCOUNT_REQUEST_SECRET` | 32-byte hex key (`openssl rand -hex 32`) used to encrypt the password submitted on the mobile "request account" flow until an admin approves it |
+| `ACCOUNT_REQUEST_SECRET` | 32-byte hex key (`openssl rand -hex 32`) that decrypts the password stored on legacy pending account requests when an admin approves them. Self sign-up is closed, so no new requests are created |
 | `APP_TIMEZONE` | Timezone used to resolve work dates / lateness (default `Asia/Jakarta`) |
 | `FACE_API_URL` | Base URL of the `ai-model` face-recognition service (internal network only — called from the Next.js server, never the browser) |
 | `FACE_API_SECRET` | Shared secret the face API checks so only this server can call it |
@@ -92,6 +92,10 @@ For production: `npx prisma migrate deploy` to apply migrations, then
 | `npm run build` | Production build |
 | `npm run start` | Start the production server |
 | `npm run lint` | ESLint |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Vitest unit tests (`lib/**/*.test.ts`) |
+| `npm run test:int` | Vitest integration tests (`servers/**/*.int.test.ts`) against a throwaway Postgres |
+| `npm run check` | Full CI gate: Prisma schema + migrations, lint, typecheck, unit and integration tests (`npm run check:unit` skips the integration tests) |
 | `npm run db:migrate` | `prisma migrate dev` |
 | `npm run db:generate` | Regenerate the Prisma client |
 | `npm run db:seed` | Seed the database (`prisma/seed.ts`) |
@@ -102,10 +106,12 @@ For production: `npx prisma migrate deploy` to apply migrations, then
 
 ## Features
 
-- **Attendance** — check-in with live camera face verification + GPS, check-out with face verification only; automatic distinction between in-office, out-of-radius (requires admin approval), and field-assignment attendance; late detection against a configurable weekly work schedule and holiday calendar
-- **Leave & sick requests (Izin/Sakit/Cuti)** — submission with optional attachment, admin/manager review
-- **Overtime (Lembur)** — start/stop tracking, admin correction tools
-- **Field assignments (Dinas Luar)** — supervisor-planned, admin-approved out-of-office work that exempts an employee from normal attendance for its date range
+- **Attendance** — check-in with live camera face verification + GPS, check-out with face verification only; automatic distinction between in-office, out-of-radius (requires approval, routed to the employee's Supervisor Divisi), and field-assignment attendance; late detection against a configurable weekly work schedule and holiday calendar
+- **Leave & sick requests (Izin/Sakit/Cuti)** — submission with optional attachment, supervisor/manager review
+- **Overtime (Lembur)** — start/stop tracking from each work day's own overtime start time (Jam Mulai Lembur), admin correction tools
+- **Field assignments (Dinas Luar)** — supervisor-planned, manager-approved out-of-office work that exempts an employee from normal attendance for its date range; a Supervisor Divisi can only assign members of their own Divisi
+- **Divisi & Jabatan** — org structure (Manager → Divisi → Jabatan → people) managed at `/admin/divisi`; requests (leave, overtime, out-of-radius attendance) are routed to the requester's Supervisor Divisi at review time, and to the Manager when a Divisi has no active Supervisor Divisi (see `docs/approval-routing.md`)
+- **Account access** — no self sign-up: the login page has a "Hubungi Admin" dialog, and admins create accounts at `/admin/daftar-pekerja/baru`
 - **Admin tools** — employee master data & account creation, attendance recap & correction, CSV/Excel reporting, office location & radius configuration, work schedule & holiday management
 - **Employee self-service** — profile & employment data (identity, contact, employment, work history, training, documents), password change, face enrollment
 - **Role-based access** — `EMPLOYEE`, `SUPERVISOR`, `MANAGER`, `ADMIN`, enforced both at the route layout level and re-checked server-side on every request
@@ -115,9 +121,9 @@ For production: `npx prisma migrate deploy` to apply migrations, then
 
 ```
 app/
-  (auth)/        public routes: login, forgot/reset password, request account
-  (employee)/    EMPLOYEE self-service: dashboard, riwayat, izin, lembur, pengaturan
-  (admin)/       ADMIN-only pages: kehadiran, daftar-pekerja, rekapan-kehadiran, izin, verifikasi, laporan, lokasi, waktu-kerja, hari-libur
+  (auth)/        public routes: login, forgot/reset password (request-account only redirects to login)
+  (employee)/    self-service tabs for every role: dashboard, riwayat, izin, lembur, pengaturan
+  (admin)/       ADMIN-only pages: kehadiran, daftar-pekerja, divisi, rekapan-kehadiran, izin, verifikasi, laporan, lokasi, waktu-kerja, hari-libur
   (manager)/     MANAGER pages
   (supervisor)/  SUPERVISOR pages
   (mobile)/      mobile-parity routes (absen, verifikasi-wajah, dinas-luar, approval, profil, ...)
@@ -130,14 +136,16 @@ servers/
 lib/             shared helpers: geo distance, date/timezone, CSV export, image storage, work schedule, holidays, session/auth helpers
 components/      UI: shadcn/ui primitives, dashboard widgets, mobile-tree components, auth forms
 prisma/          schema, migrations, seed scripts
+scripts/        one-off production scripts (pemetaan-divisi, koreksi-sabtu; run via wizard-skrip-produksi.sh) and CI helpers
 scripts/parity/  Playwright-based visual diff tooling against the mobile app
 ```
 
 ### Domain model (Prisma)
 
 Core entities: `User` (role + status, identity lives in Clerk via `clerkId`),
-`OfficeLocation`, `WorkSchedule`/`WorkDay`, `Attendance`, `Overtime`,
-`LeaveRequest`, `FieldAssignment`, `Holiday`, `AccountRequest`,
+`Division`/`Position` (Divisi & Jabatan), `OfficeLocation`,
+`WorkSchedule`/`WorkDay`, `Attendance`, `Overtime`, `LeaveRequest`,
+`FieldAssignment`, `Holiday`, `AccountRequest` (legacy, closed),
 `FaceEmbedding`, `ApprovalLog`, plus employee-record tables
 (`PersonalIdentity`, `Contact`, `EmploymentData`, `WorkHistory`,
 `AdministrativeDocument`, `Payroll`, `Training`).

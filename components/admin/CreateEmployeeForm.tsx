@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import {
   ArchiveIcon as Archive,
@@ -18,7 +18,9 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -40,6 +42,12 @@ import {
   MARITAL_STATUS_LABEL,
   RELIGION_LABEL,
 } from "@/lib/employee-profile";
+import {
+  NO_POSITION,
+  canHavePosition,
+  normalizePositionId,
+  type PositionGroup,
+} from "@/lib/division";
 import { createEmployeeFull } from "@/app/action/user.action";
 
 type FormValues = {
@@ -50,6 +58,7 @@ type FormValues = {
   role: Role;
   phone: string;
   position: string;
+  positionId: string;
 
   nik: string;
   placeOfBirth: string;
@@ -109,7 +118,11 @@ function SectionToggle({
   );
 }
 
-export default function CreateEmployeeForm() {
+export default function CreateEmployeeForm({
+  positionGroups = [],
+}: {
+  positionGroups?: PositionGroup[];
+}) {
   const router = useRouter();
   const [sections, setSections] = useState<Record<ToggleKey, boolean>>({
     identity: false,
@@ -136,6 +149,7 @@ export default function CreateEmployeeForm() {
       role: Role.EMPLOYEE,
       phone: "",
       position: "",
+      positionId: NO_POSITION,
       nik: "",
       placeOfBirth: "",
       dateOfBirth: "",
@@ -169,6 +183,8 @@ export default function CreateEmployeeForm() {
     },
   });
 
+  const watchRole = useWatch({ control, name: "role" });
+
   const onSubmit = handleSubmit(async (values) => {
     if (values.password !== values.confirmPassword) {
       setError("confirmPassword", { message: "Konfirmasi password tidak sama" });
@@ -183,6 +199,7 @@ export default function CreateEmployeeForm() {
       role: values.role,
       phone: values.phone,
       position: values.position,
+      positionId: normalizePositionId(values.positionId) ?? undefined,
       personalIdentity: sections.identity
         ? {
             nik: values.nik,
@@ -313,7 +330,44 @@ export default function CreateEmployeeForm() {
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="position">Jabatan</Label>
-              <Input id="position" placeholder="Staff" {...register("position")} />
+              <Controller
+                control={control}
+                name="positionId"
+                render={({ field }) => (
+                  <Select
+                    value={
+                      !canHavePosition(watchRole)
+                        ? NO_POSITION
+                        : (field.value || NO_POSITION)
+                    }
+                    onValueChange={field.onChange}
+                    disabled={!canHavePosition(watchRole)}
+                  >
+                    <SelectTrigger id="position" className="w-full">
+                      <SelectValue placeholder="Pilih Jabatan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_POSITION}>
+                        {!canHavePosition(watchRole)
+                          ? "Manager tidak punya Jabatan"
+                          : "Tanpa Jabatan"}
+                      </SelectItem>
+                      {positionGroups
+                        .filter((group) => group.positions.length > 0)
+                        .map((group) => (
+                          <SelectGroup key={group.divisionId}>
+                            <SelectLabel>Divisi {group.divisionName}</SelectLabel>
+                            {group.positions.map((pos) => (
+                              <SelectItem key={pos.id} value={pos.id}>
+                                {pos.name}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
           </div>
 

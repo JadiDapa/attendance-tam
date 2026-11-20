@@ -8,17 +8,17 @@ import { Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import { formatTime, formatWorkDate } from "@/lib/date";
 import { formatDistance } from "@/lib/geo";
-import { ATTENDANCE_TYPE_LABEL, ownerRolesForAttendanceReviewer } from "@/lib/attendance";
+import { ATTENDANCE_TYPE_LABEL } from "@/lib/attendance";
+import { ApprovalRoutingService } from "@/servers/services/approval-routing.service";
 import { AttendanceService } from "@/servers/services/attendance.service";
 import { OfficeLocationService } from "@/servers/services/setting.service";
 
 export default async function SupervisorVerifikasiPage() {
-  await requireRole(Role.SUPERVISOR);
+  const reviewer = await requireRole(Role.SUPERVISOR);
+  const scope = await ApprovalRoutingService.getScopeForReviewer(reviewer);
 
   const [pending, office] = await Promise.all([
-    AttendanceService.listPendingApprovalForOwnerRoles(
-      ownerRolesForAttendanceReviewer(Role.SUPERVISOR),
-    ),
+    AttendanceService.listPendingApprovalForScope(scope),
     OfficeLocationService.getActive(),
   ]);
 

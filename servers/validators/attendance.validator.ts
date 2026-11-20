@@ -118,7 +118,7 @@ export const UpdateAttendanceTimeSchema = z.object({
 export const ConfirmMissedCheckoutSchema = z.object({
   /** "YYYY-MM-DD" */
   workDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid"),
-  /** "HH:mm" — kosong berarti otomatis pukul 17:00, karyawan tidak perlu memilih jam. */
+  /** "HH:mm" — kosong berarti otomatis pukul Jam Pulang Hari Kerja itu; karyawan tidak perlu memilih jam. */
   time: z
     .string()
     .regex(/^\d{1,2}:\d{2}$/, "Format jam harus HH:mm")

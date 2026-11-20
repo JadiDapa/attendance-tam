@@ -30,17 +30,20 @@ function Field({ label, value }: { label: string; value: ReactNode }) {
 export default async function OvertimeDetailView({
   overtime,
   viewerStage,
+  canReview: canReviewProp,
   backHref,
   redirectTo,
 }: {
   overtime: NonNullable<Awaited<ReturnType<typeof OvertimeService.getById>>>;
   viewerStage: OvertimeStage;
+  canReview?: boolean;
   backHref: string;
   redirectTo: string;
 }) {
   const canReview =
-    overtime.status === AttendanceApproval.PENDING &&
-    overtime.stage === viewerStage;
+    canReviewProp ??
+    (overtime.status === AttendanceApproval.PENDING &&
+      overtime.stage === viewerStage);
   const dateLabel = formatWorkDate(overtime.workDate);
   const startTime = formatTime(overtime.startAt);
   const endTime = overtime.endAt ? formatTime(overtime.endAt) : null;

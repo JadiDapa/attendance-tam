@@ -43,11 +43,13 @@ function Field({
 export default async function LeaveDetailView({
   leave,
   viewerStage,
+  canReview: canReviewProp,
   backHref,
   redirectTo,
 }: {
   leave: NonNullable<Awaited<ReturnType<typeof LeaveService.getById>>>;
   viewerStage: LeaveStage;
+  canReview?: boolean;
   backHref: string;
   redirectTo: string;
 }) {
@@ -57,7 +59,8 @@ export default async function LeaveDetailView({
       : `${formatWorkDate(leave.startDate)} — ${formatWorkDate(leave.endDate)}`;
   const days = countLeaveDays(leave.startDate, leave.endDate);
   const canReview =
-    leave.status === LeaveStatus.PENDING && leave.stage === viewerStage;
+    canReviewProp ??
+    (leave.status === LeaveStatus.PENDING && leave.stage === viewerStage);
 
   return (
     <div className="flex max-w-3xl flex-col gap-5">

@@ -56,9 +56,12 @@ function durationLabel(fromIso: string, toIso: string | null) {
 
 export function LemburScreen({
   role,
+  overtimeStartTime,
   pendingReviewCount = 0,
 }: {
   role: Role;
+  /** Jam Mulai Lembur Hari Kerja hari ini ("HH:mm"). */
+  overtimeStartTime: string;
   pendingReviewCount?: number;
 }) {
   const router = useRouter();
@@ -273,6 +276,7 @@ export function LemburScreen({
 
       <OvertimeStartDrawer
         open={isStartDrawerOpen}
+        overtimeStartTime={overtimeStartTime}
         onClose={() => setStartDrawerOpen(false)}
         onStart={handleStartOvertime}
         submitting={isPending}

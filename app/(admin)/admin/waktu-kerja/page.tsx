@@ -21,7 +21,7 @@ export default async function WaktuKerjaPage() {
       <PageHeader
         back
         title="Waktu Kerja"
-        subtitle="Hari kerja dan jam masuk/pulang per hari — dasar penentuan terlambat dan hari libur."
+        subtitle="Hari kerja, jam masuk/pulang, dan jam mulai lembur per hari — dasar penentuan terlambat, hari libur, dan lembur."
       />
 
       <WorkScheduleForm
@@ -34,6 +34,7 @@ export default async function WaktuKerjaPage() {
             isWorkingDay: day.isWorkingDay,
             checkInTime: day.checkInTime,
             checkOutTime: day.checkOutTime,
+            overtimeStartTime: day.overtimeStartTime,
           })),
         }}
       />

@@ -6,14 +6,6 @@ export const OVERTIME_STAGE_LABEL: Record<OvertimeStage, string> = {
   DONE: "Selesai",
 };
 
-/** Lembur baru boleh dimulai pukul 18:00 waktu lokal atau lebih larut. */
-export const MIN_OVERTIME_HOUR = 18;
-
-/** `minutesOfDay` dari `getMinutesOfDay()` — true kalau >= 18:00. */
-export function isOvertimeStartAllowed(minutesOfDay: number): boolean {
-  return minutesOfDay >= MIN_OVERTIME_HOUR * 60;
-}
-
 /** Role reviewer -> giliran approval yang boleh mereka putuskan. */
 export const OVERTIME_REVIEWER_STAGE: Partial<Record<Role, OvertimeStage>> = {
   [Role.SUPERVISOR]: OvertimeStage.SUPERVISOR,

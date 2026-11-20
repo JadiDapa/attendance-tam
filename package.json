@@ -12,9 +12,19 @@
     "db:generate": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "parity:auth": "node scripts/parity/save-auth.mjs",
-    "parity:compare": "node scripts/parity/compare.mjs",
-    "parity:capture": "node scripts/parity/capture.mjs"
+    "parity:auth": "node --env-file-if-exists=.env scripts/parity/save-auth.mjs",
+    "parity:compare": "node --env-file-if-exists=.env scripts/parity/compare.mjs",
+    "parity:capture": "node --env-file-if-exists=.env scripts/parity/capture.mjs",
+    "parity:mobile-ref": "node --env-file-if-exists=.env scripts/parity/mobile-ref.mjs",
+    "test": "vitest run",
+    "test:int": "node scripts/with-temp-db.mjs --migrate vitest run --config vitest.int.config.ts",
+    "typecheck": "tsc --noEmit",
+    "check:prisma": "prisma validate && prisma format --check",
+    "check:migrations": "node scripts/check-migrations.mjs",
+    "db:check-drift": "prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code",
+    "db:check-drift:local": "node scripts/with-temp-db.mjs --shadow npm run db:check-drift",
+    "check:unit": "npm run check:prisma && npm run check:migrations && npm run lint && npm run typecheck && npm test",
+    "check": "npm run check:unit && npm run test:int"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
@@ -75,6 +85,8 @@
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
     "tsx": "^4.22.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^7.3.8",
+    "vitest": "^4.1.12"
   }
 }

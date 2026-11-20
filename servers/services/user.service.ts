@@ -31,12 +31,28 @@ export const UserService = {
   async list(opts: UserListOptions = {}) {
     return prisma.user.findMany({
       where: userWhere(opts),
+      include: {
+        jobPosition: {
+          include: {
+            division: true,
+          },
+        },
+      },
       orderBy: [{ isActive: "desc" }, { name: "asc" }],
     });
   },
 
   async getById(id: string) {
-    return prisma.user.findUnique({ where: { id } });
+    return prisma.user.findUnique({
+      where: { id },
+      include: {
+        jobPosition: {
+          include: {
+            division: true,
+          },
+        },
+      },
+    });
   },
 
   async getByEmail(email: string) {
@@ -47,11 +63,14 @@ export const UserService = {
     return prisma.user.findUnique({ where: { clerkId } });
   },
 
-  async create(data: Prisma.UserCreateInput) {
+  async create(data: Prisma.UserCreateInput | Prisma.UserUncheckedCreateInput) {
     return prisma.user.create({ data });
   },
 
-  async update(id: string, data: Prisma.UserUpdateInput) {
+  async update(
+    id: string,
+    data: Prisma.UserUpdateInput | Prisma.UserUncheckedUpdateInput,
+  ) {
     return prisma.user.update({ where: { id }, data });
   },
 

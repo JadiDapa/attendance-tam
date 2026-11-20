@@ -31,12 +31,11 @@ import {
 import { WORK_MODE_LABEL, isLateEligible } from "@/lib/work-mode";
 import {
   ATTENDANCE_TYPE_LABEL,
-  canReviewAttendance,
   effectiveWorkMode,
-  ownerRolesForAttendanceReviewer,
   resolveAttendanceReviewerRole,
 } from "@/lib/attendance";
 import { AttendanceService } from "@/servers/services/attendance.service";
+import { ApprovalRoutingService } from "@/servers/services/approval-routing.service";
 import {
   OfficeLocationService,
   WorkDayService,
@@ -47,10 +46,12 @@ import { FaceService } from "@/servers/services/face.service";
 import { UserService } from "@/servers/services/user.service";
 import { verifyFace, FaceApiError } from "@/lib/face-recognition";
 import {
+  autoCheckOutTimeFor,
   getWorkDayFor,
   isCheckInClosed,
   isLateAt,
   lateMinutesAt,
+  missedCheckoutTimeError,
   type WorkDayConfig,
 } from "@/lib/work-schedule";
 
@@ -493,10 +494,10 @@ export async function submitAttendance(
  * yang diklaim karyawan) atau tolak. Absensi yang ditolak dianulir — hari itu
  * dihitung Alfa, tapi barisnya tetap tersimpan sebagai jejak.
  *
- * Reviewer yang berhak ditentukan dari role pemilik absensi (lihat
- * `canReviewAttendance` di lib/attendance.ts) — karyawan/admin direview
- * SUPERVISOR, supervisor direview MANAGER, dan ADMIN boleh memutuskan yang mana
- * pun selain absensinya sendiri.
+ * Reviewer yang berhak: tahap dari role pemilik absensi (karyawan/admin →
+ * SUPERVISOR, supervisor → MANAGER) dengan cakupan Divisi di atasnya (lihat
+ * `ApprovalRoutingService.canReviewAttendance`, ADR 0002). ADMIN boleh
+ * memutuskan yang mana pun selain absensinya sendiri.
  */
 export async function reviewAttendance(
   attendanceId: string,
@@ -519,7 +520,7 @@ export async function reviewAttendance(
     return { ok: false, error: "Absensi tidak ditemukan" };
   }
 
-  if (!canReviewAttendance(reviewer, attendance.user)) {
+  if (!(await ApprovalRoutingService.canReviewAttendance(reviewer, attendance))) {
     return { ok: false, error: "Kamu tidak berhak memutuskan absensi ini" };
   }
 
@@ -578,7 +579,8 @@ export async function reviewAttendance(
 
 /**
  * Setujui sekaligus semua absensi luar radius yang jadi giliran reviewer yang
- * login (`ownerRolesForAttendanceReviewer`), sesuai klaim karyawan — tanpa
+ * login (`ApprovalRoutingService.getAttendanceScopeForReviewer`: cakupan
+ * Divisi, atau semua untuk ADMIN), sesuai klaim karyawan — tanpa
  * menimpa mode. Yang butuh penilaian lain (mis. diubah jadi sakit) tetap
  * lewat `reviewAttendance` satu per satu.
  */
@@ -589,8 +591,11 @@ export async function approveAllPendingAttendance(): Promise<ReviewAttendanceRes
     Role.MANAGER,
   ]);
 
+  const scope =
+    await ApprovalRoutingService.getAttendanceScopeForReviewer(reviewer);
+
   const approved = await AttendanceService.approveAllPending({
-    ownerRoles: ownerRolesForAttendanceReviewer(reviewer.role),
+    scope,
     excludeUserId: reviewer.id,
     reviewedById: reviewer.id,
     reviewNote: "Disetujui massal",
@@ -810,14 +815,16 @@ export async function updateAttendanceTime(
   };
 }
 
-/** Absen pulang default kalau karyawan tidak memilih jam sendiri. */
-const DEFAULT_MISSED_CHECKOUT_TIME = "17:00";
-
 /**
  * Karyawan mengonfirmasi sendiri absen pulang yang terlewat pada hari
  * sebelumnya — dipicu dari modal yang memblokir absen masuk baru selama masih
  * ada hari yang belum diselesaikan (lihat `listUnresolvedCheckouts` di
  * `submitAttendance`).
+ *
+ * `time` kosong = jam otomatis, yaitu Jam Pulang Hari Kerja tanggal itu
+ * (`autoCheckOutTimeFor`). Jam apa pun — otomatis atau dipilih — harus sesudah
+ * jam absen masuk. Pengecekan di sini yang menentukan, karena mobile versi
+ * lama tidak memvalidasi di client.
  */
 export async function confirmMissedCheckout(
   input: z.input<typeof ConfirmMissedCheckoutSchema>,
@@ -844,7 +851,7 @@ export async function confirmMissedCheckout(
     };
   }
 
-  const [checkIn, checkOut] = await Promise.all([
+  const [checkIn, checkOut, workDays] = await Promise.all([
     AttendanceService.findByUserDateType(
       user.id,
       workDate,
@@ -855,6 +862,7 @@ export async function confirmMissedCheckout(
       workDate,
       AttendanceType.CHECK_OUT,
     ),
+    WorkDayService.list(),
   ]);
 
   if (!checkIn) {
@@ -865,7 +873,12 @@ export async function confirmMissedCheckout(
     return { ok: false, error: "Absen pulang tanggal itu sudah tercatat" };
   }
 
-  const time = parsed.data.time?.trim() || DEFAULT_MISSED_CHECKOUT_TIME;
+  const time =
+    parsed.data.time?.trim() || autoCheckOutTimeFor(workDate, workDays);
+  const timeError = missedCheckoutTimeError(time, formatTime(checkIn.timestamp));
+
+  if (timeError) return { ok: false, error: timeError };
+
   const timestamp = workDateTimeToUtc(workDate, time);
 
   if (!timestamp) {

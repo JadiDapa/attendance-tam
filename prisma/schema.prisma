@@ -148,21 +148,29 @@ model AccountRequest {
 }
 
 model User {
-  id        String   @id @default(cuid())
+  id              String    @id @default(cuid())
   /// ID user di Clerk — sumber kebenaran identitas & password ada di Clerk,
   /// baris ini hanya menyimpan data profil/role aplikasi.
-  clerkId   String   @unique
-  name      String
-  email     String   @unique
-  role      Role     @default(EMPLOYEE)
-  phone     String?
-  position  String?
+  clerkId         String    @unique
+  name            String
+  email           String    @unique
+  role            Role      @default(EMPLOYEE)
+  phone           String?
+  /// Nama Jabatan sebagai teks. Kalau `positionId` diisi, kolom ini selalu
+  /// disalin dari `jobPosition.name` (lihat DivisionService) — dipertahankan
+  /// karena aplikasi mobile versi lama membacanya sebagai string. Kalau
+  /// `positionId` null, teksnya dibiarkan apa adanya (mis. milik Manager).
+  position        String?
+  /// Jabatan dari master data. Divisi orang ini = `jobPosition.division` —
+  /// sengaja tidak disimpan di User (ADR 0001).
+  jobPosition     Position? @relation(fields: [positionId], references: [id], onDelete: Restrict)
+  positionId      String?
   /// URL foto profil (`/api/images/<file>`), diisi otomatis dari foto
   /// pendaftaran wajah pertama — lihat app/action/face.action.ts.
   profileImageUrl String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   attendances              Attendance[]      @relation("AttendanceOwner")
   reviewedAttendances      Attendance[]      @relation("AttendanceReviewer")
@@ -194,6 +202,33 @@ model User {
   training               Training[]
 
   @@index([role, isActive])
+  @@index([positionId])
+}
+
+/// Unit kerja yang mengelompokkan beberapa Jabatan (mis. Admin, Teknis).
+/// Tidak punya kolom supervisor: Supervisor Divisi = user aktif ber-Role
+/// `SUPERVISOR` yang Jabatannya ada di Divisi ini (ADR 0001). Tidak bisa
+/// dihapus selama masih punya Jabatan.
+model Division {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  positions Position[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+/// Jabatan — selalu milik tepat satu Divisi. Tidak bisa dihapus selama masih
+/// ada pemegangnya (`User.positionId`).
+model Position {
+  id         String   @id @default(cuid())
+  name       String
+  division   Division @relation(fields: [divisionId], references: [id], onDelete: Restrict)
+  divisionId String
+  holders    User[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([divisionId, name])
 }
 
 enum Gender {
@@ -385,14 +420,18 @@ model WorkSchedule {
 
 /// Satu baris per hari dalam seminggu — selalu 7 baris.
 model WorkDay {
-  id           String   @id @default(cuid())
+  id                String   @id @default(cuid())
   /// 0 = Minggu … 6 = Sabtu, sama dengan `Date#getUTCDay()`
-  dayOfWeek    Int      @unique
-  isWorkingDay Boolean  @default(true)
-  checkInTime  String // "HH:mm"
-  checkOutTime String // "HH:mm"
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  dayOfWeek         Int      @unique
+  isWorkingDay      Boolean  @default(true)
+  checkInTime       String // "HH:mm"
+  checkOutTime      String // "HH:mm"
+  /// Jam Mulai Lembur ("HH:mm") — berdiri sendiri, tidak ikut berubah saat
+  /// `checkOutTime` diubah. Diisi `checkOutTime` + 1 jam oleh migrasinya; Sabtu
+  /// lalu diset sama dengan `checkOutTime` (Lembur Sabtu mulai tepat di Jam Pulang).
+  overtimeStartTime String   @default("18:00")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model Attendance {
@@ -403,6 +442,9 @@ model Attendance {
   type      AttendanceType
   /// Tanggal kerja (tanpa jam) — dipakai untuk mencegah absen ganda per hari
   workDate  DateTime       @db.Date
+  /// Kolom `TIMESTAMP(3)` TANPA zona berisi jam UTC (berlaku untuk semua
+  /// `DateTime` non-`@db.Date`). SQL mentah (fixture, cek produksi via psql)
+  /// menulis/membaca jam UTC: 17:00 WIB = '… 10:00', bukan '… 17:00+07'.
   timestamp DateTime       @default(now())
 
   /// Null untuk absensi yang dicatat admin manual — tidak ada foto/GPS yang terekam.
@@ -480,7 +522,7 @@ model Overtime {
 
   /// Tanggal kerja saat lembur dimulai — dipakai untuk grouping/listing.
   workDate DateTime @db.Date
-  /// Jam mulai lembur yang dipilih karyawan, selalu >= 18:00 waktu lokal.
+  /// Jam mulai lembur yang dipilih karyawan, selalu >= Jam Mulai Lembur Hari Kerja itu.
   startAt  DateTime
   reason   String
 

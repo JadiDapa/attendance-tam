@@ -7,13 +7,12 @@ import { Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import { formatWorkDate, getWorkDate, toDateInputValue } from "@/lib/date";
 import { FieldAssignmentService } from "@/servers/services/field-assignment.service";
-import { UserService } from "@/servers/services/user.service";
 
 export default async function SupervisorDinasLuarPage() {
   const supervisor = await requireRole(Role.SUPERVISOR);
 
   const [employees, requests] = await Promise.all([
-    UserService.list({ role: Role.EMPLOYEE, isActive: true }),
+    FieldAssignmentService.listAssignableEmployees(supervisor),
     FieldAssignmentService.list({ createdById: supervisor.id }),
   ]);
 

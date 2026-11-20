@@ -37,7 +37,6 @@ import {
 import {
   addDays,
   formatCompactDate,
-  formatLongIndonesianDate,
   formatWeekday,
   formatWorkDate,
   getMinutesOfDay,
@@ -52,6 +51,7 @@ import {
   WorkScheduleService,
 } from "@/servers/services/setting.service";
 import { FaceService } from "@/servers/services/face.service";
+import { describeMissedCheckout } from "@/lib/missed-checkout";
 import {
   formatDayHours,
   getWorkDayFor,
@@ -227,10 +227,9 @@ export default async function SelfAttendanceDashboard({
           komponen ini (disembunyikan di layar kecil, tapi dialognya tetap
           muncul lewat portal), begitu juga halaman absensi role lain. */}
       <MissedCheckoutDialog
-        days={unresolvedCheckouts.map((row) => ({
-          value: toDateInputValue(row.workDate),
-          label: formatLongIndonesianDate(row.workDate),
-        }))}
+        days={unresolvedCheckouts.map((row) =>
+          describeMissedCheckout(row, workDays),
+        )}
       />
 
       <MobileOverview

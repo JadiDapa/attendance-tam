@@ -1,5 +1,11 @@
 import prisma from "@/lib/prisma";
-import { LeaveStage, LeaveStatus, Prisma } from "@/generated/prisma";
+import { LeaveStage, LeaveStatus, Prisma, Role } from "@/generated/prisma";
+import type { ApprovalScope } from "@/lib/approval-routing";
+import {
+  ApprovalRoutingService,
+  buildLeaveWhereForScope,
+  buildLeaveWhereForViewer,
+} from "./approval-routing.service";
 import { CreateLeaveDTO } from "../validators/leave.validator";
 
 /** `CreateLeaveDTO` plus giliran approval awal — lihat `resolveInitialLeaveStage`
@@ -15,6 +21,8 @@ export type LeaveListOptions = {
   userId?: string;
   status?: LeaveStatus;
   stage?: LeaveStage;
+  scope?: ApprovalScope;
+  where?: Prisma.LeaveRequestWhereInput;
 };
 
 function leaveWhere(opts: LeaveListOptions): Prisma.LeaveRequestWhereInput {
@@ -23,6 +31,8 @@ function leaveWhere(opts: LeaveListOptions): Prisma.LeaveRequestWhereInput {
   if (opts.userId) and.push({ userId: opts.userId });
   if (opts.status) and.push({ status: opts.status });
   if (opts.stage) and.push({ stage: opts.stage });
+  if (opts.scope) and.push(buildLeaveWhereForScope(opts.scope));
+  if (opts.where) and.push(opts.where);
 
   return and.length ? { AND: and } : {};
 }
@@ -32,14 +42,50 @@ export const LeaveService = {
     return prisma.leaveRequest.findMany({
       where: leaveWhere(opts),
       orderBy: { createdAt: "desc" },
-      include: { user: true, reviewedBy: true },
+      include: {
+        user: { include: { jobPosition: true } },
+        reviewedBy: true,
+      },
     });
   },
 
   async getById(id: string) {
     return prisma.leaveRequest.findUnique({
       where: { id },
-      include: { user: true, reviewedBy: true },
+      include: {
+        user: { include: { jobPosition: true } },
+        reviewedBy: true,
+      },
+    });
+  },
+
+  /** Daftar pengajuan pending sesuai cakupan reviewer. */
+  async listPendingForScope(scope: ApprovalScope) {
+    return prisma.leaveRequest.findMany({
+      where: buildLeaveWhereForScope(scope),
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: { include: { jobPosition: true } },
+        reviewedBy: true,
+      },
+    });
+  },
+
+  /** Daftar pengajuan yang boleh dilihat seorang viewer di desktop. */
+  async listForViewer(viewer: {
+    role: Role | string;
+    positionId?: string | null;
+  }) {
+    const divisionId = await ApprovalRoutingService.getUserDivisionId(viewer);
+    const where = buildLeaveWhereForViewer({ divisionId });
+
+    return prisma.leaveRequest.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: { include: { jobPosition: true } },
+        reviewedBy: true,
+      },
     });
   },
 
@@ -51,10 +97,26 @@ export const LeaveService = {
     });
   },
 
-  /** Jumlah pengajuan yang menunggu giliran `stage` tertentu (default: semua). */
-  async countPending(stage?: LeaveStage) {
+  /** Jumlah pengajuan yang menunggu giliran (bisa berdasarkan stage atau ApprovalScope). */
+  async countPending(stageOrScope?: LeaveStage | ApprovalScope) {
+    if (!stageOrScope) {
+      return prisma.leaveRequest.count({
+        where: { status: LeaveStatus.PENDING },
+      });
+    }
+    if (typeof stageOrScope === "object" && "kind" in stageOrScope) {
+      return prisma.leaveRequest.count({
+        where: buildLeaveWhereForScope(stageOrScope),
+      });
+    }
     return prisma.leaveRequest.count({
-      where: { status: LeaveStatus.PENDING, ...(stage ? { stage } : {}) },
+      where: { status: LeaveStatus.PENDING, stage: stageOrScope },
+    });
+  },
+
+  async countPendingForScope(scope: ApprovalScope) {
+    return prisma.leaveRequest.count({
+      where: buildLeaveWhereForScope(scope),
     });
   },
 

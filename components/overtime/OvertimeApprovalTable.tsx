@@ -37,6 +37,7 @@ export type OvertimeApprovalRow = {
   originalStartTime?: string | null;
   /** Jam selesai sebelum koreksi pertama, "HH:mm". */
   originalEndTime?: string | null;
+  isMyTurn?: boolean;
 };
 
 export default function OvertimeApprovalTable({
@@ -139,8 +140,9 @@ export default function OvertimeApprovalTable({
       header: "Aksi",
       cell: ({ row }) => {
         const isMyTurn =
-          row.original.status === AttendanceApproval.PENDING &&
-          row.original.stage === viewerStage;
+          row.original.isMyTurn ??
+          (row.original.status === AttendanceApproval.PENDING &&
+            row.original.stage === viewerStage);
 
         return (
           <div className="flex items-center gap-1">

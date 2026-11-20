@@ -5,11 +5,8 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { AccountRequestStatus, Prisma, Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
-import { decryptSecret, encryptSecret } from "@/lib/crypto";
-import {
-  CreateAccountRequestSchema,
-  ReviewAccountRequestSchema,
-} from "@/servers/validators/account-request.validator";
+import { decryptSecret } from "@/lib/crypto";
+import { ReviewAccountRequestSchema } from "@/servers/validators/account-request.validator";
 import { AccountRequestService } from "@/servers/services/account-request.service";
 import { UserService } from "@/servers/services/user.service";
 
@@ -21,61 +18,11 @@ const DUPLICATE_EMAIL = "Email sudah dipakai karyawan lain";
 const GENERIC_CLERK_ERROR = "Gagal membuat akun, silakan coba lagi";
 
 /**
- * Diisi pemohon lewat `/request-account` (web mobile-parity) — publik, tanpa
- * auth, mirrors `POST /api/account-requests` yang dipakai app mobile. Web
- * bisa panggil langsung sebagai server action, tidak perlu round-trip fetch
- * seperti mobile (beda origin/native app).
- */
-export async function requestAccount(
-  input: z.input<typeof CreateAccountRequestSchema>,
-): Promise<AccountRequestResult> {
-  const parsed = CreateAccountRequestSchema.safeParse(input);
-
-  if (!parsed.success) {
-    return {
-      ok: false,
-      error: parsed.error.issues[0]?.message ?? "Data tidak valid",
-    };
-  }
-
-  const { name, phone, password } = parsed.data;
-  const email = parsed.data.email.toLowerCase();
-
-  const existingUser = await UserService.getByEmail(email);
-
-  if (existingUser) {
-    return { ok: false, error: "Email sudah terdaftar. Silakan masuk." };
-  }
-
-  const pendingRequest = await AccountRequestService.findPendingByEmail(email);
-
-  if (pendingRequest) {
-    return {
-      ok: false,
-      error:
-        "Permintaan pembuatan akun untuk email ini masih menunggu persetujuan admin.",
-    };
-  }
-
-  await AccountRequestService.create({
-    name,
-    email,
-    phone: phone ? phone.trim() : null,
-    passwordEncrypted: encryptSecret(password),
-  });
-
-  return {
-    ok: true,
-    message: "Permintaan berhasil dikirim, menunggu persetujuan admin.",
-  };
-}
-
-/**
  * Admin menyetujui atau menolak satu pengajuan akun dari /admin/permintaan-akun.
  * Menyetujui: dekripsi password yang ditulis pemohon, buat akun Clerk +
  * baris User (sama seperti `createEmployee` di user.action.ts), lalu tandai
- * request APPROVED. Menolak: tandai REJECTED saja — pemohon boleh
- * mengajukan lagi kapan pun, tidak ada pembatasan jumlah percobaan.
+ * request APPROVED. Menolak: tandai REJECTED saja. Pengajuan baru tidak bisa
+ * dibuat lagi (pendaftaran mandiri ditutup) — aksi ini untuk antrean lama.
  */
 export async function reviewAccountRequest(
   requestId: string,

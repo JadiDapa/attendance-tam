@@ -4,9 +4,12 @@ import PageHeader from "@/components/dashboard/PageHeader";
 import CreateEmployeeForm from "@/components/admin/CreateEmployeeForm";
 import { Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
+import { DivisionService } from "@/servers/services/division.service";
 
 export default async function CreatePekerjaPage() {
   await requireRole(Role.ADMIN);
+
+  const positionGroups = await DivisionService.listPositionGroups();
 
   return (
     <div className="flex max-w-3xl flex-col gap-5">
@@ -23,7 +26,7 @@ export default async function CreatePekerjaPage() {
         subtitle="Nama, email, password, dan role wajib diisi. Bagian lain opsional — bisa dilengkapi sekarang atau nanti lewat halaman profil pekerja."
       />
 
-      <CreateEmployeeForm />
+      <CreateEmployeeForm positionGroups={positionGroups} />
     </div>
   );
 }

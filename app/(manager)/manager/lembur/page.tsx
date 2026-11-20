@@ -7,21 +7,24 @@ import StatTile from "@/components/dashboard/StatTile";
 import OvertimeApprovalTable, {
   type OvertimeApprovalRow,
 } from "@/components/overtime/OvertimeApprovalTable";
-import { AttendanceApproval, OvertimeStage, Role } from "@/generated/prisma";
+import { OvertimeStage, Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import { formatDuration, formatTime, formatWorkDate, getWorkDate } from "@/lib/date";
+import { isTurnToReview } from "@/lib/approval-routing";
+import { ApprovalRoutingService } from "@/servers/services/approval-routing.service";
 import { OvertimeService } from "@/servers/services/overtime.service";
 
 /**
- * Manager mereview lembur milik supervisor (giliran MANAGER) — pengajuan
- * karyawan/admin lain sudah diputuskan supervisornya masing-masing (lihat
- * `resolveInitialOvertime()` di `lib/overtime.ts`), jadi baris itu cuma
- * tampil sebagai "Detail" di sini, bukan "Tinjau".
+ * Manager mereview lembur milik supervisor (giliran MANAGER) atau pengajuan
+ * dari Divisi tanpa Supervisor Divisi aktif.
  */
 export default async function ManagerLemburPage() {
-  await requireRole(Role.MANAGER);
+  const user = await requireRole(Role.MANAGER);
 
-  const requests = await OvertimeService.list();
+  const [requests, scope] = await Promise.all([
+    OvertimeService.list(),
+    ApprovalRoutingService.getScopeForReviewer(user),
+  ]);
 
   const rows: OvertimeApprovalRow[] = requests.map((request) => ({
     id: request.id,
@@ -38,13 +41,17 @@ export default async function ManagerLemburPage() {
     stage: request.stage,
     reviewNote: request.reviewNote,
     reviewedBy: request.reviewedBy?.name ?? null,
+    isMyTurn: isTurnToReview({
+      scope,
+      target: {
+        status: request.status,
+        stage: request.stage,
+        requesterDivisionId: request.user.jobPosition?.divisionId ?? null,
+      },
+    }),
   }));
 
-  const myTurn = requests.filter(
-    (request) =>
-      request.status === AttendanceApproval.PENDING &&
-      request.stage === OvertimeStage.MANAGER,
-  ).length;
+  const myTurn = await OvertimeService.countPendingForScope(scope);
 
   return (
     <div className="flex flex-col gap-6">

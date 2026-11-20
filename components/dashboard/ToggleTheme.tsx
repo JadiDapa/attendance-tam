@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import {
   MoonIcon as Moon,
   SunIcon as Sun,
@@ -16,13 +16,16 @@ const CYCLE = [
   { value: "system", label: "Ikuti Sistem", icon: Monitor },
 ] as const;
 
+const subscribeNever = () => () => {};
+
 export function ToggleTheme() {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // `false` saat SSR dan hidrasi, `true` setelahnya — tema baru diketahui di client.
+  const mounted = useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false,
+  );
 
   const index = CYCLE.findIndex((mode) => mode.value === theme);
   const current = mounted ? (CYCLE[index] ?? CYCLE[2]) : CYCLE[2];

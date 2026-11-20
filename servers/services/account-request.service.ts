@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { AccountRequestStatus, Role } from "@/generated/prisma";
+import { AccountRequestStatus } from "@/generated/prisma";
 
 export const AccountRequestService = {
   /** Antrean admin di /admin/permintaan-akun — sama seperti approval lain, hanya yang PENDING. */
@@ -18,23 +18,6 @@ export const AccountRequestService = {
 
   async getById(id: string) {
     return prisma.accountRequest.findUnique({ where: { id } });
-  },
-
-  /** Dicek saat pemohon submit — permintaan yang masih PENDING dengan email yang sama tidak boleh dobel. */
-  async findPendingByEmail(email: string) {
-    return prisma.accountRequest.findFirst({
-      where: { email, status: AccountRequestStatus.PENDING },
-    });
-  },
-
-  async create(data: {
-    name: string;
-    email: string;
-    phone: string | null;
-    passwordEncrypted: string;
-    role?: Role;
-  }) {
-    return prisma.accountRequest.create({ data });
   },
 
   async markApproved(id: string, reviewedById: string) {

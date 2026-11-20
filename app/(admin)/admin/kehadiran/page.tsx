@@ -98,6 +98,13 @@ export default async function KehadiranPage({
     : rows;
 
   const dateValue = toDateInputValue(workDate);
+  const workDayConfigs = workDays.map((day) => ({
+    dayOfWeek: day.dayOfWeek,
+    isWorkingDay: day.isWorkingDay,
+    checkInTime: day.checkInTime,
+    checkOutTime: day.checkOutTime,
+    overtimeStartTime: day.overtimeStartTime,
+  }));
   const buildHref = (status: DayStatus | null) => {
     const query = new URLSearchParams({ date: dateValue });
     if (status) query.set("status", status);
@@ -138,6 +145,7 @@ export default async function KehadiranPage({
                     ? user.name
                     : `${user.name} (${user.role.toLowerCase()})`,
               }))}
+              workDays={workDayConfigs}
               defaultDate={dateValue}
             />
             <Button asChild variant="outline">
@@ -280,7 +288,11 @@ export default async function KehadiranPage({
           ))}
         </div>
 
-        <AttendanceRecapTable rows={visibleRows} bare editDate={dateValue} />
+        <AttendanceRecapTable
+          rows={visibleRows}
+          bare
+          edit={{ workDate: dateValue, workDays: workDayConfigs }}
+        />
       </Panel>
     </div>
   );

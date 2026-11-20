@@ -1,18 +1,33 @@
 import prisma from "@/lib/prisma";
-import { AttendanceApproval, OvertimeStage } from "@/generated/prisma";
+import {
+  AttendanceApproval,
+  OvertimeStage,
+  Prisma,
+  Role,
+} from "@/generated/prisma";
+import type { ApprovalScope } from "@/lib/approval-routing";
+import {
+  ApprovalRoutingService,
+  buildOvertimeWhereForScope,
+  buildOvertimeWhereForViewer,
+} from "./approval-routing.service";
 
 export type OvertimeListOptions = {
   userId?: string;
   status?: AttendanceApproval;
   stage?: OvertimeStage;
+  scope?: ApprovalScope;
+  where?: Prisma.OvertimeWhereInput;
 };
 
-function overtimeWhere(opts: OvertimeListOptions) {
-  const and = [];
+function overtimeWhere(opts: OvertimeListOptions): Prisma.OvertimeWhereInput {
+  const and: Prisma.OvertimeWhereInput[] = [];
 
   if (opts.userId) and.push({ userId: opts.userId });
   if (opts.status) and.push({ status: opts.status });
   if (opts.stage) and.push({ stage: opts.stage });
+  if (opts.scope) and.push(buildOvertimeWhereForScope(opts.scope));
+  if (opts.where) and.push(opts.where);
 
   return and.length ? { AND: and } : {};
 }
@@ -22,14 +37,50 @@ export const OvertimeService = {
     return prisma.overtime.findMany({
       where: overtimeWhere(opts),
       orderBy: { startAt: "desc" },
-      include: { user: true, reviewedBy: true },
+      include: {
+        user: { include: { jobPosition: true } },
+        reviewedBy: true,
+      },
     });
   },
 
   async getById(id: string) {
     return prisma.overtime.findUnique({
       where: { id },
-      include: { user: true, reviewedBy: true },
+      include: {
+        user: { include: { jobPosition: true } },
+        reviewedBy: true,
+      },
+    });
+  },
+
+  /** Daftar pengajuan lembur pending sesuai cakupan reviewer. */
+  async listPendingForScope(scope: ApprovalScope) {
+    return prisma.overtime.findMany({
+      where: buildOvertimeWhereForScope(scope),
+      orderBy: { startAt: "desc" },
+      include: {
+        user: { include: { jobPosition: true } },
+        reviewedBy: true,
+      },
+    });
+  },
+
+  /** Daftar pengajuan lembur yang boleh dilihat seorang viewer di desktop. */
+  async listForViewer(viewer: {
+    role: Role | string;
+    positionId?: string | null;
+  }) {
+    const divisionId = await ApprovalRoutingService.getUserDivisionId(viewer);
+    const where = buildOvertimeWhereForViewer({ divisionId });
+
+    return prisma.overtime.findMany({
+      where,
+      orderBy: { startAt: "desc" },
+      include: {
+        user: { include: { jobPosition: true } },
+        reviewedBy: true,
+      },
     });
   },
 
@@ -95,10 +146,26 @@ export const OvertimeService = {
     });
   },
 
-  /** Jumlah pengajuan yang menunggu giliran `stage` tertentu (default: semua). */
-  async countPending(stage?: OvertimeStage) {
+  /** Jumlah pengajuan yang menunggu giliran (bisa berdasarkan stage atau ApprovalScope). */
+  async countPending(stageOrScope?: OvertimeStage | ApprovalScope) {
+    if (!stageOrScope) {
+      return prisma.overtime.count({
+        where: { status: AttendanceApproval.PENDING },
+      });
+    }
+    if (typeof stageOrScope === "object" && "kind" in stageOrScope) {
+      return prisma.overtime.count({
+        where: buildOvertimeWhereForScope(stageOrScope),
+      });
+    }
     return prisma.overtime.count({
-      where: { status: AttendanceApproval.PENDING, ...(stage ? { stage } : {}) },
+      where: { status: AttendanceApproval.PENDING, ...(stageOrScope ? { stage: stageOrScope } : {}) },
+    });
+  },
+
+  async countPendingForScope(scope: ApprovalScope) {
+    return prisma.overtime.count({
+      where: buildOvertimeWhereForScope(scope),
     });
   },
 

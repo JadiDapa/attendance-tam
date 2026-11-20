@@ -7,15 +7,19 @@ import StatTile from "@/components/dashboard/StatTile";
 import OvertimeApprovalTable, {
   type OvertimeApprovalRow,
 } from "@/components/overtime/OvertimeApprovalTable";
-import { AttendanceApproval, OvertimeStage, Role } from "@/generated/prisma";
+import { OvertimeStage, Role } from "@/generated/prisma";
 import { requireRole } from "@/lib/session";
 import { formatDuration, formatTime, formatWorkDate, getWorkDate } from "@/lib/date";
+import { ApprovalRoutingService } from "@/servers/services/approval-routing.service";
 import { OvertimeService } from "@/servers/services/overtime.service";
 
 export default async function SupervisorLemburPage() {
-  await requireRole(Role.SUPERVISOR);
+  const user = await requireRole(Role.SUPERVISOR);
 
-  const requests = await OvertimeService.list();
+  const [requests, scope] = await Promise.all([
+    OvertimeService.listForViewer(user),
+    ApprovalRoutingService.getScopeForReviewer(user),
+  ]);
 
   const rows: OvertimeApprovalRow[] = requests.map((request) => ({
     id: request.id,
@@ -34,11 +38,7 @@ export default async function SupervisorLemburPage() {
     reviewedBy: request.reviewedBy?.name ?? null,
   }));
 
-  const myTurn = requests.filter(
-    (request) =>
-      request.status === AttendanceApproval.PENDING &&
-      request.stage === OvertimeStage.SUPERVISOR,
-  ).length;
+  const myTurn = await OvertimeService.countPendingForScope(scope);
 
   return (
     <div className="flex flex-col gap-6">

@@ -161,6 +161,7 @@ export async function MobileHome({ user }: { user: User }) {
           : null
       }
       checkInClosed={checkInClosed}
+      overtimeStartTime={todaySchedule.overtimeStartTime}
       faceEnrolled={faceEnrolled}
       runningOvertime={
         runningOvertime
